@@ -47,7 +47,10 @@ docker compose up --build
   `backend/seed/management/commands/seed_demo_data.py` for the full list
   and passwords): `demo_admin`, `demo_manager`, `demo_supervisor`,
   `demo_operator1`, `demo_operator2`, `demo_artisan` (a maintenance
-  technician, for the Crushing & Breakdowns module).
+  technician, for the Crushing & Breakdowns module). `demo_operator2` is
+  also qualified on the Crusher machine type (`demo_operator1` isn't) —
+  use it to exercise the Checklist/Breakdown Matrix/Incidents screens on
+  either client.
 - No Django superuser is auto-created; if you need raw Django Admin access
   beyond `demo_admin`, run:
   ```bash
@@ -104,6 +107,21 @@ list). Build for production with `npm run build` (outputs to `dashboard/dist`).
 
 ### Dashboard architecture notes
 
+- **Operate section** (`/operate/*`, "Operate" nav group): full data-entry
+  parity with the mobile app, for whenever an operator (or anyone) logs in
+  on the web instead — machine activation (site → machine → section →
+  activate, same `POST /machines/{id}/activate/` claim workflow, same 409
+  "already claimed" handling), a dynamic production-entry form driven by
+  the same `/machine-types/{id}/form-schema/` contract mobile uses,
+  breakdown logs, and — while the active machine is a Crusher — the
+  Crushing & Breakdowns module's checklist/breakdown-matrix/incident
+  screens (quick-log → attend → resolve), then release. State (selected
+  site, active assignment) lives in `src/lib/OperateSessionContext.tsx`
+  (localStorage-backed, restores an in-progress session on page reload)
+  and is scoped only to `/operate/*` via `src/components/operate/
+  OperateLayout.tsx`, not mounted globally. Unlike mobile, the web app has
+  no offline-first requirement, so every submission is a direct
+  `useMutation` POST/PATCH — no local queue/sync engine.
 - **Auth**: JWT access/refresh stored in `localStorage`; an axios response
   interceptor (`src/lib/api.ts`) transparently refreshes an expired access
   token and retries the original request once, redirecting to `/login` only

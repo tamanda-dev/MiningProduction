@@ -1,0 +1,533 @@
+export type ID = number;
+
+export interface Paginated<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
+export type Role = "admin" | "manager" | "supervisor" | "operator";
+
+export interface Me {
+  id: ID;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  employee_code: string | null;
+  phone: string;
+  roles: Role[];
+  site_accesses: { site: ID; section: ID | null }[];
+}
+
+export interface UserSummary {
+  id: ID;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  employee_code: string | null;
+  maintenance_technician: boolean;
+}
+
+// -- Master data ------------------------------------------------------------
+
+export interface Site {
+  id: ID;
+  name: string;
+  code: string;
+  timezone: string;
+  active: boolean;
+}
+
+export interface Section {
+  id: ID;
+  site: ID;
+  name: string;
+  code: string;
+  active: boolean;
+}
+
+export interface SubSection {
+  id: ID;
+  section: ID;
+  name: string;
+  code: string;
+  active: boolean;
+  display_order: number;
+}
+
+export interface MachineType {
+  id: ID;
+  name: string;
+  code: string;
+  description: string;
+  active: boolean;
+}
+
+export interface UOM {
+  id: ID;
+  name: string;
+  abbreviation: string;
+}
+
+export type ParameterScope = "machine" | "section" | "shift";
+export type ParameterDataType = "number" | "integer" | "text" | "select" | "boolean";
+
+export interface ParameterChoice {
+  id: ID;
+  value: string;
+  label: string;
+  display_order: number;
+}
+
+export interface Parameter {
+  id: ID;
+  name: string;
+  code: string;
+  uom: ID | null;
+  applicable_machine_types: ID[];
+  section: ID | null;
+  scope: ParameterScope;
+  data_type: ParameterDataType;
+  min_value: string | null;
+  max_value: string | null;
+  is_required: boolean;
+  display_order: number;
+  active: boolean;
+  choices: ParameterChoice[];
+}
+
+export interface FormSchemaParameter {
+  id: ID;
+  code: string;
+  name: string;
+  scope: ParameterScope;
+  data_type: ParameterDataType;
+  uom: string | null;
+  is_required: boolean;
+  min_value: string | null;
+  max_value: string | null;
+  display_order: number;
+  choices: { value: string; label: string }[];
+}
+
+export interface TimeSlot {
+  slot_index: number;
+  start_at: string;
+  end_at: string;
+}
+
+export interface CrusherUnit {
+  id: ID;
+  site: ID;
+  name: string;
+  code: string;
+  active: boolean;
+}
+
+export interface DeliveryDestination {
+  id: ID;
+  site: ID;
+  name: string;
+  code: string;
+  active: boolean;
+}
+
+export interface DowntimeReasonCode {
+  id: ID;
+  code: string;
+  description: string;
+  category: string;
+  active: boolean;
+}
+
+// -- Machines -----------------------------------------------------------------
+
+export type MachineStatus = "active" | "breakdown" | "maintenance" | "retired";
+
+export interface Machine {
+  id: ID;
+  machine_type: ID;
+  machine_type_code: string;
+  site: ID;
+  fleet_number: string;
+  name: string;
+  status: MachineStatus;
+  current_section: ID | null;
+}
+
+export interface MachineTypeQualification {
+  id: ID;
+  user: ID;
+  machine_type: ID;
+  site: ID | null;
+  active: boolean;
+}
+
+export type AssignmentStatus = "active" | "released" | "handed_over";
+
+export interface MachineAssignment {
+  id: ID;
+  machine: ID;
+  machine_label: string;
+  operator: ID;
+  operator_label: string;
+  shift_instance: ID;
+  section: ID;
+  sub_section: ID | null;
+  started_at: string;
+  ended_at: string | null;
+  status: AssignmentStatus;
+  handed_over_from: ID | null;
+  release_reason: string;
+}
+
+// -- Teams / shifts -------------------------------------------------------------
+
+export interface ShiftPattern {
+  id: ID;
+  name: string;
+  description: string;
+  active: boolean;
+}
+
+export interface TeamMember {
+  id: ID;
+  team: ID;
+  user: ID;
+  role_on_team: "operator" | "team_leader";
+  active: boolean;
+}
+
+export interface Team {
+  id: ID;
+  name: string;
+  site: ID;
+  section: ID | null;
+  shift_pattern: ID | null;
+  active: boolean;
+  members: TeamMember[];
+}
+
+export interface Shift {
+  id: ID;
+  site: ID;
+  name: string;
+  start_time: string;
+  end_time: string;
+  slot_length_minutes: number;
+  active: boolean;
+}
+
+export type ShiftInstanceStatus = "open" | "closed" | "approved";
+
+export interface ShiftInstance {
+  id: ID;
+  shift: ID;
+  shift_name: string;
+  date: string;
+  site: ID;
+  status: ShiftInstanceStatus;
+  closed_at: string | null;
+  closed_by: ID | null;
+  approved_at: string | null;
+  approved_by: ID | null;
+}
+
+// -- Planning -------------------------------------------------------------------
+
+export type PlanPeriodType = "shift" | "day" | "month";
+
+export interface PlanTarget {
+  id: ID;
+  parameter: ID;
+  site: ID;
+  section: ID | null;
+  machine: ID | null;
+  period_type: PlanPeriodType;
+  shift_instance: ID | null;
+  period_date: string | null;
+  target_value: string;
+}
+
+// -- Entries ----------------------------------------------------------------------
+
+export type EntryStatus = "submitted" | "flagged" | "corrected" | "approved";
+export type EntryType = "hourly" | "shift_total";
+
+export interface ParameterValueIn {
+  parameter: string | number;
+  value: string | number | boolean;
+}
+
+export interface ParameterValueOut {
+  parameter: ID;
+  parameter_code: string;
+  parameter_name: string;
+  value: string | number | boolean | null;
+}
+
+export interface ProductionEntry {
+  id: ID;
+  shift_instance: ID;
+  site: ID;
+  section: ID;
+  sub_section: ID | null;
+  machine: ID | null;
+  machine_assignment: ID | null;
+  entry_type: EntryType;
+  slot_index: number | null;
+  slot_start_at: string | null;
+  slot_end_at: string | null;
+  operator: ID;
+  recorded_by: ID;
+  comments: string;
+  status: EntryStatus;
+  source: "mobile" | "web" | "import";
+  client_uuid: string | null;
+  values_display: ParameterValueOut[];
+}
+
+export interface BreakdownLog {
+  id: ID;
+  shift_instance: ID;
+  site: ID;
+  section: ID;
+  machine: ID;
+  machine_assignment: ID | null;
+  reason_code: ID | null;
+  description: string;
+  slot_index: number | null;
+  slot_start_at: string | null;
+  slot_end_at: string | null;
+  start_at: string;
+  end_at: string | null;
+  duration_minutes: number | null;
+  severity: "low" | "medium" | "high" | "";
+  operator: ID;
+  recorded_by: ID;
+  comments: string;
+  status: EntryStatus;
+  source: "mobile" | "web" | "import";
+  client_uuid: string | null;
+  values_display: ParameterValueOut[];
+}
+
+// -- Dashboard ----------------------------------------------------------------------
+
+export interface ActVsPlanRow {
+  section: ID;
+  section_name: string;
+  parameter: ID;
+  parameter_code: string;
+  parameter_name: string;
+  uom: string | null;
+  act: number;
+  plan: number | null;
+  var: number | null;
+  pct_var: number | null;
+}
+
+export interface TrendPoint {
+  date: string;
+  act: number;
+  plan: number | null;
+  var: number | null;
+  pct_var: number | null;
+}
+
+export interface HourlyCurvePoint {
+  slot_index: number;
+  start_at: string;
+  end_at: string;
+  cumulative_act: number;
+  cumulative_target: number | null;
+}
+
+export interface AvailabilityByShift {
+  shift_name: string;
+  availability_pct: number | null;
+  utilization_pct: number | null;
+  scheduled_minutes: number;
+  breakdown_minutes: number;
+  active_minutes: number;
+}
+
+export interface AvailabilityRow {
+  machine_type: ID;
+  machine_type_name: string;
+  by_shift: AvailabilityByShift[];
+  average: { availability_pct: number | null; utilization_pct: number | null };
+}
+
+export interface DowntimeParetoRow {
+  reason_code: ID | null;
+  description: string;
+  category: string;
+  count: number;
+  total_minutes: number;
+}
+
+export interface MachineStatusRow {
+  machine: ID;
+  fleet_number: string;
+  machine_type: ID;
+  machine_type_name: string;
+  status: MachineStatus;
+  current_section: ID | null;
+  operator: ID | null;
+  operator_label: string | null;
+  assignment_started_at: string | null;
+}
+
+export interface AuditLogEntry {
+  id: ID;
+  created_at: string;
+  actor: ID | null;
+  actor_label: string | null;
+  action: string;
+  content_type_label: string | null;
+  object_id: string | null;
+  site: ID | null;
+  changes: Record<string, unknown>;
+  reason: string;
+}
+
+// -- Crushing & Breakdowns module ---------------------------------------------
+
+export interface BreakdownCause {
+  id: ID;
+  name: string;
+  code: string;
+  is_other: boolean;
+  display_order: number;
+  active: boolean;
+}
+
+export interface ChecklistItem {
+  id: ID;
+  name: string;
+  code: string;
+  description: string;
+  display_order: number;
+  active: boolean;
+}
+
+export interface HourlySlot {
+  id: ID;
+  site: ID;
+  slot_index: number;
+  start_time: string;
+  end_time: string;
+  active: boolean;
+}
+
+export interface HourlyChecklistEntry {
+  id: ID;
+  shift_instance: ID;
+  site: ID;
+  crusher: ID;
+  hourly_slot: ID;
+  slot_start_at: string;
+  slot_end_at: string;
+  checklist_item: ID;
+  is_completed: boolean;
+  notes: string;
+  operator: ID;
+  recorded_by: ID;
+  status: EntryStatus;
+  source: "mobile" | "web" | "import";
+  client_uuid: string | null;
+}
+
+export interface HourlyBreakdownEntry {
+  id: ID;
+  shift_instance: ID;
+  site: ID;
+  crusher: ID;
+  hourly_slot: ID;
+  slot_start_at: string;
+  slot_end_at: string;
+  causes: ID[];
+  other_cause_text: string;
+  downtime_minutes: number | null;
+  comments: string;
+  operator: ID;
+  recorded_by: ID;
+  status: EntryStatus;
+  source: "mobile" | "web" | "import";
+  client_uuid: string | null;
+}
+
+export type BreakdownIncidentStatus = "open" | "in_progress" | "resolved";
+
+export interface BreakdownIncident {
+  id: ID;
+  site: ID;
+  section: ID | null;
+  crusher: ID;
+  shift_instance: ID | null;
+  time_occurred: string;
+  time_reported: string;
+  time_attended: string | null;
+  time_completed: string | null;
+  artisan: ID | null;
+  cause: ID | null;
+  cause_other_text: string;
+  description: string;
+  root_cause_of_failure: string;
+  remedial_action_taken: string;
+  severity: "low" | "medium" | "high" | "";
+  status: BreakdownIncidentStatus;
+  reported_by: ID;
+  recorded_by: ID;
+  source: "mobile" | "web" | "import";
+  client_uuid: string | null;
+  comments: string;
+  attend_minutes: number | null;
+  repair_minutes: number | null;
+  resolution_minutes: number | null;
+}
+
+export interface ShiftCrushingSummary {
+  id: ID;
+  shift_instance: ID;
+  site: ID;
+  crusher: ID;
+  crushing_time_minutes: number | null;
+  down_time_minutes: number | null;
+  crushed_tonnage: string | null;
+  stoppage_instances: number;
+  availability_pct: string | null;
+  comments: string;
+  status: EntryStatus;
+  recorded_by: ID;
+  source: "mobile" | "web" | "import";
+  client_uuid: string | null;
+}
+
+export interface BreakdownParetoRow {
+  cause: ID | null;
+  cause_name: string;
+  hourly_tick_count: number;
+  incident_count: number;
+  incident_total_minutes: number;
+}
+
+export interface MttrMtbfTrendPoint {
+  period: string;
+  mttr_minutes: number | null;
+  resolution_minutes: number | null;
+  mtbf_minutes: number | null;
+  incident_count: number;
+}
+
+export type ChecklistComplianceStatus = "done" | "missed" | "pending";
+
+export interface ChecklistHeatmapRow {
+  hourly_slot: ID;
+  slot_index: number;
+  items: { checklist_item: ID; checklist_item_name: string; status: ChecklistComplianceStatus }[];
+}

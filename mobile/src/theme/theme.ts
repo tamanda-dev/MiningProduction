@@ -1,0 +1,55 @@
+/**
+ * Field-usability theme: this app is read and tapped one-handed, in bright
+ * sunlight and in dim underground light — both extremes punish low-contrast
+ * UI and small tap targets. A near-black-on-white theme is deliberately
+ * chosen over a "modern" dark/muted palette: glare in direct sun collapses
+ * mid-tone contrast, but maximum text/background contrast survives it, and
+ * screen brightness can always be raised for dim conditions (the reverse
+ * isn't true). Status colors reuse the same validated palette as the web
+ * dashboard (see dashboard/src/lib/chartTheme.ts) for one consistent
+ * "good/warning/critical" vocabulary across both clients.
+ */
+
+export const colors = {
+  background: "#FFFFFF",
+  surface: "#F4F4F3",
+  surfaceAlt: "#E8E8E6",
+  text: "#0B0B0B",
+  textMuted: "#52514E",
+  border: "#33322F",
+  borderLight: "#C3C2B7",
+  primary: "#1D4ED8",
+  primaryText: "#FFFFFF",
+  good: "#0CA30C",
+  warning: "#FAB219",
+  serious: "#EC835A",
+  critical: "#D03B3B",
+  onWarning: "#0B0B0B", // black text/icon on the lighter warning fill for contrast
+  onStatus: "#FFFFFF", // white text/icon on good/serious/critical fills
+} as const;
+
+export const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 16,
+  lg: 24,
+  xl: 32,
+} as const;
+
+export const radius = {
+  sm: 6,
+  md: 10,
+  lg: 16,
+} as const;
+
+export const fontSize = {
+  label: 15,
+  body: 18,
+  button: 19,
+  title: 24,
+  hero: 30,
+} as const;
+
+// Minimum tap target height/width per usability guidance for gloved, rushed,
+// one-handed use — well above the ~44dp platform minimum.
+export const MIN_TAP_TARGET = 56;

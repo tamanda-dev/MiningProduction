@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.sqlite3
+staticfiles/
+media/
+
+# Env
+.env
+backend/.env
+
+# Node
+node_modules/
+dist/
+.expo/
+web-build/
+*.log
+
+# Mobile native (regenerated via `npx expo prebuild`, see mobile/README.md)
+mobile/android/
+mobile/ios/
+*.apk
+*.aab
+
+# Python test/tool caches
+.pytest_cache/
+.ruff_cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

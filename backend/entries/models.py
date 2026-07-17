@@ -1,0 +1,307 @@
+from django.db import models
+from simple_history.models import HistoricalRecords
+
+from core.models import TimeStampedModel
+from machines.models import Machine, MachineAssignment
+from masterdata.models import (
+    CrusherUnit,
+    DeliveryDestination,
+    DowntimeReasonCode,
+    Parameter,
+    Section,
+    Site,
+    SubSection,
+)
+from shiftmgmt.models import ShiftInstance
+
+SOURCE_CHOICES = [
+    ("mobile", "Mobile"),
+    ("web", "Web"),
+    ("import", "Import"),
+]
+
+STATUS_CHOICES = [
+    ("submitted", "Submitted"),
+    ("flagged", "Flagged"),
+    ("corrected", "Corrected"),
+    ("approved", "Approved"),
+]
+
+
+class ProductionEntry(TimeStampedModel):
+    id = models.BigAutoField(primary_key=True)
+    history = HistoricalRecords()
+
+    ENTRY_TYPE_HOURLY = "hourly"
+    ENTRY_TYPE_SHIFT_TOTAL = "shift_total"
+    ENTRY_TYPE_CHOICES = [
+        (ENTRY_TYPE_HOURLY, "Hourly"),
+        (ENTRY_TYPE_SHIFT_TOTAL, "Shift Total"),
+    ]
+
+    shift_instance = models.ForeignKey(ShiftInstance, on_delete=models.PROTECT, related_name="production_entries")
+    site = models.ForeignKey(Site, on_delete=models.PROTECT, related_name="production_entries")
+    section = models.ForeignKey(Section, on_delete=models.PROTECT, related_name="production_entries")
+    sub_section = models.ForeignKey(
+        SubSection, on_delete=models.PROTECT, null=True, blank=True, related_name="production_entries"
+    )
+    machine = models.ForeignKey(
+        Machine, on_delete=models.PROTECT, null=True, blank=True, related_name="production_entries"
+    )
+    machine_assignment = models.ForeignKey(
+        MachineAssignment, on_delete=models.PROTECT, null=True, blank=True, related_name="production_entries"
+    )
+    entry_type = models.CharField(max_length=15, choices=ENTRY_TYPE_CHOICES)
+    slot_index = models.PositiveSmallIntegerField(null=True, blank=True)
+    slot_start_at = models.DateTimeField(null=True, blank=True)
+    slot_end_at = models.DateTimeField(null=True, blank=True)
+    operator = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="+")
+    recorded_by = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="+")
+    comments = models.TextField(blank=True)
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default="submitted")
+    is_locked = models.BooleanField(default=False)
+    source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default="mobile")
+    client_uuid = models.UUIDField(null=True, blank=True, unique=True)
+    override_reason = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-slot_start_at", "-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["shift_instance", "machine", "section", "slot_index"],
+                condition=models.Q(entry_type="hourly"),
+                name="uniq_hourly_slot",
+            ),
+            models.UniqueConstraint(
+                fields=["shift_instance", "machine", "section"],
+                condition=models.Q(entry_type="shift_total"),
+                name="uniq_shift_total",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["site", "shift_instance"]),
+            models.Index(fields=["section", "slot_start_at"]),
+            models.Index(fields=["machine", "slot_start_at"]),
+            models.Index(fields=["status"]),
+            models.Index(fields=["slot_start_at"]),
+        ]
+
+    def __str__(self):
+        return f"ProductionEntry#{self.pk} {self.entry_type} @ {self.section}"
+
+    def get_site_id(self):
+        return self.site_id
+
+
+class ParameterValue(TimeStampedModel):
+    history = HistoricalRecords()
+
+    production_entry = models.ForeignKey(
+        ProductionEntry, on_delete=models.CASCADE, null=True, blank=True, related_name="values"
+    )
+    crusher_entry = models.ForeignKey(
+        "CrusherEntry", on_delete=models.CASCADE, null=True, blank=True, related_name="values"
+    )
+    delivery_entry = models.ForeignKey(
+        "DeliveryEntry", on_delete=models.CASCADE, null=True, blank=True, related_name="values"
+    )
+    breakdown_log = models.ForeignKey(
+        "BreakdownLog", on_delete=models.CASCADE, null=True, blank=True, related_name="values"
+    )
+    parameter = models.ForeignKey(Parameter, on_delete=models.PROTECT, related_name="values")
+    value_number = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
+    value_text = models.TextField(null=True, blank=True)
+    value_boolean = models.BooleanField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        production_entry__isnull=False,
+                        crusher_entry__isnull=True,
+                        delivery_entry__isnull=True,
+                        breakdown_log__isnull=True,
+                    )
+                    | models.Q(
+                        production_entry__isnull=True,
+                        crusher_entry__isnull=False,
+                        delivery_entry__isnull=True,
+                        breakdown_log__isnull=True,
+                    )
+                    | models.Q(
+                        production_entry__isnull=True,
+                        crusher_entry__isnull=True,
+                        delivery_entry__isnull=False,
+                        breakdown_log__isnull=True,
+                    )
+                    | models.Q(
+                        production_entry__isnull=True,
+                        crusher_entry__isnull=True,
+                        delivery_entry__isnull=True,
+                        breakdown_log__isnull=False,
+                    )
+                ),
+                name="ck_parametervalue_exactly_one_parent",
+            ),
+            models.UniqueConstraint(
+                fields=["production_entry", "parameter"],
+                condition=models.Q(production_entry__isnull=False),
+                name="uniq_parametervalue_production_entry",
+            ),
+            models.UniqueConstraint(
+                fields=["crusher_entry", "parameter"],
+                condition=models.Q(crusher_entry__isnull=False),
+                name="uniq_parametervalue_crusher_entry",
+            ),
+            models.UniqueConstraint(
+                fields=["delivery_entry", "parameter"],
+                condition=models.Q(delivery_entry__isnull=False),
+                name="uniq_parametervalue_delivery_entry",
+            ),
+            models.UniqueConstraint(
+                fields=["breakdown_log", "parameter"],
+                condition=models.Q(breakdown_log__isnull=False),
+                name="uniq_parametervalue_breakdown_log",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["parameter", "production_entry"]),
+            models.Index(fields=["parameter", "value_number"], condition=models.Q(value_number__isnull=False), name="idx_paramvalue_number"),
+        ]
+
+    def __str__(self):
+        return f"{self.parameter.code}={self.value_number or self.value_text or self.value_boolean}"
+
+
+class BreakdownLog(TimeStampedModel):
+    history = HistoricalRecords()
+
+    SEVERITY_LOW = "low"
+    SEVERITY_MEDIUM = "medium"
+    SEVERITY_HIGH = "high"
+    SEVERITY_CHOICES = [
+        (SEVERITY_LOW, "Low"),
+        (SEVERITY_MEDIUM, "Medium"),
+        (SEVERITY_HIGH, "High"),
+    ]
+
+    shift_instance = models.ForeignKey(ShiftInstance, on_delete=models.PROTECT, related_name="breakdown_logs")
+    site = models.ForeignKey(Site, on_delete=models.PROTECT, related_name="breakdown_logs")
+    section = models.ForeignKey(Section, on_delete=models.PROTECT, related_name="breakdown_logs")
+    machine = models.ForeignKey(Machine, on_delete=models.PROTECT, related_name="breakdown_logs")
+    machine_assignment = models.ForeignKey(
+        MachineAssignment, on_delete=models.PROTECT, null=True, blank=True, related_name="breakdown_logs"
+    )
+    reason_code = models.ForeignKey(
+        DowntimeReasonCode, on_delete=models.PROTECT, null=True, blank=True, related_name="breakdown_logs"
+    )
+    description = models.TextField(blank=True)
+    slot_index = models.PositiveSmallIntegerField(null=True, blank=True)
+    slot_start_at = models.DateTimeField(null=True, blank=True)
+    slot_end_at = models.DateTimeField(null=True, blank=True)
+    start_at = models.DateTimeField()
+    end_at = models.DateTimeField(null=True, blank=True)
+    duration_minutes = models.PositiveIntegerField(null=True, blank=True)
+    severity = models.CharField(max_length=10, choices=SEVERITY_CHOICES, blank=True)
+    operator = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="+")
+    recorded_by = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="+")
+    comments = models.TextField(blank=True)
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default="submitted")
+    source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default="mobile")
+    client_uuid = models.UUIDField(null=True, blank=True, unique=True)
+
+    class Meta:
+        ordering = ["-start_at"]
+        indexes = [
+            models.Index(fields=["site", "shift_instance"]),
+            models.Index(fields=["machine", "start_at"]),
+            models.Index(fields=["reason_code"]),
+        ]
+
+    def __str__(self):
+        return f"Breakdown#{self.pk} {self.machine} @ {self.start_at}"
+
+    def get_site_id(self):
+        return self.site_id
+
+    def save(self, *args, **kwargs):
+        if self.start_at and self.end_at:
+            self.duration_minutes = int((self.end_at - self.start_at).total_seconds() // 60)
+        super().save(*args, **kwargs)
+
+
+class CrusherEntry(TimeStampedModel):
+    shift_instance = models.ForeignKey(ShiftInstance, on_delete=models.PROTECT, related_name="crusher_entries")
+    site = models.ForeignKey(Site, on_delete=models.PROTECT, related_name="crusher_entries")
+    crusher_unit = models.ForeignKey(CrusherUnit, on_delete=models.PROTECT, related_name="entries")
+    section = models.ForeignKey(
+        Section, on_delete=models.PROTECT, null=True, blank=True, related_name="crusher_entries"
+    )
+    entry_type = models.CharField(
+        max_length=15,
+        choices=[("hourly", "Hourly"), ("shift_total", "Shift Total")],
+        default="hourly",
+    )
+    slot_index = models.PositiveSmallIntegerField(null=True, blank=True)
+    slot_start_at = models.DateTimeField(null=True, blank=True)
+    slot_end_at = models.DateTimeField(null=True, blank=True)
+    throughput_tonnes = models.DecimalField(max_digits=14, decimal_places=3)
+    operator = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="+")
+    recorded_by = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="+")
+    comments = models.TextField(blank=True)
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default="submitted")
+    source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default="mobile")
+    client_uuid = models.UUIDField(null=True, blank=True, unique=True)
+
+    class Meta:
+        ordering = ["-slot_start_at", "-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["shift_instance", "crusher_unit", "slot_index"],
+                condition=models.Q(entry_type="hourly"),
+                name="uniq_crusherentry_hourly_slot",
+            ),
+            models.UniqueConstraint(
+                fields=["shift_instance", "crusher_unit"],
+                condition=models.Q(entry_type="shift_total"),
+                name="uniq_crusherentry_shift_total",
+            ),
+        ]
+        indexes = [models.Index(fields=["site", "shift_instance"])]
+
+    def __str__(self):
+        return f"CrusherEntry#{self.pk} {self.crusher_unit}"
+
+    def get_site_id(self):
+        return self.site_id
+
+
+class DeliveryEntry(TimeStampedModel):
+    shift_instance = models.ForeignKey(ShiftInstance, on_delete=models.PROTECT, related_name="delivery_entries")
+    site = models.ForeignKey(Site, on_delete=models.PROTECT, related_name="delivery_entries")
+    delivery_destination = models.ForeignKey(DeliveryDestination, on_delete=models.PROTECT, related_name="entries")
+    section = models.ForeignKey(
+        Section, on_delete=models.PROTECT, null=True, blank=True, related_name="delivery_entries"
+    )
+    slot_index = models.PositiveSmallIntegerField(null=True, blank=True)
+    slot_start_at = models.DateTimeField(null=True, blank=True)
+    slot_end_at = models.DateTimeField(null=True, blank=True)
+    tonnes = models.DecimalField(max_digits=14, decimal_places=3)
+    trip_count = models.PositiveIntegerField(default=1)
+    operator = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="+")
+    recorded_by = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="+")
+    comments = models.TextField(blank=True)
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default="submitted")
+    source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default="mobile")
+    client_uuid = models.UUIDField(null=True, blank=True, unique=True)
+
+    class Meta:
+        ordering = ["-slot_start_at", "-created_at"]
+        indexes = [models.Index(fields=["site", "shift_instance"])]
+
+    def __str__(self):
+        return f"DeliveryEntry#{self.pk} {self.delivery_destination}"
+
+    def get_site_id(self):
+        return self.site_id
