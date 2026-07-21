@@ -25,8 +25,11 @@ export function PlanTargetsPage() {
   const paramName = (id: number) => parameters?.find((p) => p.id === id)?.name ?? id;
   const siteName = (id: number) => sites?.find((s) => s.id === id)?.name ?? id;
   const sectionName = (id: number | null) => (id ? sections?.find((s) => s.id === id)?.name ?? id : "—");
-  const machineName = (id: number | null) =>
-    id ? machines?.find((m) => m.id === id)?.fleet_number ?? id : "—";
+  const machineName = (id: number | null) => {
+    if (!id) return "—";
+    const m = machines?.find((m) => m.id === id);
+    return m ? `${m.machine_type_code.toUpperCase()} ${m.fleet_number}` : id;
+  };
 
   const config: MasterDataResourceConfig<PlanTarget> = {
     resource: "plan-targets",
@@ -67,7 +70,7 @@ export function PlanTargetsPage() {
         key: "machine",
         label: "Machine (or leave blank if section-wide)",
         type: "select",
-        options: machines?.map((m) => ({ value: m.id, label: m.fleet_number })) ?? [],
+        options: machines?.map((m) => ({ value: m.id, label: `${m.machine_type_code.toUpperCase()} ${m.fleet_number}` })) ?? [],
       },
       { key: "period_type", label: "Period Type", type: "select", options: PERIOD_OPTIONS, required: true },
       {

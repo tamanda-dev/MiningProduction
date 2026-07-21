@@ -72,7 +72,10 @@ export function BreakdownLogsPage() {
   const [machineId, setMachineId] = useState<number | null>(null);
   const [selected, setSelected] = useState<BreakdownLog | null>(null);
 
-  const machineLabel = (id: number) => machines?.find((m) => m.id === id)?.fleet_number ?? id;
+  const machineLabel = (id: number) => {
+    const m = machines?.find((m) => m.id === id);
+    return m ? `${m.machine_type_code.toUpperCase()} ${m.fleet_number}` : id;
+  };
   const reasonLabel = (id: number | null) =>
     id ? reasonCodes?.find((r) => r.id === id)?.description ?? id : "—";
 
@@ -100,7 +103,7 @@ export function BreakdownLogsPage() {
           <option value="">All machines</option>
           {machines?.map((m) => (
             <option key={m.id} value={m.id}>
-              {m.fleet_number}
+              {m.machine_type_code.toUpperCase()} {m.fleet_number}
             </option>
           ))}
         </select>

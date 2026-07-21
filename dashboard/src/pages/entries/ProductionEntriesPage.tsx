@@ -124,7 +124,11 @@ export function ProductionEntriesPage() {
   const [selected, setSelected] = useState<ProductionEntry | null>(null);
 
   const sectionName = (id: number) => sections?.find((s) => s.id === id)?.name ?? id;
-  const machineLabel = (id: number | null) => (id ? machines?.find((m) => m.id === id)?.fleet_number ?? id : "—");
+  const machineLabel = (id: number | null) => {
+    if (!id) return "—";
+    const m = machines?.find((m) => m.id === id);
+    return m ? `${m.machine_type_code.toUpperCase()} ${m.fleet_number}` : id;
+  };
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["production-entries", siteId, sectionId, machineId, shiftInstanceId, status],
@@ -170,7 +174,7 @@ export function ProductionEntriesPage() {
           <option value="">All machines</option>
           {machines?.map((m) => (
             <option key={m.id} value={m.id}>
-              {m.fleet_number}
+              {m.machine_type_code.toUpperCase()} {m.fleet_number}
             </option>
           ))}
         </select>
