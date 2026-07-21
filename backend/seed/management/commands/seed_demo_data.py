@@ -56,11 +56,11 @@ DOWNTIME_REASONS = [
 ]
 
 DEMO_USERS = [
-    ("demo_admin", scoping.ADMIN_GROUP, "Admin123!"),
-    ("demo_manager", scoping.MANAGER_GROUP, "Manager123!"),
-    ("demo_supervisor", scoping.SUPERVISOR_GROUP, "Supervisor123!"),
-    ("demo_operator1", scoping.OPERATOR_GROUP, "Operator123!"),
-    ("demo_operator2", scoping.OPERATOR_GROUP, "Operator123!"),
+    ("demo_admin", scoping.ADMIN_GROUP, "Admin123!", "Tendai", "Moyo"),
+    ("demo_manager", scoping.MANAGER_GROUP, "Manager123!", "Farai", "Chikwava"),
+    ("demo_supervisor", scoping.SUPERVISOR_GROUP, "Supervisor123!", "Simbarashe", "Ncube"),
+    ("demo_operator1", scoping.OPERATOR_GROUP, "Operator123!", "Tapiwa", "Mutasa"),
+    ("demo_operator2", scoping.OPERATOR_GROUP, "Operator123!", "Blessing", "Sibanda"),
 ]
 
 BREAKDOWN_CAUSES = [
@@ -309,13 +309,22 @@ class Command(BaseCommand):
         users = {}
         south_pit = sites["south-pit"]
 
-        for username, group_name, password in DEMO_USERS:
+        for username, group_name, password, first_name, last_name in DEMO_USERS:
             user, created = User.objects.get_or_create(
-                username=username, defaults={"email": f"{username}@example.com"}
+                username=username,
+                defaults={
+                    "email": f"{username}@example.com",
+                    "first_name": first_name,
+                    "last_name": last_name,
+                },
             )
             if created:
                 user.set_password(password)
                 user.save()
+            elif user.first_name != first_name or user.last_name != last_name:
+                user.first_name = first_name
+                user.last_name = last_name
+                user.save(update_fields=["first_name", "last_name"])
             group, _ = Group.objects.get_or_create(name=group_name)
             user.groups.set([group])
             users[username] = user
@@ -469,14 +478,27 @@ class Command(BaseCommand):
 
         user, created = User.objects.get_or_create(
             username="demo_artisan",
-            defaults={"email": "demo_artisan@example.com", "maintenance_technician": True},
+            defaults={
+                "email": "demo_artisan@example.com",
+                "first_name": "Kudakwashe",
+                "last_name": "Marufu",
+                "maintenance_technician": True,
+            },
         )
         if created:
             user.set_password("Artisan123!")
             user.save()
-        elif not user.maintenance_technician:
-            user.maintenance_technician = True
-            user.save(update_fields=["maintenance_technician"])
+        else:
+            update_fields = []
+            if not user.maintenance_technician:
+                user.maintenance_technician = True
+                update_fields.append("maintenance_technician")
+            if not user.first_name:
+                user.first_name = "Kudakwashe"
+                user.last_name = "Marufu"
+                update_fields += ["first_name", "last_name"]
+            if update_fields:
+                user.save(update_fields=update_fields)
         group, _ = Group.objects.get_or_create(name=scoping.OPERATOR_GROUP)
         user.groups.set([group])
         self.stdout.write("Demo user 'demo_artisan' seeded (maintenance_technician=True, password Artisan123!).")

@@ -22,6 +22,11 @@ function SiteSwitcher() {
   );
 }
 
+function displayName(user: { first_name?: string; last_name?: string; username?: string } | null | undefined) {
+  const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(" ").trim();
+  return fullName || user?.username || "";
+}
+
 export function TopBar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -36,7 +41,7 @@ export function TopBar() {
       <div className="flex items-center gap-4">
         <SiteSwitcher />
         <div className="text-sm font-medium text-slate-700">
-          {user?.first_name || user?.username}
+          {displayName(user)}
         </div>
         <Button
           variant="secondary"
