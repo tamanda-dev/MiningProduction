@@ -39,6 +39,15 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "9048b4d9-fcb9-4896-894d-03130b32fa17"
+      }
+    },
+    "owner": "facilitydevafrica"
   }
 }

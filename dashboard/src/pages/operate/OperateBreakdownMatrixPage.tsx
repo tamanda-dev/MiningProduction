@@ -4,26 +4,9 @@ import { Navigate } from "react-router-dom";
 import { ErrorMessage, extractErrorMessage } from "@/components/common/ErrorMessage";
 import { api } from "@/lib/api";
 import { useOperateSession } from "@/lib/OperateSessionContext";
+import { currentSlot } from "@/lib/timeSlots";
 import { useLookup } from "@/lib/useLookup";
 import type { BreakdownCause, HourlySlot } from "@/types";
-
-function currentSlot(slots: HourlySlot[]): HourlySlot | null {
-  const now = new Date();
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
-  const toMinutes = (t: string) => {
-    const [h, m] = t.split(":").map(Number);
-    return h * 60 + m;
-  };
-  for (const slot of slots) {
-    const start = toMinutes(slot.start_time);
-    const end = toMinutes(slot.end_time);
-    const isOvernight = end <= start;
-    if (isOvernight ? nowMinutes >= start || nowMinutes < end : nowMinutes >= start && nowMinutes < end) {
-      return slot;
-    }
-  }
-  return null;
-}
 
 export function OperateBreakdownMatrixPage() {
   const { activeMachine, isRestoring } = useOperateSession();

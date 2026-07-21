@@ -1,32 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, StyleSheet, Text, View } from "react-native";
 import { api } from "@/src/api/client";
 import { enqueue } from "@/src/api/queue";
 import type { BreakdownCause, HourlySlot, Paginated } from "@/src/api/types";
 import { useSession } from "@/src/auth/useSession";
 import { BigButton } from "@/src/components/BigButton";
+import { Chip, ChipRow } from "@/src/components/Chip";
 import { Screen } from "@/src/components/Screen";
+import { TextField } from "@/src/components/TextField";
 import { useSyncEngineContext } from "@/src/hooks/SyncEngineContext";
-import { colors, fontSize, MIN_TAP_TARGET, radius, spacing } from "@/src/theme/theme";
-
-function currentSlot(slots: HourlySlot[]): HourlySlot | null {
-  const now = new Date();
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
-  const toMinutes = (t: string) => {
-    const [h, m] = t.split(":").map(Number);
-    return h * 60 + m;
-  };
-  for (const slot of slots) {
-    const start = toMinutes(slot.start_time);
-    const end = toMinutes(slot.end_time);
-    const isOvernight = end <= start;
-    if (isOvernight ? nowMinutes >= start || nowMinutes < end : nowMinutes >= start && nowMinutes < end) {
-      return slot;
-    }
-  }
-  return null;
-}
+import { currentSlot } from "@/src/lib/timeSlots";
+import { colors, fontSize, spacing } from "@/src/theme/theme";
 
 export default function BreakdownMatrixScreen() {
   const { activeMachine } = useSession();
@@ -109,38 +94,30 @@ export default function BreakdownMatrixScreen() {
       )}
 
       <Text style={styles.sectionLabel}>Causes (select all that apply)</Text>
-      <View style={styles.choiceWrap}>
-        {causes.map((cause) => {
-          const selected = selectedCauses.includes(cause.id);
-          return (
-            <Pressable
-              key={cause.id}
-              onPress={() => toggleCause(cause.id)}
-              style={[styles.choiceChip, selected && styles.choiceChipSelected]}
-            >
-              <Text style={[styles.choiceText, selected && styles.choiceTextSelected]}>{cause.name}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <ChipRow style={{ marginBottom: spacing.sm }}>
+        {causes.map((cause) => (
+          <Chip
+            key={cause.id}
+            label={cause.name}
+            selected={selectedCauses.includes(cause.id)}
+            onPress={() => toggleCause(cause.id)}
+            variant="danger"
+          />
+        ))}
+      </ChipRow>
 
       {hasOtherSelected && (
         <>
           <Text style={styles.sectionLabel}>Describe "Other"</Text>
-          <TextInput value={otherText} onChangeText={setOtherText} style={styles.input} multiline numberOfLines={2} />
+          <TextField value={otherText} onChangeText={setOtherText} multiline numberOfLines={2} />
         </>
       )}
 
       <Text style={styles.sectionLabel}>Downtime (minutes, optional)</Text>
-      <TextInput
-        value={downtimeMinutes}
-        onChangeText={setDowntimeMinutes}
-        keyboardType="number-pad"
-        style={styles.input}
-      />
+      <TextField value={downtimeMinutes} onChangeText={setDowntimeMinutes} keyboardType="number-pad" />
 
       <Text style={styles.sectionLabel}>Comments</Text>
-      <TextInput value={comments} onChangeText={setComments} style={styles.input} />
+      <TextField value={comments} onChangeText={setComments} />
 
       {error && <Text style={styles.error}>{error}</Text>}
 
@@ -177,43 +154,6 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     marginBottom: spacing.sm,
     marginTop: spacing.sm,
-  },
-  choiceWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  choiceChip: {
-    minHeight: MIN_TAP_TARGET - 8,
-    paddingHorizontal: spacing.md,
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: colors.borderLight,
-    borderRadius: radius.md,
-  },
-  choiceChipSelected: {
-    borderColor: colors.critical,
-    backgroundColor: colors.surface,
-  },
-  choiceText: {
-    fontSize: fontSize.body,
-    color: colors.text,
-    fontWeight: "600",
-  },
-  choiceTextSelected: {
-    color: colors.critical,
-  },
-  input: {
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    fontSize: fontSize.body,
-    color: colors.text,
-    backgroundColor: colors.background,
-    minHeight: MIN_TAP_TARGET,
   },
   error: {
     color: colors.critical,

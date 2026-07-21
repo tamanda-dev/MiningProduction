@@ -1,11 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { api } from "@/src/api/client";
 import type { Machine, MachineAssignment, Paginated, Section } from "@/src/api/types";
 import { useSession } from "@/src/auth/useSession";
 import { BigButton } from "@/src/components/BigButton";
+import { ModalSheet } from "@/src/components/ModalSheet";
 import { Screen } from "@/src/components/Screen";
 import { colors, fontSize, MIN_TAP_TARGET, radius, spacing } from "@/src/theme/theme";
 
@@ -122,52 +123,48 @@ export default function MachineSelectScreen() {
         )}
       />
 
-      <Modal visible={selectedMachine !== null} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>
-              Activate {selectedMachine ? `${selectedMachine.machine_type_code.toUpperCase()} ${selectedMachine.fleet_number}` : ""}
-            </Text>
-            <Text style={styles.modalLabel}>Which section are you working in?</Text>
+      <ModalSheet
+        visible={selectedMachine !== null}
+        title={`Activate ${selectedMachine ? `${selectedMachine.machine_type_code.toUpperCase()} ${selectedMachine.fleet_number}` : ""}`}
+      >
+        <Text style={styles.modalLabel}>Which section are you working in?</Text>
 
-            <FlatList
-              data={sections}
-              keyExtractor={(item) => String(item.id)}
-              style={{ maxHeight: 260 }}
-              renderItem={({ item }) => (
-                <Pressable
-                  onPress={() => setSelectedSectionId(item.id)}
-                  style={[
-                    styles.sectionOption,
-                    selectedSectionId === item.id && styles.sectionOptionSelected,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.sectionOptionText,
-                      selectedSectionId === item.id && styles.sectionOptionTextSelected,
-                    ]}
-                  >
-                    {item.name}
-                  </Text>
-                </Pressable>
-              )}
-            />
+        <FlatList
+          data={sections}
+          keyExtractor={(item) => String(item.id)}
+          style={{ maxHeight: 260 }}
+          renderItem={({ item }) => (
+            <Pressable
+              onPress={() => setSelectedSectionId(item.id)}
+              style={[
+                styles.sectionOption,
+                selectedSectionId === item.id && styles.sectionOptionSelected,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.sectionOptionText,
+                  selectedSectionId === item.id && styles.sectionOptionTextSelected,
+                ]}
+              >
+                {item.name}
+              </Text>
+            </Pressable>
+          )}
+        />
 
-            {activateError && <Text style={styles.error}>{activateError}</Text>}
+        {activateError && <Text style={styles.error}>{activateError}</Text>}
 
-            <View style={{ gap: spacing.sm, marginTop: spacing.md }}>
-              <BigButton
-                label="Activate Machine"
-                onPress={confirmActivate}
-                disabled={!selectedSectionId}
-                loading={activating}
-              />
-              <BigButton label="Cancel" variant="secondary" onPress={() => setSelectedMachine(null)} />
-            </View>
-          </View>
+        <View style={{ gap: spacing.sm, marginTop: spacing.md }}>
+          <BigButton
+            label="Activate Machine"
+            onPress={confirmActivate}
+            disabled={!selectedSectionId}
+            loading={activating}
+          />
+          <BigButton label="Cancel" variant="secondary" onPress={() => setSelectedMachine(null)} />
         </View>
-      </Modal>
+      </ModalSheet>
     </Screen>
   );
 }
@@ -221,23 +218,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.label,
     marginTop: spacing.md,
     fontWeight: "600",
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(11,11,11,0.5)",
-    justifyContent: "flex-end",
-  },
-  modalCard: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    padding: spacing.lg,
-  },
-  modalTitle: {
-    fontSize: fontSize.title,
-    fontWeight: "800",
-    color: colors.text,
-    marginBottom: spacing.sm,
   },
   modalLabel: {
     fontSize: fontSize.body,

@@ -115,3 +115,47 @@ def test_operator_cannot_change_own_entry_status(
         f"/api/production-entries/{entry_id}/", {"status": "flagged"}, format="json"
     )
     assert flag_resp.status_code == 403
+
+
+@pytest.mark.django_db
+def test_update_conflicting_slot_returns_400_not_500(
+    api_client, machines, sections, all_day_shifts, django_user_model
+):
+    """Regression test: ProductionEntrySerializer.update() must catch the
+    IntegrityError raised by the partial uniq_hourly_slot constraint the
+    same way create() does, returning a clean 400 slot_conflict instead of
+    an unhandled 500 when a PATCH would collide with another entry's slot.
+    """
+    from machines.models import MachineAssignment
+    from shiftmgmt.services import get_or_create_open_instance
+
+    m_a, _ = machines
+    sec_a, _ = sections
+    operator = django_user_model.objects.create_user(username="op1", password="pass12345")
+
+    instance = get_or_create_open_instance(m_a.site)
+    assignment = MachineAssignment.objects.create(
+        machine=m_a, operator=operator, shift_instance=instance, section=sec_a, status=MachineAssignment.STATUS_ACTIVE
+    )
+
+    api_client.force_authenticate(user=operator)
+    first_resp = api_client.post(
+        "/api/production-entries/",
+        {"machine_assignment": assignment.id, "entry_type": "hourly", "slot_index": 0, "values": []},
+        format="json",
+    )
+    assert first_resp.status_code == 201, first_resp.data
+
+    second_resp = api_client.post(
+        "/api/production-entries/",
+        {"machine_assignment": assignment.id, "entry_type": "hourly", "slot_index": 1, "values": []},
+        format="json",
+    )
+    assert second_resp.status_code == 201, second_resp.data
+    second_id = second_resp.data["id"]
+
+    conflict_resp = api_client.patch(
+        f"/api/production-entries/{second_id}/", {"slot_index": 0}, format="json"
+    )
+    assert conflict_resp.status_code == 400
+    assert "already exists" in conflict_resp.data.get("detail", "")

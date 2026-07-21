@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import { createContext, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api } from "@/src/api/client";
 import { tokenStore } from "@/src/api/tokenStore";
@@ -56,6 +57,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     await tokenStore.clear();
     setUser(null);
+    // Whichever screen the operator signed out from (site-select,
+    // machine-select, a session tab) stays mounted otherwise — its
+    // now-unauthenticated API calls fail/return empty, surfacing as a
+    // confusing "No sites available" rather than the login screen. The
+    // imperative router (usable outside a component's render tree) is the
+    // single place this needs handling, regardless of which screen
+    // initiated the sign-out.
+    router.replace("/login");
   }, []);
 
   const hasRole = useCallback((role: Role) => Boolean(user?.roles.includes(role)), [user]);

@@ -1,4 +1,5 @@
 from django.db import models
+from simple_history.models import HistoricalRecords
 
 from core.models import TimeStampedModel
 from masterdata.models import Parameter, Section, Site
@@ -14,6 +15,8 @@ class PlanTarget(TimeStampedModel):
     (substituting a sentinel for NULL) into one string and uniquing on that
     closes the gap.
     """
+
+    history = HistoricalRecords()
 
     PERIOD_SHIFT = "shift"
     PERIOD_DAY = "day"

@@ -6,6 +6,7 @@ import type { BreakdownIncident, Paginated } from "@/src/api/types";
 import { useSession } from "@/src/auth/useSession";
 import { BigButton } from "@/src/components/BigButton";
 import { Screen } from "@/src/components/Screen";
+import { StatusPill } from "@/src/components/StatusPill";
 import { colors, fontSize, radius, spacing } from "@/src/theme/theme";
 
 const STATUS_LABEL: Record<string, string> = { open: "Open", in_progress: "In Progress" };
@@ -58,9 +59,7 @@ export default function OpenIncidentsScreen() {
         >
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Incident #{incident.id}</Text>
-            <View style={[styles.statusPill, { backgroundColor: STATUS_COLOR[incident.status] }]}>
-              <Text style={styles.statusPillText}>{STATUS_LABEL[incident.status]}</Text>
-            </View>
+            <StatusPill label={STATUS_LABEL[incident.status]} color={STATUS_COLOR[incident.status]} />
           </View>
           <Text style={styles.cardSubtitle}>{new Date(incident.time_occurred).toLocaleString()}</Text>
           {incident.description ? (
@@ -116,16 +115,5 @@ const styles = StyleSheet.create({
     fontSize: fontSize.label,
     color: colors.text,
     marginTop: spacing.xs,
-  },
-  statusPill: {
-    borderRadius: radius.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-  },
-  statusPillText: {
-    color: colors.onStatus,
-    fontSize: 12,
-    fontWeight: "700",
-    textTransform: "uppercase",
   },
 });

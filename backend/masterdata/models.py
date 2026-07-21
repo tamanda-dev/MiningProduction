@@ -1,9 +1,12 @@
 from django.db import models
+from simple_history.models import HistoricalRecords
 
 from core.models import TimeStampedModel
 
 
 class Site(TimeStampedModel):
+    history = HistoricalRecords()
+
     name = models.CharField(max_length=100)
     code = models.SlugField(max_length=20, unique=True)
     timezone = models.CharField(max_length=64, default="Africa/Harare")
@@ -17,6 +20,8 @@ class Site(TimeStampedModel):
 
 
 class Section(TimeStampedModel):
+    history = HistoricalRecords()
+
     site = models.ForeignKey(Site, on_delete=models.PROTECT, related_name="sections")
     name = models.CharField(max_length=100)
     code = models.SlugField(max_length=20)
@@ -34,6 +39,8 @@ class Section(TimeStampedModel):
 
 
 class SubSection(TimeStampedModel):
+    history = HistoricalRecords()
+
     section = models.ForeignKey(Section, on_delete=models.PROTECT, related_name="subsections")
     name = models.CharField(max_length=100)
     code = models.SlugField(max_length=20)
@@ -51,6 +58,8 @@ class SubSection(TimeStampedModel):
 
 
 class MachineType(TimeStampedModel):
+    history = HistoricalRecords()
+
     name = models.CharField(max_length=100)
     code = models.SlugField(max_length=20, unique=True)
     description = models.TextField(blank=True)
@@ -64,6 +73,8 @@ class MachineType(TimeStampedModel):
 
 
 class UOM(TimeStampedModel):
+    history = HistoricalRecords()
+
     name = models.CharField(max_length=50)
     abbreviation = models.CharField(max_length=10, unique=True)
 
@@ -77,6 +88,8 @@ class UOM(TimeStampedModel):
 
 
 class Parameter(TimeStampedModel):
+    history = HistoricalRecords()
+
     SCOPE_MACHINE = "machine"
     SCOPE_SECTION = "section"
     SCOPE_SHIFT = "shift"
@@ -131,6 +144,8 @@ class Parameter(TimeStampedModel):
 
 
 class ParameterChoice(TimeStampedModel):
+    history = HistoricalRecords()
+
     parameter = models.ForeignKey(Parameter, on_delete=models.CASCADE, related_name="choices")
     value = models.CharField(max_length=100)
     label = models.CharField(max_length=150)
@@ -147,6 +162,8 @@ class ParameterChoice(TimeStampedModel):
 
 
 class CrusherUnit(TimeStampedModel):
+    history = HistoricalRecords()
+
     site = models.ForeignKey(Site, on_delete=models.PROTECT, related_name="crusher_units")
     name = models.CharField(max_length=100)
     code = models.SlugField(max_length=20)
@@ -163,6 +180,8 @@ class CrusherUnit(TimeStampedModel):
 
 
 class DeliveryDestination(TimeStampedModel):
+    history = HistoricalRecords()
+
     site = models.ForeignKey(Site, on_delete=models.PROTECT, related_name="delivery_destinations")
     name = models.CharField(max_length=100)
     code = models.SlugField(max_length=20)
@@ -179,6 +198,8 @@ class DeliveryDestination(TimeStampedModel):
 
 
 class DowntimeReasonCode(TimeStampedModel):
+    history = HistoricalRecords()
+
     code = models.SlugField(max_length=30, unique=True)
     description = models.CharField(max_length=200)
     category = models.CharField(max_length=100, blank=True)

@@ -1,4 +1,5 @@
 from django.db import models
+from simple_history.models import HistoricalRecords
 
 from core.models import TimeStampedModel
 from masterdata.models import Section, Site
@@ -9,6 +10,8 @@ class ShiftPattern(TimeStampedModel):
     separate from shiftmgmt.Shift, which is the daily Day/Night time window
     a ShiftInstance is generated from.
     """
+
+    history = HistoricalRecords()
 
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
@@ -22,6 +25,8 @@ class ShiftPattern(TimeStampedModel):
 
 
 class Team(TimeStampedModel):
+    history = HistoricalRecords()
+
     name = models.CharField(max_length=100)
     site = models.ForeignKey(Site, on_delete=models.PROTECT, related_name="teams")
     section = models.ForeignKey(
@@ -52,6 +57,8 @@ class TeamMember(TimeStampedModel):
         (ROLE_OPERATOR, "Operator"),
         (ROLE_TEAM_LEADER, "Team Leader"),
     ]
+
+    history = HistoricalRecords()
 
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="members")
     user = models.ForeignKey("accounts.User", on_delete=models.CASCADE, related_name="team_memberships")

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { api } from "@/src/api/client";
 import { enqueue, type QueueItem } from "@/src/api/queue";
 import type { EntryType, FormSchemaParameter, TimeSlot } from "@/src/api/types";
@@ -9,8 +9,16 @@ import { useSession } from "@/src/auth/useSession";
 import { BigButton } from "@/src/components/BigButton";
 import { DynamicField, type FieldValue } from "@/src/components/DynamicField";
 import { Screen } from "@/src/components/Screen";
+import { StatusPill } from "@/src/components/StatusPill";
 import { useSyncEngineContext } from "@/src/hooks/SyncEngineContext";
 import { colors, fontSize, MIN_TAP_TARGET, radius, spacing } from "@/src/theme/theme";
+
+const QUEUE_STATUS_COLOR: Record<QueueItem["status"], string> = {
+  pending: colors.warning,
+  synced: colors.good,
+  failed: colors.critical,
+  conflict: colors.critical,
+};
 
 function currentSlotIndex(slots: TimeSlot[]): number | null {
   const now = Date.now();
@@ -145,7 +153,9 @@ export default function EntryScreen() {
 
       <View style={styles.divider} />
 
-      {schemaQuery.isLoading && <Text style={styles.muted}>Loading form…</Text>}
+      {schemaQuery.isLoading && (
+        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: spacing.xl }} />
+      )}
       {parameters.map((param) => (
         <DynamicField
           key={param.code}
@@ -198,26 +208,12 @@ export default function EntryScreen() {
                   ? `Slot #${item.payload.slot_index}`
                   : "Shift total"}
               </Text>
-              <StatusPill status={item.status} />
+              <StatusPill label={item.status} color={QUEUE_STATUS_COLOR[item.status]} />
             </View>
           ))}
         </View>
       )}
     </Screen>
-  );
-}
-
-function StatusPill({ status }: { status: QueueItem["status"] }) {
-  const palette: Record<QueueItem["status"], string> = {
-    pending: colors.warning,
-    synced: colors.good,
-    failed: colors.critical,
-    conflict: colors.critical,
-  };
-  return (
-    <View style={[styles.pill, { backgroundColor: palette[status] }]}>
-      <Text style={styles.pillText}>{status}</Text>
-    </View>
   );
 }
 
@@ -283,10 +279,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.borderLight,
     marginVertical: spacing.md,
   },
-  muted: {
-    color: colors.textMuted,
-    fontSize: fontSize.body,
-  },
   errorBox: {
     backgroundColor: "#FCE8E8",
     borderRadius: radius.md,
@@ -312,16 +304,5 @@ const styles = StyleSheet.create({
   recentText: {
     fontSize: fontSize.body,
     color: colors.text,
-  },
-  pill: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: radius.sm,
-  },
-  pillText: {
-    color: colors.onStatus,
-    fontSize: 12,
-    fontWeight: "700",
-    textTransform: "uppercase",
   },
 });

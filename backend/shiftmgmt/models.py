@@ -6,6 +6,8 @@ from masterdata.models import Site
 
 
 class Shift(TimeStampedModel):
+    history = HistoricalRecords()
+
     site = models.ForeignKey(Site, on_delete=models.PROTECT, related_name="shifts")
     name = models.CharField(max_length=50)
     start_time = models.TimeField()

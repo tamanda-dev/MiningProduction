@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
+import { Badge } from "@/components/common/Badge";
 import { ErrorMessage, extractErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { api } from "@/lib/api";
+import { STATUS } from "@/lib/chartTheme";
 import { useOperateSession } from "@/lib/OperateSessionContext";
 import { useLookup } from "@/lib/useLookup";
 import type { BreakdownCause, BreakdownIncident, Paginated } from "@/types";
@@ -248,15 +250,11 @@ export function OperateIncidentsPage() {
                 <div className="text-sm font-medium text-slate-900">Incident #{incident.id}</div>
                 <div className="text-xs text-slate-500">{new Date(incident.time_occurred).toLocaleString()}</div>
               </div>
-              <span
-                className={
-                  incident.status === "open"
-                    ? "rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700"
-                    : "rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700"
-                }
-              >
-                {incident.status === "open" ? "Open" : "In Progress"}
-              </span>
+              <Badge
+                label={incident.status === "open" ? "Open" : "In Progress"}
+                color={incident.status === "open" ? STATUS.critical : STATUS.warning}
+                variant="soft"
+              />
             </button>
             {expandedId === incident.id && <IncidentDetail incident={incident} onChanged={refresh} />}
           </div>

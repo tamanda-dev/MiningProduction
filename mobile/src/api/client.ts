@@ -1,4 +1,5 @@
 import axios, { type InternalAxiosRequestConfig } from "axios";
+import { router } from "expo-router";
 import { tokenStore } from "@/src/api/tokenStore";
 
 export const API_BASE_URL: string =
@@ -47,7 +48,14 @@ api.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${newAccess}`;
         return api(originalRequest);
       } catch (refreshError) {
+        // The refresh token itself is dead (expired/revoked) — clearing
+        // storage alone leaves AuthContext's `user` state stale (this
+        // module has no React context access to reset it), so without an
+        // explicit redirect the app would keep rendering authenticated
+        // screens whose every request now silently 401s. Same fix as
+        // AuthContext.tsx's logout() for the same underlying reason.
         await tokenStore.clear();
+        router.replace("/login");
         return Promise.reject(refreshError);
       }
     }

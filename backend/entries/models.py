@@ -232,6 +232,8 @@ class BreakdownLog(TimeStampedModel):
 
 
 class CrusherEntry(TimeStampedModel):
+    history = HistoricalRecords()
+
     shift_instance = models.ForeignKey(ShiftInstance, on_delete=models.PROTECT, related_name="crusher_entries")
     site = models.ForeignKey(Site, on_delete=models.PROTECT, related_name="crusher_entries")
     crusher_unit = models.ForeignKey(CrusherUnit, on_delete=models.PROTECT, related_name="entries")
@@ -278,6 +280,8 @@ class CrusherEntry(TimeStampedModel):
 
 
 class DeliveryEntry(TimeStampedModel):
+    history = HistoricalRecords()
+
     shift_instance = models.ForeignKey(ShiftInstance, on_delete=models.PROTECT, related_name="delivery_entries")
     site = models.ForeignKey(Site, on_delete=models.PROTECT, related_name="delivery_entries")
     delivery_destination = models.ForeignKey(DeliveryDestination, on_delete=models.PROTECT, related_name="entries")

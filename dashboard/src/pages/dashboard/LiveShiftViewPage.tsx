@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { ErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { RoleGate } from "@/components/common/RoleGate";
+import { ShiftInstancePicker } from "@/components/common/ShiftInstancePicker";
 import { StatTile } from "@/components/common/StatTile";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { api } from "@/lib/api";
@@ -59,17 +60,12 @@ export function LiveShiftViewPage() {
             </RoleGate>
           )}
           {shiftInstances && shiftInstances.length > 0 && (
-            <select
-              value={shiftInstanceId ?? ""}
-              onChange={(e) => setShiftInstanceId(Number(e.target.value))}
+            <ShiftInstancePicker
+              shiftInstances={shiftInstances}
+              value={shiftInstanceId}
+              onChange={setShiftInstanceId}
               className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm"
-            >
-              {shiftInstances.map((si) => (
-                <option key={si.id} value={si.id}>
-                  {si.date} — {si.shift_name} ({si.status})
-                </option>
-              ))}
-            </select>
+            />
           )}
         </div>
       </div>

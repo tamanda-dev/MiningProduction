@@ -4,9 +4,10 @@ from django.core.files.storage import default_storage
 from django.utils import timezone
 
 from machines.models import MachineAssignment
+from masterdata.models import Site
 from shiftmgmt.models import ShiftInstance
 
-from .services.export import build_shift_report_xlsx
+from .services.export import build_daily_report_xlsx, build_mtd_report_xlsx, build_shift_report_xlsx
 
 
 @shared_task
@@ -18,6 +19,28 @@ def generate_shift_report(shift_instance_id):
     shift_instance = ShiftInstance.objects.select_related("shift", "site").get(pk=shift_instance_id)
     buffer = build_shift_report_xlsx(shift_instance)
     filename = f"reports/shift_{shift_instance_id}_{timezone.now():%Y%m%d%H%M%S}.xlsx"
+    path = default_storage.save(filename, ContentFile(buffer.read()))
+    return default_storage.url(path)
+
+
+@shared_task
+def generate_daily_report(site_id, date):
+    """Builds a whole-site, one-day Act/Plan/Var XLSX export — same shape
+    as the shift report, widened to every shift instance on that date.
+    """
+    site = Site.objects.get(pk=site_id)
+    buffer = build_daily_report_xlsx(site, date)
+    filename = f"reports/daily_{site_id}_{date}_{timezone.now():%Y%m%d%H%M%S}.xlsx"
+    path = default_storage.save(filename, ContentFile(buffer.read()))
+    return default_storage.url(path)
+
+
+@shared_task
+def generate_mtd_report(site_id, year, month):
+    """Builds a whole-site month-to-date Act/Plan/Var XLSX export."""
+    site = Site.objects.get(pk=site_id)
+    buffer = build_mtd_report_xlsx(site, year, month)
+    filename = f"reports/mtd_{site_id}_{year}{month:02d}_{timezone.now():%Y%m%d%H%M%S}.xlsx"
     path = default_storage.save(filename, ContentFile(buffer.read()))
     return default_storage.url(path)
 

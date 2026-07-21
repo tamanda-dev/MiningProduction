@@ -63,6 +63,7 @@ export function MasterDataTable<T extends { id: number }>({ config }: { config: 
   const [editing, setEditing] = useState<T | null>(null);
   const [formValues, setFormValues] = useState<FormValues>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   function openCreate() {
     const initial: FormValues = { ...defaultValues };
@@ -103,7 +104,10 @@ export function MasterDataTable<T extends { id: number }>({ config }: { config: 
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => api.delete(`/${resource}/${id}/`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [resource] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [resource] });
+      setConfirmDeleteId(null);
+    },
   });
 
   function handleSubmit(e: React.FormEvent) {
@@ -175,9 +179,7 @@ export function MasterDataTable<T extends { id: number }>({ config }: { config: 
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
-                          if (confirm("Delete this record?")) deleteMutation.mutate(row.id);
-                        }}
+                        onClick={() => setConfirmDeleteId(row.id)}
                         className="text-red-600 hover:underline"
                       >
                         Delete
@@ -292,6 +294,29 @@ export function MasterDataTable<T extends { id: number }>({ config }: { config: 
             </button>
           </div>
         </form>
+      </Modal>
+
+      <Modal open={confirmDeleteId !== null} onClose={() => setConfirmDeleteId(null)} title="Delete record?">
+        <p className="text-sm text-slate-600">This action cannot be undone.</p>
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setConfirmDeleteId(null)}
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (confirmDeleteId !== null) deleteMutation.mutate(confirmDeleteId);
+            }}
+            disabled={deleteMutation.isPending}
+            className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
+          >
+            {deleteMutation.isPending ? "Deleting…" : "Delete"}
+          </button>
+        </div>
       </Modal>
     </div>
   );

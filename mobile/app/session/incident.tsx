@@ -1,15 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, StyleSheet, Text, View } from "react-native";
 import { api } from "@/src/api/client";
 import { enqueue } from "@/src/api/queue";
 import type { BreakdownCause, BreakdownIncident, Paginated } from "@/src/api/types";
 import { useSession } from "@/src/auth/useSession";
 import { BigButton } from "@/src/components/BigButton";
+import { Chip, ChipRow } from "@/src/components/Chip";
 import { Screen } from "@/src/components/Screen";
+import { TextField } from "@/src/components/TextField";
 import { useSyncEngineContext } from "@/src/hooks/SyncEngineContext";
-import { colors, fontSize, MIN_TAP_TARGET, radius, spacing } from "@/src/theme/theme";
+import { colors, fontSize, spacing } from "@/src/theme/theme";
 
 const SEVERITIES = ["low", "medium", "high"] as const;
 type Severity = (typeof SEVERITIES)[number];
@@ -123,54 +125,46 @@ function QuickLogForm({
       <Text style={styles.title}>Quick Log Breakdown</Text>
 
       <Text style={styles.sectionLabel}>Cause</Text>
-      <View style={styles.choiceWrap}>
-        {causes.map((cause) => {
-          const selected = causeId === cause.id;
-          return (
-            <Pressable
-              key={cause.id}
-              onPress={() => setCauseId(cause.id)}
-              style={[styles.choiceChip, selected && styles.choiceChipSelected]}
-            >
-              <Text style={[styles.choiceText, selected && styles.choiceTextSelected]}>{cause.name}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <ChipRow style={{ marginBottom: spacing.sm }}>
+        {causes.map((cause) => (
+          <Chip
+            key={cause.id}
+            label={cause.name}
+            selected={causeId === cause.id}
+            onPress={() => setCauseId(cause.id)}
+            variant="danger"
+          />
+        ))}
+      </ChipRow>
 
       {selectedCause?.is_other && (
         <>
           <Text style={styles.sectionLabel}>Describe "Other"</Text>
-          <TextInput value={otherText} onChangeText={setOtherText} style={styles.input} multiline numberOfLines={2} />
+          <TextField value={otherText} onChangeText={setOtherText} multiline numberOfLines={2} />
         </>
       )}
 
       <Text style={styles.sectionLabel}>Description</Text>
-      <TextInput
+      <TextField
         value={description}
         onChangeText={setDescription}
-        style={[styles.input, styles.textArea]}
+        style={styles.textArea}
         multiline
         numberOfLines={3}
       />
 
       <Text style={styles.sectionLabel}>Severity</Text>
-      <View style={styles.choiceWrap}>
-        {SEVERITIES.map((s) => {
-          const selected = severity === s;
-          return (
-            <Pressable
-              key={s}
-              onPress={() => setSeverity(s)}
-              style={[styles.choiceChip, selected && styles.choiceChipSelected]}
-            >
-              <Text style={[styles.choiceText, selected && styles.choiceTextSelected]}>
-                {s[0].toUpperCase() + s.slice(1)}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <ChipRow style={{ marginBottom: spacing.sm }}>
+        {SEVERITIES.map((s) => (
+          <Chip
+            key={s}
+            label={s[0].toUpperCase() + s.slice(1)}
+            selected={severity === s}
+            onPress={() => setSeverity(s)}
+            variant="danger"
+          />
+        ))}
+      </ChipRow>
 
       {error && <Text style={styles.error}>{error}</Text>}
 
@@ -259,19 +253,19 @@ function ExistingIncidentForm({
       ) : (
         <>
           <Text style={styles.sectionLabel}>Root Cause of Failure</Text>
-          <TextInput
+          <TextField
             value={rootCause}
             onChangeText={setRootCause}
-            style={[styles.input, styles.textArea]}
+            style={styles.textArea}
             multiline
             numberOfLines={3}
           />
 
           <Text style={styles.sectionLabel}>Remedial Action Taken</Text>
-          <TextInput
+          <TextField
             value={remedialAction}
             onChangeText={setRemedialAction}
-            style={[styles.input, styles.textArea]}
+            style={styles.textArea}
             multiline
             numberOfLines={3}
           />
@@ -311,43 +305,6 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     marginBottom: spacing.sm,
     marginTop: spacing.sm,
-  },
-  choiceWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  choiceChip: {
-    minHeight: MIN_TAP_TARGET - 8,
-    paddingHorizontal: spacing.md,
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: colors.borderLight,
-    borderRadius: radius.md,
-  },
-  choiceChipSelected: {
-    borderColor: colors.critical,
-    backgroundColor: colors.surface,
-  },
-  choiceText: {
-    fontSize: fontSize.body,
-    color: colors.text,
-    fontWeight: "600",
-  },
-  choiceTextSelected: {
-    color: colors.critical,
-  },
-  input: {
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    fontSize: fontSize.body,
-    color: colors.text,
-    backgroundColor: colors.background,
-    minHeight: MIN_TAP_TARGET,
   },
   textArea: {
     minHeight: 90,

@@ -1,6 +1,8 @@
-import { Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { StyleSheet, Switch, Text, View } from "react-native";
 import type { FormSchemaParameter } from "@/src/api/types";
-import { colors, fontSize, MIN_TAP_TARGET, radius, spacing } from "@/src/theme/theme";
+import { Chip, ChipRow } from "@/src/components/Chip";
+import { TextField } from "@/src/components/TextField";
+import { colors, fontSize, MIN_TAP_TARGET, spacing } from "@/src/theme/theme";
 
 export type FieldValue = string | number | boolean | undefined;
 
@@ -28,20 +30,16 @@ export function DynamicField({
     return (
       <View style={styles.field}>
         <Text style={styles.label}>{label}</Text>
-        <View style={styles.choiceWrap}>
-          {parameter.choices.map((choice) => {
-            const selected = value === choice.value;
-            return (
-              <Pressable
-                key={choice.value}
-                onPress={() => onChange(choice.value)}
-                style={[styles.choiceChip, selected && styles.choiceChipSelected]}
-              >
-                <Text style={[styles.choiceText, selected && styles.choiceTextSelected]}>{choice.label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <ChipRow>
+          {parameter.choices.map((choice) => (
+            <Chip
+              key={choice.value}
+              label={choice.label}
+              selected={value === choice.value}
+              onPress={() => onChange(choice.value)}
+            />
+          ))}
+        </ChipRow>
       </View>
     );
   }
@@ -51,11 +49,10 @@ export function DynamicField({
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput
+      <TextField
         value={value === undefined ? "" : String(value)}
         onChangeText={(text) => onChange(text)}
         keyboardType={isNumeric ? "numeric" : "default"}
-        style={styles.input}
         placeholder={
           isNumeric && (parameter.min_value || parameter.max_value)
             ? `${parameter.min_value ?? ""}–${parameter.max_value ?? ""}`
@@ -83,41 +80,5 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing.xs,
     flexShrink: 1,
-  },
-  input: {
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    fontSize: fontSize.body,
-    color: colors.text,
-    backgroundColor: colors.background,
-    minHeight: MIN_TAP_TARGET,
-  },
-  choiceWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-  },
-  choiceChip: {
-    minHeight: MIN_TAP_TARGET - 8,
-    paddingHorizontal: spacing.md,
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: colors.borderLight,
-    borderRadius: radius.md,
-  },
-  choiceChipSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.surface,
-  },
-  choiceText: {
-    fontSize: fontSize.body,
-    color: colors.text,
-    fontWeight: "600",
-  },
-  choiceTextSelected: {
-    color: colors.primary,
   },
 });

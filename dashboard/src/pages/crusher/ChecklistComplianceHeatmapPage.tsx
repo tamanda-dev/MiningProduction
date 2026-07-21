@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { ErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
+import { ShiftInstancePicker } from "@/components/common/ShiftInstancePicker";
 import { api } from "@/lib/api";
 import { STATUS } from "@/lib/chartTheme";
 import { useCrusherMachines } from "@/lib/useCrusherMachines";
@@ -79,17 +80,7 @@ export function ChecklistComplianceHeatmapPage() {
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-500">Shift Instance</label>
-            <select
-              value={shiftInstanceId ?? ""}
-              onChange={(e) => setShiftInstanceId(Number(e.target.value))}
-              className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-            >
-              {shiftInstances?.map((si) => (
-                <option key={si.id} value={si.id}>
-                  {si.date} — {si.shift_name} ({si.status})
-                </option>
-              ))}
-            </select>
+            <ShiftInstancePicker shiftInstances={shiftInstances} value={shiftInstanceId} onChange={setShiftInstanceId} />
           </div>
         </div>
       </div>

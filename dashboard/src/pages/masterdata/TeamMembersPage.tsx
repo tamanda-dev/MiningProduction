@@ -1,14 +1,7 @@
 import { useAuth } from "@/auth/useAuth";
 import { MasterDataTable, type MasterDataResourceConfig } from "@/components/masterdata/MasterDataTable";
 import { useLookup } from "@/lib/useLookup";
-import type { Team, TeamMember } from "@/types";
-
-interface UserSummary {
-  id: number;
-  username: string;
-  first_name: string;
-  last_name: string;
-}
+import type { Team, TeamMember, UserSummary } from "@/types";
 
 const ROLE_OPTIONS = [
   { value: "operator", label: "Operator" },

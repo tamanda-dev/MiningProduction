@@ -2,12 +2,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, subDays } from "date-fns";
 import { useState } from "react";
 import { useAuth } from "@/auth/useAuth";
+import { Badge } from "@/components/common/Badge";
 import { ErrorMessage, extractErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { Modal } from "@/components/common/Modal";
 import { RoleGate } from "@/components/common/RoleGate";
 import { EntryHistoryPanel } from "@/components/entries/EntryHistoryPanel";
 import { API_BASE_URL, api } from "@/lib/api";
+import { STATUS } from "@/lib/chartTheme";
 import { useCrusherMachines } from "@/lib/useCrusherMachines";
 import { useSiteFilter } from "@/lib/SiteFilterContext";
 import { useLookup } from "@/lib/useLookup";
@@ -149,15 +151,11 @@ export function OpenIncidentsPage() {
                   <td className="px-4 py-2 text-slate-700">{crusherLabel(incident.crusher)}</td>
                   <td className="px-4 py-2 text-slate-700">{new Date(incident.time_occurred).toLocaleString()}</td>
                   <td className="px-4 py-2">
-                    <span
-                      className={
-                        incident.status === "open"
-                          ? "rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700"
-                          : "rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700"
-                      }
-                    >
-                      {STATUS_LABEL[incident.status]}
-                    </span>
+                    <Badge
+                      label={STATUS_LABEL[incident.status]}
+                      color={incident.status === "open" ? STATUS.critical : STATUS.warning}
+                      variant="soft"
+                    />
                   </td>
                   <td className="px-4 py-2">
                     {hasRole("supervisor") ? (

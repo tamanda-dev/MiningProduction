@@ -24,7 +24,7 @@ from .services.aggregation import act_vs_plan_for_shift_instance, daily_trend, h
 from .services.availability import availability_utilization
 from .services.machine_status import machine_status_board
 from .services.pareto import downtime_pareto
-from .tasks import generate_shift_report
+from .tasks import generate_daily_report, generate_mtd_report, generate_shift_report
 
 
 def _require_site_access(request, site_id):
@@ -179,27 +179,42 @@ class DashboardMachineStatusView(APIView):
 
 @extend_schema(request=ExportTriggerRequestSerializer, responses=ExportStatusSerializer)
 class DashboardExportView(APIView):
-    """Enqueues a shift report export (Act/Plan/Var XLSX, formatted close to
-    the source report layout). Async-job pattern: XLSX generation shouldn't
-    block the request/response cycle, matching how the mobile/web clients
-    already expect long-running work (bulk sync) to be handled. Poll
+    """Enqueues an Act/Plan/Var XLSX report export, formatted close to the
+    source report layout — either for one shift instance, one calendar day
+    (site-wide), or month-to-date (site-wide), selected by `report_type`.
+    Async-job pattern: XLSX generation shouldn't block the request/response
+    cycle, matching how the mobile/web clients already expect long-running
+    work (bulk sync) to be handled. Poll
     GET /api/dashboard/export/{task_id}/ for the download URL.
     """
 
     permission_classes = (IsAuthenticated,)
 
     def post(self, request):
-        shift_instance_id = request.data.get("shift_instance")
-        if not shift_instance_id:
-            raise ValidationError({"shift_instance": "Required."})
-        shift_instance = ShiftInstance.objects.filter(pk=shift_instance_id).first()
-        if shift_instance is None:
-            raise ValidationError({"shift_instance": "Unknown shift instance."})
-        _require_site_access(request, shift_instance.site_id)
-        if not scoping.is_manager(request.user):
-            raise PermissionDenied("Only a Manager/Admin may export reports.")
+        serializer = ExportTriggerRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        report_type = data["report_type"]
 
-        task = generate_shift_report.delay(shift_instance.id)
+        if report_type == "shift":
+            shift_instance = ShiftInstance.objects.filter(pk=data["shift_instance"]).first()
+            if shift_instance is None:
+                raise ValidationError({"shift_instance": "Unknown shift instance."})
+            _require_site_access(request, shift_instance.site_id)
+            if not scoping.is_manager(request.user):
+                raise PermissionDenied("Only a Manager/Admin may export reports.")
+            task = generate_shift_report.delay(shift_instance.id)
+        elif report_type == "daily":
+            site_id = _require_site_access(request, data["site"])
+            if not scoping.is_manager(request.user):
+                raise PermissionDenied("Only a Manager/Admin may export reports.")
+            task = generate_daily_report.delay(site_id, str(data["date"]))
+        else:  # "mtd"
+            site_id = _require_site_access(request, data["site"])
+            if not scoping.is_manager(request.user):
+                raise PermissionDenied("Only a Manager/Admin may export reports.")
+            task = generate_mtd_report.delay(site_id, data["year"], data["month"])
+
         payload = {"task_id": task.id, "status": "queued"}
         # In eager dev mode (no Redis broker) the task already ran
         # synchronously inside .delay() and its result isn't persisted

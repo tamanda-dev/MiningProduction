@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from simple_history.models import HistoricalRecords
 
 from core.models import TimeStampedModel
 
@@ -21,6 +22,8 @@ class UserSiteAccess(TimeStampedModel):
     within it (section=null means whole-site). See core/scoping.py for how
     this drives queryset filtering and permission checks.
     """
+
+    history = HistoricalRecords()
 
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="site_accesses")
     site = models.ForeignKey("masterdata.Site", on_delete=models.PROTECT, related_name="user_accesses")

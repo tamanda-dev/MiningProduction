@@ -53,6 +53,8 @@ class MachineTypeQualification(TimeStampedModel):
     mobile app's activation flow.
     """
 
+    history = HistoricalRecords()
+
     user = models.ForeignKey("accounts.User", on_delete=models.CASCADE, related_name="qualifications")
     machine_type = models.ForeignKey(MachineType, on_delete=models.PROTECT, related_name="qualified_users")
     site = models.ForeignKey(Site, on_delete=models.PROTECT, null=True, blank=True, related_name="qualifications")

@@ -13,7 +13,11 @@ import {
   YAxis,
 } from "recharts";
 import { ErrorMessage } from "@/components/common/ErrorMessage";
+import { FilterBar } from "@/components/common/FilterBar";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
+import { RoleGate } from "@/components/common/RoleGate";
+import { ShiftInstancePicker } from "@/components/common/ShiftInstancePicker";
+import { ExportButton } from "@/components/dashboard/ExportButton";
 import { api } from "@/lib/api";
 import { CATEGORICAL, CHART_INK } from "@/lib/chartTheme";
 import { useSiteFilter } from "@/lib/SiteFilterContext";
@@ -53,7 +57,7 @@ function DailyTrendTab() {
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-end gap-3">
+      <FilterBar>
         <Field label="Section">
           <select
             value={sectionId ?? ""}
@@ -98,7 +102,22 @@ function DailyTrendTab() {
             className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
           />
         </Field>
-      </div>
+        {siteId && (
+          <RoleGate role="manager">
+            <Field label="Daily Export">
+              <ExportButton reportType="daily" siteId={siteId} date={dateTo} />
+            </Field>
+            <Field label="MTD Export">
+              <ExportButton
+                reportType="mtd"
+                siteId={siteId}
+                year={new Date(dateTo).getFullYear()}
+                month={new Date(dateTo).getMonth() + 1}
+              />
+            </Field>
+          </RoleGate>
+        )}
+      </FilterBar>
 
       {!ready && <p className="text-sm text-slate-400">Select a section and parameter to see the trend.</p>}
       {isLoading && <LoadingSpinner />}
@@ -164,20 +183,15 @@ function HourlyCurveTab() {
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-end gap-3">
+      <FilterBar>
         <Field label="Shift Instance">
-          <select
-            value={shiftInstanceId ?? ""}
-            onChange={(e) => setShiftInstanceId(e.target.value ? Number(e.target.value) : null)}
-            className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-          >
-            <option value="">Select shift…</option>
-            {shiftInstances?.map((si) => (
-              <option key={si.id} value={si.id}>
-                {si.date} — {si.shift_name}
-              </option>
-            ))}
-          </select>
+          <ShiftInstancePicker
+            shiftInstances={shiftInstances}
+            value={shiftInstanceId}
+            onChange={setShiftInstanceId}
+            placeholder="Select shift…"
+            showStatus={false}
+          />
         </Field>
         <Field label="Section">
           <select
@@ -207,7 +221,7 @@ function HourlyCurveTab() {
             ))}
           </select>
         </Field>
-      </div>
+      </FilterBar>
 
       {!ready && <p className="text-sm text-slate-400">Select a shift, section, and parameter to see the curve.</p>}
       {isLoading && <LoadingSpinner />}

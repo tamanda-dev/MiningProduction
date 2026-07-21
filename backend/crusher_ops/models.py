@@ -15,6 +15,8 @@ class BreakdownCause(TimeStampedModel):
     has a single vocabulary. Exactly one row should have is_other=True.
     """
 
+    history = HistoricalRecords()
+
     name = models.CharField(max_length=150)
     code = models.SlugField(max_length=40, unique=True)
     is_other = models.BooleanField(
@@ -31,6 +33,8 @@ class BreakdownCause(TimeStampedModel):
 
 
 class ChecklistItem(TimeStampedModel):
+    history = HistoricalRecords()
+
     name = models.CharField(max_length=150)
     code = models.SlugField(max_length=40, unique=True)
     description = models.TextField(blank=True)
@@ -50,6 +54,8 @@ class HourlySlot(TimeStampedModel):
     shiftmgmt.models.Shift) since the plant's checklist cadence is
     configured separately from production-entry slotting.
     """
+
+    history = HistoricalRecords()
 
     site = models.ForeignKey(Site, on_delete=models.PROTECT, related_name="crusher_hourly_slots")
     slot_index = models.PositiveSmallIntegerField()

@@ -1,37 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { api } from "@/src/api/client";
 import { enqueue } from "@/src/api/queue";
 import type { ChecklistItem, HourlySlot, Paginated } from "@/src/api/types";
 import { useSession } from "@/src/auth/useSession";
 import { BigButton } from "@/src/components/BigButton";
+import { Checkbox } from "@/src/components/Checkbox";
 import { Screen } from "@/src/components/Screen";
+import { TextField } from "@/src/components/TextField";
 import { useSyncEngineContext } from "@/src/hooks/SyncEngineContext";
-import { colors, fontSize, MIN_TAP_TARGET, radius, spacing } from "@/src/theme/theme";
-
-/** Finds the HourlySlot whose [start_time, end_time) window contains
- * `now`, mirroring crusher_ops.services.current_slot_for on the backend —
- * this is purely a display/default-selection convenience; the server
- * re-resolves and validates the slot on submit regardless.
- */
-function currentSlot(slots: HourlySlot[]): HourlySlot | null {
-  const now = new Date();
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
-  const toMinutes = (t: string) => {
-    const [h, m] = t.split(":").map(Number);
-    return h * 60 + m;
-  };
-  for (const slot of slots) {
-    const start = toMinutes(slot.start_time);
-    const end = toMinutes(slot.end_time);
-    const isOvernight = end <= start;
-    if (isOvernight ? nowMinutes >= start || nowMinutes < end : nowMinutes >= start && nowMinutes < end) {
-      return slot;
-    }
-  }
-  return null;
-}
+import { currentSlot } from "@/src/lib/timeSlots";
+import { colors, fontSize, MIN_TAP_TARGET, spacing } from "@/src/theme/theme";
 
 export default function ChecklistScreen() {
   const { activeMachine } = useSession();
@@ -111,14 +91,20 @@ export default function ChecklistScreen() {
             onPress={() => setChecked((prev) => ({ ...prev, [item.id]: !prev[item.id] }))}
             style={styles.itemRow}
           >
-            <View style={[styles.checkbox, isChecked && styles.checkboxChecked]} />
+            <Checkbox checked={isChecked} />
             <Text style={styles.itemLabel}>{item.name}</Text>
           </Pressable>
         );
       })}
 
       <Text style={styles.sectionLabel}>Notes</Text>
-      <TextInput value={notes} onChangeText={setNotes} style={styles.input} multiline numberOfLines={3} />
+      <TextField
+        value={notes}
+        onChangeText={setNotes}
+        style={styles.textArea}
+        multiline
+        numberOfLines={3}
+      />
 
       <View style={{ marginTop: spacing.md }}>
         <BigButton
@@ -153,17 +139,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
   },
-  checkbox: {
-    width: 28,
-    height: 28,
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderRadius: radius.sm,
-  },
-  checkboxChecked: {
-    backgroundColor: colors.good,
-    borderColor: colors.good,
-  },
   itemLabel: {
     fontSize: fontSize.body,
     color: colors.text,
@@ -177,15 +152,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     marginBottom: spacing.sm,
   },
-  input: {
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    fontSize: fontSize.body,
-    color: colors.text,
-    backgroundColor: colors.background,
+  textArea: {
     minHeight: 90,
     textAlignVertical: "top",
   },

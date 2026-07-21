@@ -1,14 +1,16 @@
 import axios from "axios";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert, Modal, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, StyleSheet, Text, View } from "react-native";
 import { API_BASE_URL, api } from "@/src/api/client";
 import { tokenStore } from "@/src/api/tokenStore";
 import type { MachineAssignment, Me } from "@/src/api/types";
 import { useSession } from "@/src/auth/useSession";
 import { BigButton } from "@/src/components/BigButton";
+import { ModalSheet } from "@/src/components/ModalSheet";
 import { Screen } from "@/src/components/Screen";
 import { SyncStatusBar } from "@/src/components/SyncStatusBar";
+import { TextField } from "@/src/components/TextField";
 import { useSyncEngineContext } from "@/src/hooks/SyncEngineContext";
 import { colors, fontSize, radius, spacing } from "@/src/theme/theme";
 
@@ -126,45 +128,40 @@ export default function ReleaseScreen() {
       </View>
 
       <Text style={styles.sectionLabel}>Release reason (optional)</Text>
-      <TextInput value={reason} onChangeText={setReason} style={styles.input} placeholder="e.g. End of shift" />
+      <TextField value={reason} onChangeText={setReason} placeholder="e.g. End of shift" />
 
       <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
         <BigButton label="Release Machine" onPress={confirmRelease} loading={releasing} variant="success" />
         <BigButton label="Hand Over to Next Operator" onPress={() => setHandoverVisible(true)} variant="secondary" />
       </View>
 
-      <Modal visible={handoverVisible} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Hand Over Machine</Text>
-            <Text style={styles.modalHelp}>
-              Incoming operator: sign in below to confirm you're taking over this machine.
-            </Text>
-
-            <Text style={styles.sectionLabel}>Username</Text>
-            <TextInput
-              value={handoverUsername}
-              onChangeText={setHandoverUsername}
-              autoCapitalize="none"
-              style={styles.input}
-            />
-            <Text style={styles.sectionLabel}>Password</Text>
-            <TextInput
-              value={handoverPassword}
-              onChangeText={setHandoverPassword}
-              secureTextEntry
-              style={styles.input}
-            />
-
-            {handoverError && <Text style={styles.error}>{handoverError}</Text>}
-
-            <View style={{ gap: spacing.sm, marginTop: spacing.md }}>
-              <BigButton label="Confirm Handover" onPress={confirmHandover} loading={handingOver} />
-              <BigButton label="Cancel" variant="secondary" onPress={() => setHandoverVisible(false)} />
-            </View>
-          </View>
+      <ModalSheet visible={handoverVisible} title="Hand Over Machine">
+        <View style={styles.warningBanner}>
+          <Text style={styles.warningBannerText}>
+            This signs a different operator in and switches the active operator on this machine away from you.
+          </Text>
         </View>
-      </Modal>
+        <Text style={styles.modalHelp}>
+          Incoming operator: sign in below to confirm you're taking over this machine.
+        </Text>
+
+        <Text style={styles.sectionLabel}>Username</Text>
+        <TextField
+          value={handoverUsername}
+          onChangeText={setHandoverUsername}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        <Text style={styles.sectionLabel}>Password</Text>
+        <TextField value={handoverPassword} onChangeText={setHandoverPassword} secureTextEntry />
+
+        {handoverError && <Text style={styles.error}>{handoverError}</Text>}
+
+        <View style={{ gap: spacing.sm, marginTop: spacing.md }}>
+          <BigButton label="Confirm Handover" onPress={confirmHandover} loading={handingOver} />
+          <BigButton label="Cancel" variant="secondary" onPress={() => setHandoverVisible(false)} />
+        </View>
+      </ModalSheet>
     </Screen>
   );
 }
@@ -191,37 +188,21 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     marginTop: spacing.sm,
   },
-  input: {
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    fontSize: fontSize.body,
-    color: colors.text,
-    backgroundColor: colors.background,
-  },
   error: {
     color: colors.critical,
     fontSize: fontSize.label,
     fontWeight: "600",
     marginTop: spacing.sm,
   },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(11,11,11,0.5)",
-    justifyContent: "flex-end",
+  warningBanner: {
+    backgroundColor: colors.warning,
+    borderRadius: radius.md,
+    padding: spacing.md,
   },
-  modalCard: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    padding: spacing.lg,
-  },
-  modalTitle: {
-    fontSize: fontSize.title,
-    fontWeight: "800",
-    color: colors.text,
+  warningBannerText: {
+    color: colors.onWarning,
+    fontSize: fontSize.label,
+    fontWeight: "700",
   },
   modalHelp: {
     fontSize: fontSize.label,

@@ -72,6 +72,69 @@ def act_vs_plan_for_shift_instance(shift_instance):
     return results
 
 
+def act_vs_plan_for_date_range(site_id, date_from, date_to, plan_period_type, plan_period_date):
+    """Act vs Plan vs Var vs %Var per (section, parameter) across every
+    shift instance in a date range — the same shape as
+    act_vs_plan_for_shift_instance, widened from "one shift" to "one day"
+    or "month-to-date" for the daily/MTD report exports. `plan_period_type`
+    / `plan_period_date` select which PlanTarget row counts as the Plan
+    figure (PlanTarget.PERIOD_DAY + that date for a daily report;
+    PlanTarget.PERIOD_MONTH + the month's first day for an MTD report) —
+    unlike the per-shift case, a date range has no single ShiftInstance to
+    look targets up against.
+    """
+    date_from = parse_date(date_from) if isinstance(date_from, str) else date_from
+    date_to = parse_date(date_to) if isinstance(date_to, str) else date_to
+
+    rows = (
+        ParameterValue.objects.filter(
+            production_entry__site_id=site_id,
+            production_entry__slot_start_at__date__gte=date_from,
+            production_entry__slot_start_at__date__lte=date_to,
+            value_number__isnull=False,
+        )
+        .values(
+            "production_entry__section_id",
+            "production_entry__section__name",
+            "parameter_id",
+            "parameter__code",
+            "parameter__name",
+            "parameter__uom__abbreviation",
+        )
+        .annotate(act=Sum("value_number"))
+    )
+
+    plan_lookup = {
+        (pt.parameter_id, pt.section_id): pt.target_value
+        for pt in PlanTarget.objects.filter(
+            site_id=site_id, period_type=plan_period_type, period_date=plan_period_date
+        )
+    }
+
+    results = []
+    for row in rows:
+        section_id = row["production_entry__section_id"]
+        parameter_id = row["parameter_id"]
+        act = row["act"] or Decimal("0")
+        plan = plan_lookup.get((parameter_id, section_id))
+        var = (act - plan) if plan is not None else None
+        results.append(
+            {
+                "section": section_id,
+                "section_name": row["production_entry__section__name"],
+                "parameter": parameter_id,
+                "parameter_code": row["parameter__code"],
+                "parameter_name": row["parameter__name"],
+                "uom": row["parameter__uom__abbreviation"],
+                "act": act,
+                "plan": plan,
+                "var": var,
+                "pct_var": _pct_var(act, plan),
+            }
+        )
+    return results
+
+
 def daily_trend(site_id, section_id, parameter_id, date_from, date_to):
     """Daily Act vs Plan series between two dates for one section+parameter
     — feeds the daily/MTD trend graphs and variance-over-time chart.

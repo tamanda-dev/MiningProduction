@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useAuth } from "@/auth/useAuth";
+import { Badge } from "@/components/common/Badge";
 import { ErrorMessage, extractErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { Modal } from "@/components/common/Modal";
+import { ShiftInstancePicker } from "@/components/common/ShiftInstancePicker";
 import { EntryHistoryPanel } from "@/components/entries/EntryHistoryPanel";
 import { api } from "@/lib/api";
 import { ENTRY_STATUS_COLOR } from "@/lib/chartTheme";
@@ -12,17 +14,6 @@ import { useLookup } from "@/lib/useLookup";
 import type { EntryStatus, Machine, Paginated, ProductionEntry, Section, ShiftInstance } from "@/types";
 
 const STATUS_OPTIONS: EntryStatus[] = ["submitted", "flagged", "corrected", "approved"];
-
-function StatusBadge({ status }: { status: EntryStatus }) {
-  return (
-    <span
-      className="rounded-full px-2 py-0.5 text-xs font-medium text-white"
-      style={{ backgroundColor: ENTRY_STATUS_COLOR[status] }}
-    >
-      {status}
-    </span>
-  );
-}
 
 function EntryDetailModal({ entry, onClose }: { entry: ProductionEntry; onClose: () => void }) {
   const { hasRole } = useAuth();
@@ -41,7 +32,7 @@ function EntryDetailModal({ entry, onClose }: { entry: ProductionEntry; onClose:
         <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
           <Detail label="Entry Type" value={entry.entry_type} />
           <Detail label="Slot" value={entry.slot_index !== null ? `#${entry.slot_index}` : "—"} />
-          <Detail label="Status" value={<StatusBadge status={entry.status} />} />
+          <Detail label="Status" value={<Badge label={entry.status} color={ENTRY_STATUS_COLOR[entry.status]} />} />
           <Detail
             label="Slot Window"
             value={
@@ -183,18 +174,13 @@ export function ProductionEntriesPage() {
             </option>
           ))}
         </select>
-        <select
-          value={shiftInstanceId ?? ""}
-          onChange={(e) => setShiftInstanceId(e.target.value ? Number(e.target.value) : null)}
-          className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-        >
-          <option value="">All shifts</option>
-          {shiftInstances?.map((si) => (
-            <option key={si.id} value={si.id}>
-              {si.date} — {si.shift_name}
-            </option>
-          ))}
-        </select>
+        <ShiftInstancePicker
+          shiftInstances={shiftInstances}
+          value={shiftInstanceId}
+          onChange={setShiftInstanceId}
+          placeholder="All shifts"
+          showStatus={false}
+        />
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value)}
@@ -245,7 +231,7 @@ export function ProductionEntriesPage() {
                   <td className="px-4 py-2">{machineLabel(entry.machine)}</td>
                   <td className="px-4 py-2">{entry.entry_type}</td>
                   <td className="px-4 py-2">
-                    <StatusBadge status={entry.status} />
+                    <Badge label={entry.status} color={ENTRY_STATUS_COLOR[entry.status]} />
                   </td>
                 </tr>
               ))}

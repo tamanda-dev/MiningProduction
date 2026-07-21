@@ -142,7 +142,10 @@ class ProductionEntrySerializer(serializers.ModelSerializer):
         validated_data.pop("override_reason", None)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-        instance.save()
+        try:
+            instance.save()
+        except IntegrityError:
+            _conflict("An entry already exists for this machine/section/slot in this shift instance.")
         if values is not None:
             services.set_parameter_values("production_entry", instance, values)
         return instance
@@ -307,7 +310,10 @@ class CrusherEntrySerializer(serializers.ModelSerializer):
         validated_data.pop("override_reason", None)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-        instance.save()
+        try:
+            instance.save()
+        except IntegrityError:
+            _conflict("An entry already exists for this crusher unit/slot in this shift instance.")
         if values is not None:
             services.set_parameter_values("crusher_entry", instance, values)
         return instance

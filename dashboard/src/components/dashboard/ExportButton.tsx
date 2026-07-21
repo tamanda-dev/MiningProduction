@@ -10,13 +10,29 @@ interface ExportStatus {
   error?: string;
 }
 
-export function ExportButton({ shiftInstanceId }: { shiftInstanceId: number }) {
+type ExportButtonProps =
+  | { reportType?: "shift"; shiftInstanceId: number }
+  | { reportType: "daily"; siteId: number; date: string }
+  | { reportType: "mtd"; siteId: number; year: number; month: number };
+
+function buildExportBody(props: ExportButtonProps): Record<string, unknown> {
+  const reportType = props.reportType ?? "shift";
+  if (reportType === "daily") {
+    return { report_type: "daily", site: props.siteId, date: props.date };
+  }
+  if (reportType === "mtd") {
+    return { report_type: "mtd", site: props.siteId, year: props.year, month: props.month };
+  }
+  return { shift_instance: props.shiftInstanceId };
+}
+
+export function ExportButton(props: ExportButtonProps) {
   const [taskId, setTaskId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const trigger = useMutation({
     mutationFn: async () => {
-      const { data } = await api.post<ExportStatus>("/dashboard/export/", { shift_instance: shiftInstanceId });
+      const { data } = await api.post<ExportStatus>("/dashboard/export/", buildExportBody(props));
       return data;
     },
     onSuccess: (data) => {

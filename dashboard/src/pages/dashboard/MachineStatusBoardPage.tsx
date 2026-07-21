@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { Badge } from "@/components/common/Badge";
 import { ErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { api } from "@/lib/api";
@@ -83,12 +84,7 @@ export function MachineStatusBoardPage() {
               <span className="font-semibold text-slate-900">
                 {row.machine_type_name} {row.fleet_number}
               </span>
-              <span
-                className="rounded-full px-2 py-0.5 text-xs font-medium text-white"
-                style={{ backgroundColor: MACHINE_STATUS_COLOR[row.status] }}
-              >
-                {STATUS_LABEL[row.status]}
-              </span>
+              <Badge label={STATUS_LABEL[row.status]} color={MACHINE_STATUS_COLOR[row.status]} />
             </div>
             <div className="text-sm text-slate-500">
               {row.operator_label ? (
