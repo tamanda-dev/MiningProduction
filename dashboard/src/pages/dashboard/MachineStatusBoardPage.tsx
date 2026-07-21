@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Badge } from "@/components/common/Badge";
+import { Card } from "@/components/common/Card";
+import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { api } from "@/lib/api";
@@ -75,11 +77,11 @@ export function MachineStatusBoardPage() {
       {isLoading && <LoadingSpinner />}
       {isError && <ErrorMessage message="Failed to load machine status." />}
 
-      {data && rows.length === 0 && <p className="text-sm text-slate-400">No machines found for this site.</p>}
+      {data && rows.length === 0 && <EmptyState message="No machines found for this site." />}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {rows.map((row) => (
-          <div key={row.machine} className="rounded-lg border border-slate-200 bg-white p-4">
+          <Card key={row.machine}>
             <div className="mb-2 flex items-center justify-between">
               <span className="font-semibold text-slate-900">
                 {row.machine_type_name} {row.fleet_number}
@@ -100,7 +102,7 @@ export function MachineStatusBoardPage() {
                 "Idle — no active operator"
               )}
             </div>
-          </div>
+          </Card>
         ))}
       </div>
     </div>

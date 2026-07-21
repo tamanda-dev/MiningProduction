@@ -1,6 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
+import { Button } from "@/components/common/Button";
+import { Card } from "@/components/common/Card";
 import { ErrorMessage, extractErrorMessage } from "@/components/common/ErrorMessage";
 import { api } from "@/lib/api";
 import { useOperateSession } from "@/lib/OperateSessionContext";
@@ -64,6 +66,7 @@ export function OperateBreakdownPage() {
 
   return (
     <div className="max-w-2xl">
+      <Card className="mb-4">
       <div className="mb-4">
         <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Reason</div>
         <div className="flex flex-wrap gap-2">
@@ -116,7 +119,7 @@ export function OperateBreakdownPage() {
         Already resolved (mark end time as now)
       </label>
 
-      <div className="mb-4">
+      <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">Comments</label>
         <input
           value={comments}
@@ -124,18 +127,14 @@ export function OperateBreakdownPage() {
           className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
         />
       </div>
+      </Card>
 
       {error && <ErrorMessage message={error} />}
       {savedMessage && <p className="mb-3 text-sm font-medium text-emerald-700">{savedMessage}</p>}
 
-      <button
-        type="button"
-        onClick={handleSubmit}
-        disabled={submitMutation.isPending}
-        className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
-      >
+      <Button variant="danger" size="md" onClick={handleSubmit} disabled={submitMutation.isPending}>
         {submitMutation.isPending ? "Saving…" : "Save Breakdown Log"}
-      </button>
+      </Button>
     </div>
   );
 }

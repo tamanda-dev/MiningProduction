@@ -2,6 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useAuth } from "@/auth/useAuth";
 import { Badge } from "@/components/common/Badge";
+import { Button } from "@/components/common/Button";
+import { Card } from "@/components/common/Card";
+import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorMessage, extractErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { Modal } from "@/components/common/Modal";
@@ -69,17 +72,17 @@ function EntryDetailModal({ entry, onClose }: { entry: ProductionEntry; onClose:
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Actions</h3>
             <div className="flex flex-wrap gap-2">
               {STATUS_OPTIONS.filter((s) => s !== entry.status).map((s) => (
-                <button
+                <Button
                   key={s}
-                  type="button"
+                  variant="secondary"
+                  size="sm"
                   onClick={() => {
                     setError(null);
                     statusMutation.mutate(s);
                   }}
-                  className="rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                 >
                   Mark {s}
-                </button>
+                </Button>
               ))}
             </div>
             {error && (
@@ -203,22 +206,22 @@ export function ProductionEntriesPage() {
       {isError && <ErrorMessage message="Failed to load entries." />}
 
       {data && (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <Card padded={false} className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
+            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-4 py-2 font-medium">Slot Start</th>
-                <th className="px-4 py-2 font-medium">Section</th>
-                <th className="px-4 py-2 font-medium">Machine</th>
-                <th className="px-4 py-2 font-medium">Type</th>
-                <th className="px-4 py-2 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium">Slot Start</th>
+                <th className="px-4 py-3 font-medium">Section</th>
+                <th className="px-4 py-3 font-medium">Machine</th>
+                <th className="px-4 py-3 font-medium">Type</th>
+                <th className="px-4 py-3 font-medium">Status</th>
               </tr>
             </thead>
             <tbody>
               {data.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
-                    No entries match these filters.
+                  <td colSpan={5} className="px-4 py-2">
+                    <EmptyState message="No entries match these filters." />
                   </td>
                 </tr>
               )}
@@ -228,20 +231,20 @@ export function ProductionEntriesPage() {
                   onClick={() => setSelected(entry)}
                   className="cursor-pointer border-b border-slate-100 last:border-0 hover:bg-slate-50"
                 >
-                  <td className="px-4 py-2">
+                  <td className="px-4 py-3">
                     {entry.slot_start_at ? new Date(entry.slot_start_at).toLocaleString() : "(shift total)"}
                   </td>
-                  <td className="px-4 py-2">{sectionName(entry.section)}</td>
-                  <td className="px-4 py-2">{machineLabel(entry.machine)}</td>
-                  <td className="px-4 py-2">{entry.entry_type}</td>
-                  <td className="px-4 py-2">
+                  <td className="px-4 py-3">{sectionName(entry.section)}</td>
+                  <td className="px-4 py-3">{machineLabel(entry.machine)}</td>
+                  <td className="px-4 py-3">{entry.entry_type}</td>
+                  <td className="px-4 py-3">
                     <Badge label={entry.status} color={ENTRY_STATUS_COLOR[entry.status]} />
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </Card>
       )}
 
       {selected && <EntryDetailModal entry={selected} onClose={() => setSelected(null)} />}

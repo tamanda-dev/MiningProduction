@@ -69,8 +69,8 @@ function NavSection({
   if (visibleItems.length === 0) return null;
 
   return (
-    <div className="mb-4">
-      <div className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
+    <div className="mb-4 border-t border-slate-100 pt-4 first:border-t-0 first:pt-0">
+      <div className="px-3 pb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
         {title}
       </div>
       <nav className="flex flex-col gap-0.5">
@@ -81,10 +81,10 @@ function NavSection({
             onClick={onNavigate}
             className={({ isActive }) =>
               clsx(
-                "rounded-md px-3 py-1.5 text-sm transition-colors",
+                "rounded-md border-l-2 px-3 py-1.5 text-sm transition-colors",
                 isActive
-                  ? "bg-brand-50 font-medium text-brand-700"
-                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+                  ? "border-brand-600 bg-brand-50 font-medium text-brand-700"
+                  : "border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900",
               )
             }
           >
@@ -100,7 +100,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { hasRole } = useAuth();
   return (
     <div className="flex h-full flex-col overflow-y-auto py-4">
-      <div className="mb-4 px-3">
+      <div className="mb-4 border-b border-slate-100 px-3 pb-4">
         <div className="text-sm font-bold text-slate-900">Mining Production</div>
         <div className="text-xs text-slate-500">Manager Dashboard</div>
       </div>

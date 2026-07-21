@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { Card } from "@/components/common/Card";
+import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { ShiftInstancePicker } from "@/components/common/ShiftInstancePicker";
@@ -97,18 +99,16 @@ export function ChecklistComplianceHeatmapPage() {
       {isLoading && <LoadingSpinner />}
       {isError && <ErrorMessage message="Failed to load checklist compliance." />}
 
-      {data && rows.length === 0 && (
-        <p className="text-sm text-slate-400">No hourly slots configured for this site.</p>
-      )}
+      {data && rows.length === 0 && <EmptyState message="No hourly slots configured for this site." />}
 
       {rows.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <Card padded={false} className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
+            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-4 py-2 font-medium">Slot</th>
+                <th className="px-4 py-3 font-medium">Slot</th>
                 {itemNames.map((name) => (
-                  <th key={name} className="px-4 py-2 text-center font-medium">
+                  <th key={name} className="px-4 py-3 text-center font-medium">
                     {name}
                   </th>
                 ))}
@@ -116,10 +116,10 @@ export function ChecklistComplianceHeatmapPage() {
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.hourly_slot} className="border-b border-slate-100 last:border-0">
-                  <td className="px-4 py-2 text-slate-700">Slot {row.slot_index}</td>
+                <tr key={row.hourly_slot} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                  <td className="px-4 py-3 text-slate-700">Slot {row.slot_index}</td>
                   {row.items.map((item) => (
-                    <td key={item.checklist_item} className="px-2 py-2 text-center">
+                    <td key={item.checklist_item} className="px-2 py-3 text-center">
                       <span
                         className="inline-block rounded-md px-2 py-1 text-xs font-medium text-white"
                         style={{ backgroundColor: CELL_COLOR[item.status] }}
@@ -133,7 +133,7 @@ export function ChecklistComplianceHeatmapPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </Card>
       )}
     </div>
   );

@@ -16,11 +16,10 @@ type ExportButtonProps =
   | { reportType: "mtd"; siteId: number; year: number; month: number };
 
 function buildExportBody(props: ExportButtonProps): Record<string, unknown> {
-  const reportType = props.reportType ?? "shift";
-  if (reportType === "daily") {
+  if (props.reportType === "daily") {
     return { report_type: "daily", site: props.siteId, date: props.date };
   }
-  if (reportType === "mtd") {
+  if (props.reportType === "mtd") {
     return { report_type: "mtd", site: props.siteId, year: props.year, month: props.month };
   }
   return { shift_instance: props.shiftInstanceId };

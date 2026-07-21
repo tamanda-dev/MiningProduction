@@ -3,6 +3,9 @@ import { format, subDays } from "date-fns";
 import { useState } from "react";
 import { useAuth } from "@/auth/useAuth";
 import { Badge } from "@/components/common/Badge";
+import { Button } from "@/components/common/Button";
+import { Card } from "@/components/common/Card";
+import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorMessage, extractErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { Modal } from "@/components/common/Modal";
@@ -55,14 +58,9 @@ function PdfExportButton({ siteId }: { siteId: number }) {
 
   return (
     <div className="flex items-center gap-2">
-      <button
-        type="button"
-        onClick={() => trigger.mutate()}
-        disabled={trigger.isPending}
-        className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-      >
+      <Button variant="secondary" onClick={() => trigger.mutate()} disabled={trigger.isPending}>
         {trigger.isPending ? "Generating…" : "Export PDF (last 30 days)"}
-      </button>
+      </Button>
       {taskId && !isDone && <span className="text-xs text-slate-400">Processing…</span>}
       {downloadUrl && (
         <a
@@ -131,33 +129,33 @@ export function OpenIncidentsPage() {
       {isLoading && <LoadingSpinner />}
       {isError && <ErrorMessage message="Failed to load open incidents." />}
 
-      {data && rows.length === 0 && <p className="text-sm text-slate-400">No open or in-progress incidents.</p>}
+      {data && rows.length === 0 && <EmptyState message="No open or in-progress incidents." />}
 
       {rows.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <Card padded={false} className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
+            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-4 py-2 font-medium">Crusher</th>
-                <th className="px-4 py-2 font-medium">Occurred</th>
-                <th className="px-4 py-2 font-medium">Status</th>
-                <th className="px-4 py-2 font-medium">Artisan</th>
-                <th className="px-4 py-2 font-medium" />
+                <th className="px-4 py-3 font-medium">Crusher</th>
+                <th className="px-4 py-3 font-medium">Occurred</th>
+                <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium">Artisan</th>
+                <th className="px-4 py-3 font-medium" />
               </tr>
             </thead>
             <tbody>
               {rows.map((incident) => (
                 <tr key={incident.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                  <td className="px-4 py-2 text-slate-700">{crusherLabel(incident.crusher)}</td>
-                  <td className="px-4 py-2 text-slate-700">{new Date(incident.time_occurred).toLocaleString()}</td>
-                  <td className="px-4 py-2">
+                  <td className="px-4 py-3 text-slate-700">{crusherLabel(incident.crusher)}</td>
+                  <td className="px-4 py-3 text-slate-700">{new Date(incident.time_occurred).toLocaleString()}</td>
+                  <td className="px-4 py-3">
                     <Badge
                       label={STATUS_LABEL[incident.status]}
                       color={incident.status === "open" ? STATUS.critical : STATUS.warning}
                       variant="soft"
                     />
                   </td>
-                  <td className="px-4 py-2">
+                  <td className="px-4 py-3">
                     {hasRole("supervisor") ? (
                       <select
                         value={incident.artisan ?? ""}
@@ -178,11 +176,11 @@ export function OpenIncidentsPage() {
                       <span className="text-slate-600">{artisanLabel(incident.artisan) ?? "Unassigned"}</span>
                     )}
                   </td>
-                  <td className="px-4 py-2 text-right">
+                  <td className="px-4 py-3 text-right">
                     <button
                       type="button"
                       onClick={() => setDetailIncident(incident)}
-                      className="text-brand-600 hover:underline"
+                      className="font-medium text-brand-600 hover:text-brand-700 hover:underline"
                     >
                       Details
                     </button>
@@ -191,7 +189,7 @@ export function OpenIncidentsPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </Card>
       )}
 
       <Modal

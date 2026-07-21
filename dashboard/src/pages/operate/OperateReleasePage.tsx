@@ -2,6 +2,8 @@ import axios from "axios";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
+import { Button } from "@/components/common/Button";
+import { Card } from "@/components/common/Card";
 import { Modal } from "@/components/common/Modal";
 import { ErrorMessage, extractErrorMessage } from "@/components/common/ErrorMessage";
 import { API_BASE_URL, api } from "@/lib/api";
@@ -64,41 +66,34 @@ export function OperateReleasePage() {
 
   return (
     <div className="max-w-md">
-      <p className="mb-4 text-sm text-slate-600">
-        Release{" "}
-        <span className="font-semibold text-slate-900">
-          {activeMachine.machine_type_code.toUpperCase()} {activeMachine.fleet_number}
-        </span>{" "}
-        at end of shift.
-      </p>
+      <Card className="mb-4">
+        <p className="mb-4 text-sm text-slate-600">
+          Release{" "}
+          <span className="font-semibold text-slate-900">
+            {activeMachine.machine_type_code.toUpperCase()} {activeMachine.fleet_number}
+          </span>{" "}
+          at end of shift.
+        </p>
 
-      <label className="mb-1 block text-sm font-medium text-slate-700">Release reason (optional)</label>
-      <input
-        value={reason}
-        onChange={(e) => setReason(e.target.value)}
-        placeholder="e.g. End of shift"
-        className="mb-4 w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
-      />
+        <label className="mb-1 block text-sm font-medium text-slate-700">Release reason (optional)</label>
+        <input
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="e.g. End of shift"
+          className="mb-4 w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+        />
 
-      {error && <ErrorMessage message={error} />}
+        {error && <ErrorMessage message={error} />}
 
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => releaseMutation.mutate()}
-          disabled={releaseMutation.isPending}
-          className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
-        >
-          {releaseMutation.isPending ? "Releasing…" : "Release Machine"}
-        </button>
-        <button
-          type="button"
-          onClick={() => setHandoverOpen(true)}
-          className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
-        >
-          Hand Over to Next Operator
-        </button>
-      </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="success" onClick={() => releaseMutation.mutate()} disabled={releaseMutation.isPending}>
+            {releaseMutation.isPending ? "Releasing…" : "Release Machine"}
+          </Button>
+          <Button variant="secondary" onClick={() => setHandoverOpen(true)}>
+            Hand Over to Next Operator
+          </Button>
+        </div>
+      </Card>
 
       <Modal open={handoverOpen} title="Hand Over Machine" onClose={() => setHandoverOpen(false)}>
         <div className="mb-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
@@ -127,21 +122,15 @@ export function OperateReleasePage() {
         {handoverError && <ErrorMessage message={handoverError} />}
 
         <div className="mt-3 flex gap-2">
-          <button
-            type="button"
+          <Button
             onClick={() => handoverMutation.mutate()}
             disabled={handoverMutation.isPending || !handoverUsername || !handoverPassword}
-            className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
           >
             {handoverMutation.isPending ? "Confirming…" : "Confirm Handover"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setHandoverOpen(false)}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
-          >
+          </Button>
+          <Button variant="secondary" onClick={() => setHandoverOpen(false)}>
             Cancel
-          </button>
+          </Button>
         </div>
       </Modal>
     </div>

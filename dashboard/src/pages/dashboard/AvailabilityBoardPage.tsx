@@ -11,6 +11,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { Card } from "@/components/common/Card";
+import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { api } from "@/lib/api";
@@ -75,7 +77,7 @@ export function AvailabilityBoardPage() {
       {isError && <ErrorMessage message="Failed to load availability data." />}
 
       {data && data.length === 0 && (
-        <p className="text-sm text-slate-400">No shift instances found for this site/date.</p>
+        <EmptyState message="No shift instances found for this site/date." />
       )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -96,7 +98,7 @@ export function AvailabilityBoardPage() {
           ];
 
           return (
-            <div key={row.machine_type} className="rounded-lg border border-slate-200 bg-white p-4">
+            <Card key={row.machine_type}>
               <h2 className="mb-2 text-sm font-semibold text-slate-800">{row.machine_type_name}</h2>
               <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
@@ -113,7 +115,7 @@ export function AvailabilityBoardPage() {
                   <Bar dataKey="utilization" name="Utilization %" fill={UTILIZATION_COLOR} radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
-            </div>
+            </Card>
           );
         })}
       </div>

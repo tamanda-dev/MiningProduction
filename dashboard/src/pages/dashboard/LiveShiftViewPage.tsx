@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { Card } from "@/components/common/Card";
+import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { RoleGate } from "@/components/common/RoleGate";
@@ -93,23 +95,23 @@ export function LiveShiftViewPage() {
           {isError && <ErrorMessage message="Failed to load the live shift summary." />}
 
           {data && (
-            <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+            <Card padded={false} className="overflow-x-auto">
               <table className="w-full text-left text-sm">
-                <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
+                <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                   <tr>
-                    <th className="px-4 py-2 font-medium">Section</th>
-                    <th className="px-4 py-2 font-medium">Parameter</th>
-                    <th className="px-4 py-2 font-medium text-right">Act</th>
-                    <th className="px-4 py-2 font-medium text-right">Plan</th>
-                    <th className="px-4 py-2 font-medium text-right">Var</th>
-                    <th className="px-4 py-2 font-medium text-right">%Var</th>
+                    <th className="px-4 py-3 font-medium">Section</th>
+                    <th className="px-4 py-3 font-medium">Parameter</th>
+                    <th className="px-4 py-3 font-medium text-right">Act</th>
+                    <th className="px-4 py-3 font-medium text-right">Plan</th>
+                    <th className="px-4 py-3 font-medium text-right">Var</th>
+                    <th className="px-4 py-3 font-medium text-right">%Var</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
-                        No production entries logged for this shift yet.
+                      <td colSpan={6} className="px-4 py-2">
+                        <EmptyState message="No production entries logged for this shift yet." />
                       </td>
                     </tr>
                   )}
@@ -118,18 +120,18 @@ export function LiveShiftViewPage() {
                       key={`${row.section}-${row.parameter}`}
                       className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
                     >
-                      <td className="px-4 py-2 text-slate-700">{row.section_name}</td>
-                      <td className="px-4 py-2 text-slate-700">{row.parameter_name}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">
+                      <td className="px-4 py-3 text-slate-700">{row.section_name}</td>
+                      <td className="px-4 py-3 text-slate-700">{row.parameter_name}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">
                         {row.act.toLocaleString()} {row.uom}
                       </td>
-                      <td className="px-4 py-2 text-right tabular-nums text-slate-500">
+                      <td className="px-4 py-3 text-right tabular-nums text-slate-500">
                         {row.plan !== null ? `${row.plan.toLocaleString()} ${row.uom}` : "—"}
                       </td>
-                      <td className="px-4 py-2 text-right tabular-nums text-slate-500">
+                      <td className="px-4 py-3 text-right tabular-nums text-slate-500">
                         {row.var !== null ? row.var.toLocaleString() : "—"}
                       </td>
-                      <td className="px-4 py-2 text-right tabular-nums">
+                      <td className="px-4 py-3 text-right tabular-nums">
                         {row.pct_var !== null ? (
                           <span
                             className={{
@@ -150,7 +152,7 @@ export function LiveShiftViewPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </Card>
           )}
         </>
       )}

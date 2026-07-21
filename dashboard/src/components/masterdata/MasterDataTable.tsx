@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
+import { Button } from "@/components/common/Button";
+import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorMessage, extractErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { Modal } from "@/components/common/Modal";
@@ -125,13 +127,7 @@ export function MasterDataTable<T extends { id: number }>({ config }: { config: 
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-lg font-semibold text-slate-900">{title}</h1>
         {canWrite && (
-          <button
-            type="button"
-            onClick={openCreate}
-            className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
-          >
-            + Add
-          </button>
+          <Button onClick={openCreate}>+ Add</Button>
         )}
       </div>
 
@@ -139,48 +135,48 @@ export function MasterDataTable<T extends { id: number }>({ config }: { config: 
       {isError && <ErrorMessage message="Failed to load data." />}
 
       {data && (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
+            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 {columns.map((col) => (
-                  <th key={col.key} className="px-4 py-2 font-medium">
+                  <th key={col.key} className="px-4 py-3 font-medium">
                     {col.label}
                   </th>
                 ))}
-                {canWrite && <th className="px-4 py-2" />}
+                {canWrite && <th className="px-4 py-3" />}
               </tr>
             </thead>
             <tbody>
               {data.length === 0 && (
                 <tr>
-                  <td colSpan={columns.length + 1} className="px-4 py-6 text-center text-slate-400">
-                    No records yet.
+                  <td colSpan={columns.length + 1} className="px-4 py-2">
+                    <EmptyState message="No records yet." />
                   </td>
                 </tr>
               )}
               {data.map((row) => (
                 <tr key={row.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                   {columns.map((col) => (
-                    <td key={col.key} className="px-4 py-2 text-slate-700">
+                    <td key={col.key} className="px-4 py-3 text-slate-700">
                       {col.render
                         ? col.render(row)
                         : String((row as Record<string, unknown>)[col.key] ?? "")}
                     </td>
                   ))}
                   {canWrite && (
-                    <td className="whitespace-nowrap px-4 py-2 text-right">
+                    <td className="whitespace-nowrap px-4 py-3 text-right">
                       <button
                         type="button"
                         onClick={() => openEdit(row)}
-                        className="mr-3 text-brand-600 hover:underline"
+                        className="mr-3 font-medium text-brand-600 hover:text-brand-700 hover:underline"
                       >
                         Edit
                       </button>
                       <button
                         type="button"
                         onClick={() => setConfirmDeleteId(row.id)}
-                        className="text-red-600 hover:underline"
+                        className="font-medium text-red-600 hover:text-red-700 hover:underline"
                       >
                         Delete
                       </button>
@@ -278,20 +274,12 @@ export function MasterDataTable<T extends { id: number }>({ config }: { config: 
           {formError && <ErrorMessage message={formError} />}
 
           <div className="mt-2 flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setModalOpen(false)}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
-            >
+            <Button variant="secondary" onClick={() => setModalOpen(false)}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saveMutation.isPending}
-              className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-            >
+            </Button>
+            <Button type="submit" disabled={saveMutation.isPending}>
               {saveMutation.isPending ? "Saving…" : "Save"}
-            </button>
+            </Button>
           </div>
         </form>
       </Modal>
@@ -299,23 +287,18 @@ export function MasterDataTable<T extends { id: number }>({ config }: { config: 
       <Modal open={confirmDeleteId !== null} onClose={() => setConfirmDeleteId(null)} title="Delete record?">
         <p className="text-sm text-slate-600">This action cannot be undone.</p>
         <div className="mt-4 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={() => setConfirmDeleteId(null)}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
-          >
+          <Button variant="secondary" onClick={() => setConfirmDeleteId(null)}>
             Cancel
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="danger"
             onClick={() => {
               if (confirmDeleteId !== null) deleteMutation.mutate(confirmDeleteId);
             }}
             disabled={deleteMutation.isPending}
-            className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
           >
             {deleteMutation.isPending ? "Deleting…" : "Delete"}
-          </button>
+          </Button>
         </div>
       </Modal>
     </div>

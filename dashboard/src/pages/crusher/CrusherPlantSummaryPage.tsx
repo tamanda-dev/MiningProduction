@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { ShiftInstancePicker } from "@/components/common/ShiftInstancePicker";
@@ -101,9 +102,10 @@ export function CrusherPlantSummaryPage() {
       {summaryQuery.isError && <ErrorMessage message="Failed to load the crushing summary." />}
 
       {!summaryQuery.isLoading && !summary && shiftInstanceId && crusherId && (
-        <p className="mb-4 text-sm text-slate-400">
-          No ShiftCrushingSummary recorded yet for this crusher/shift instance.
-        </p>
+        <EmptyState
+          message="No shift crushing summary recorded yet for this crusher/shift instance."
+          className="mb-4 py-6"
+        />
       )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">

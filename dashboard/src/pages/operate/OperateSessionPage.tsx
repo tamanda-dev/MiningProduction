@@ -2,6 +2,9 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
+import { Button } from "@/components/common/Button";
+import { Card } from "@/components/common/Card";
+import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorMessage, extractErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { api } from "@/lib/api";
@@ -74,7 +77,7 @@ export function OperateSessionPage() {
 
   if (activeAssignment && activeMachine) {
     return (
-      <div className="rounded-lg border border-slate-200 bg-white p-6">
+      <Card>
         <p className="text-sm text-slate-700">
           You already have an active session on{" "}
           <span className="font-semibold">
@@ -82,14 +85,10 @@ export function OperateSessionPage() {
           </span>
           .
         </p>
-        <button
-          type="button"
-          onClick={() => navigate("/operate/entry")}
-          className="mt-3 rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
-        >
+        <Button className="mt-3" onClick={() => navigate("/operate/entry")}>
           Go to Production Entry
-        </button>
-      </div>
+        </Button>
+      </Card>
     );
   }
 
@@ -126,9 +125,7 @@ export function OperateSessionPage() {
           {machinesQuery.isLoading && <LoadingSpinner />}
           {machinesQuery.isError && <ErrorMessage message="Failed to load machines." />}
           {machinesQuery.data && machinesQuery.data.length === 0 && (
-            <p className="text-sm text-slate-400">
-              No available machines. You may not be qualified for any machine type at this site yet.
-            </p>
+            <EmptyState message="No available machines. You may not be qualified for any machine type at this site yet." />
           )}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {machinesQuery.data?.map((m) => (
@@ -151,7 +148,7 @@ export function OperateSessionPage() {
       )}
 
       {selectedMachine && (
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
+        <Card>
           <h2 className="mb-2 text-sm font-semibold text-slate-800">
             Activate {selectedMachine.machine_type_code.toUpperCase()} {selectedMachine.fleet_number}
           </h2>
@@ -172,23 +169,17 @@ export function OperateSessionPage() {
           {activateError && <ErrorMessage message={activateError} />}
 
           <div className="mt-3 flex gap-2">
-            <button
-              type="button"
+            <Button
               onClick={() => activateMutation.mutate()}
               disabled={!selectedSectionId || activateMutation.isPending}
-              className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
             >
               {activateMutation.isPending ? "Activating…" : "Activate Machine"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedMachine(null)}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
-            >
+            </Button>
+            <Button variant="secondary" onClick={() => setSelectedMachine(null)}>
               Cancel
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
       )}
     </div>
   );

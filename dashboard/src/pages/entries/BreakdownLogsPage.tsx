@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { Card } from "@/components/common/Card";
+import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { Modal } from "@/components/common/Modal";
@@ -113,22 +115,22 @@ export function BreakdownLogsPage() {
       {isError && <ErrorMessage message="Failed to load breakdown logs." />}
 
       {data && (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <Card padded={false} className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
+            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-4 py-2 font-medium">Start</th>
-                <th className="px-4 py-2 font-medium">Machine</th>
-                <th className="px-4 py-2 font-medium">Reason</th>
-                <th className="px-4 py-2 font-medium">Duration</th>
-                <th className="px-4 py-2 font-medium">Severity</th>
+                <th className="px-4 py-3 font-medium">Start</th>
+                <th className="px-4 py-3 font-medium">Machine</th>
+                <th className="px-4 py-3 font-medium">Reason</th>
+                <th className="px-4 py-3 font-medium">Duration</th>
+                <th className="px-4 py-3 font-medium">Severity</th>
               </tr>
             </thead>
             <tbody>
               {data.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
-                    No breakdown logs match these filters.
+                  <td colSpan={5} className="px-4 py-2">
+                    <EmptyState message="No breakdown logs match these filters." />
                   </td>
                 </tr>
               )}
@@ -138,11 +140,11 @@ export function BreakdownLogsPage() {
                   onClick={() => setSelected(log)}
                   className="cursor-pointer border-b border-slate-100 last:border-0 hover:bg-slate-50"
                 >
-                  <td className="px-4 py-2">{new Date(log.start_at).toLocaleString()}</td>
-                  <td className="px-4 py-2">{machineLabel(log.machine)}</td>
-                  <td className="px-4 py-2">{reasonLabel(log.reason_code) || log.description}</td>
-                  <td className="px-4 py-2">{log.duration_minutes !== null ? `${log.duration_minutes} min` : "Ongoing"}</td>
-                  <td className="px-4 py-2">
+                  <td className="px-4 py-3">{new Date(log.start_at).toLocaleString()}</td>
+                  <td className="px-4 py-3">{machineLabel(log.machine)}</td>
+                  <td className="px-4 py-3">{reasonLabel(log.reason_code) || log.description}</td>
+                  <td className="px-4 py-3">{log.duration_minutes !== null ? `${log.duration_minutes} min` : "Ongoing"}</td>
+                  <td className="px-4 py-3">
                     {log.severity && (
                       <span
                         className="rounded-full px-2 py-0.5 text-xs font-medium text-white"
@@ -156,7 +158,7 @@ export function BreakdownLogsPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </Card>
       )}
 
       {selected && <BreakdownDetailModal log={selected} onClose={() => setSelected(null)} />}

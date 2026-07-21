@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { format, subDays } from "date-fns";
 import { useState } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Card } from "@/components/common/Card";
+import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { api } from "@/lib/api";
@@ -59,11 +61,11 @@ export function BreakdownParetoByCausePage() {
       {isLoading && <LoadingSpinner />}
       {isError && <ErrorMessage message="Failed to load breakdown Pareto data." />}
 
-      {data && rows.length === 0 && <p className="text-sm text-slate-400">No breakdown data in this date range.</p>}
+      {data && rows.length === 0 && <EmptyState message="No breakdown data in this date range." />}
 
       {rows.length > 0 && (
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
+          <Card>
             <ResponsiveContainer width="100%" height={Math.max(240, rows.length * 44)}>
               <BarChart data={rows} layout="vertical" margin={{ top: 8, right: 24, left: 8, bottom: 0 }}>
                 <CartesianGrid stroke={CHART_INK.gridline} horizontal={false} />
@@ -80,30 +82,33 @@ export function BreakdownParetoByCausePage() {
                 <Bar dataKey="incident_count" name="Incidents" fill={INCIDENT_COLOR} radius={[0, 3, 3, 0]} />
               </BarChart>
             </ResponsiveContainer>
-          </div>
+          </Card>
 
-          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+          <Card padded={false} className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th className="px-4 py-2 font-medium">Cause</th>
-                  <th className="px-4 py-2 font-medium text-right">Hourly Ticks</th>
-                  <th className="px-4 py-2 font-medium text-right">Incidents</th>
-                  <th className="px-4 py-2 font-medium text-right">Incident Minutes</th>
+                  <th className="px-4 py-3 font-medium">Cause</th>
+                  <th className="px-4 py-3 font-medium text-right">Hourly Ticks</th>
+                  <th className="px-4 py-3 font-medium text-right">Incidents</th>
+                  <th className="px-4 py-3 font-medium text-right">Incident Minutes</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr key={row.cause ?? row.cause_name} className="border-b border-slate-100 last:border-0">
-                    <td className="px-4 py-2">{row.cause_name}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">{row.hourly_tick_count}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">{row.incident_count}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">{row.incident_total_minutes}</td>
+                  <tr
+                    key={row.cause ?? row.cause_name}
+                    className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
+                  >
+                    <td className="px-4 py-3">{row.cause_name}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{row.hourly_tick_count}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{row.incident_count}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{row.incident_total_minutes}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+          </Card>
         </div>
       )}
     </div>

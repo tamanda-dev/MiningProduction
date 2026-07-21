@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { DynamicField, type FieldValue } from "@/components/operate/DynamicField";
+import { Button } from "@/components/common/Button";
+import { Card } from "@/components/common/Card";
 import { ErrorMessage, extractErrorMessage } from "@/components/common/ErrorMessage";
 import { api } from "@/lib/api";
 import { validateAll } from "@/lib/entryValidation";
@@ -140,7 +142,7 @@ export function OperateEntryPage() {
         </div>
       )}
 
-      <div className="mb-4 border-t border-slate-200 pt-4">
+      <Card className="mb-4">
         {schemaQuery.isLoading && <p className="text-sm text-slate-400">Loading form…</p>}
         {parameters.map((param) => (
           <DynamicField key={param.code} parameter={param} value={values[param.code]} onChange={(v) => updateValue(param.code, v)} />
@@ -155,7 +157,7 @@ export function OperateEntryPage() {
             className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
           />
         </div>
-      </div>
+      </Card>
 
       {errors.length > 0 && (
         <div className="mb-4">
@@ -167,14 +169,9 @@ export function OperateEntryPage() {
 
       {savedMessage && <p className="mb-3 text-sm font-medium text-emerald-700">{savedMessage}</p>}
 
-      <button
-        type="button"
-        onClick={handleSubmit}
-        disabled={submitMutation.isPending}
-        className="rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
-      >
+      <Button size="md" onClick={handleSubmit} disabled={submitMutation.isPending}>
         {submitMutation.isPending ? "Saving…" : "Save Entry"}
-      </button>
+      </Button>
     </div>
   );
 }

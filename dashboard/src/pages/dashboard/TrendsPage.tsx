@@ -12,6 +12,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { Card } from "@/components/common/Card";
+import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorMessage } from "@/components/common/ErrorMessage";
 import { FilterBar } from "@/components/common/FilterBar";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
@@ -119,12 +121,12 @@ function DailyTrendTab() {
         )}
       </FilterBar>
 
-      {!ready && <p className="text-sm text-slate-400">Select a section and parameter to see the trend.</p>}
+      {!ready && <EmptyState message="Select a section and parameter to see the trend." className="py-8" />}
       {isLoading && <LoadingSpinner />}
       {isError && <ErrorMessage message="Failed to load trend data." />}
 
       {data && (
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
+        <Card>
           <ResponsiveContainer width="100%" height={340}>
             <ComposedChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
               <CartesianGrid stroke={CHART_INK.gridline} vertical={false} />
@@ -146,7 +148,7 @@ function DailyTrendTab() {
               />
             </ComposedChart>
           </ResponsiveContainer>
-        </div>
+        </Card>
       )}
     </div>
   );
@@ -223,12 +225,14 @@ function HourlyCurveTab() {
         </Field>
       </FilterBar>
 
-      {!ready && <p className="text-sm text-slate-400">Select a shift, section, and parameter to see the curve.</p>}
+      {!ready && (
+        <EmptyState message="Select a shift, section, and parameter to see the curve." className="py-8" />
+      )}
       {isLoading && <LoadingSpinner />}
       {isError && <ErrorMessage message="Failed to load the hourly curve." />}
 
       {data && (
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
+        <Card>
           <ResponsiveContainer width="100%" height={340}>
             <ComposedChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
               <CartesianGrid stroke={CHART_INK.gridline} vertical={false} />
@@ -253,7 +257,7 @@ function HourlyCurveTab() {
               />
             </ComposedChart>
           </ResponsiveContainer>
-        </div>
+        </Card>
       )}
     </div>
   );

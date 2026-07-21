@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { Card } from "@/components/common/Card";
+import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { api } from "@/lib/api";
@@ -37,39 +39,39 @@ export function AuditLogPage() {
       {isError && <ErrorMessage message="Failed to load the audit log." />}
 
       {data && (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <Card padded={false} className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
+            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-4 py-2 font-medium">When</th>
-                <th className="px-4 py-2 font-medium">Action</th>
-                <th className="px-4 py-2 font-medium">Object</th>
-                <th className="px-4 py-2 font-medium">Actor</th>
-                <th className="px-4 py-2 font-medium">Reason</th>
+                <th className="px-4 py-3 font-medium">When</th>
+                <th className="px-4 py-3 font-medium">Action</th>
+                <th className="px-4 py-3 font-medium">Object</th>
+                <th className="px-4 py-3 font-medium">Actor</th>
+                <th className="px-4 py-3 font-medium">Reason</th>
               </tr>
             </thead>
             <tbody>
               {data.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
-                    No audit events match these filters.
+                  <td colSpan={5} className="px-4 py-2">
+                    <EmptyState message="No audit events match these filters." />
                   </td>
                 </tr>
               )}
               {data.map((event) => (
-                <tr key={event.id} className="border-b border-slate-100 last:border-0">
-                  <td className="px-4 py-2 whitespace-nowrap">{new Date(event.created_at).toLocaleString()}</td>
-                  <td className="px-4 py-2 font-mono text-xs">{event.action}</td>
-                  <td className="px-4 py-2 text-slate-500">
+                <tr key={event.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                  <td className="px-4 py-3 whitespace-nowrap">{new Date(event.created_at).toLocaleString()}</td>
+                  <td className="px-4 py-3 font-mono text-xs">{event.action}</td>
+                  <td className="px-4 py-3 text-slate-500">
                     {event.content_type_label} #{event.object_id}
                   </td>
-                  <td className="px-4 py-2">{event.actor_label ?? "system"}</td>
-                  <td className="px-4 py-2 text-slate-500">{event.reason || "—"}</td>
+                  <td className="px-4 py-3">{event.actor_label ?? "system"}</td>
+                  <td className="px-4 py-3 text-slate-500">{event.reason || "—"}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </Card>
       )}
     </div>
   );

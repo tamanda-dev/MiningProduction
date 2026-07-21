@@ -2,6 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
 import { Badge } from "@/components/common/Badge";
+import { Button } from "@/components/common/Button";
+import { Card } from "@/components/common/Card";
+import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorMessage, extractErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { api } from "@/lib/api";
@@ -110,14 +113,9 @@ function QuickLogForm({ crusherId, onSaved }: { crusherId: number; onSaved: () =
 
       {error && <ErrorMessage message={error} />}
 
-      <button
-        type="button"
-        onClick={handleSubmit}
-        disabled={mutation.isPending}
-        className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
-      >
+      <Button variant="danger" onClick={handleSubmit} disabled={mutation.isPending}>
         {mutation.isPending ? "Saving…" : "Save Incident"}
-      </button>
+      </Button>
     </div>
   );
 }
@@ -156,14 +154,9 @@ function IncidentDetail({ incident, onChanged }: { incident: BreakdownIncident; 
     <div className="border-t border-slate-100 bg-slate-50 p-4">
       {!incident.time_attended ? (
         <>
-          <button
-            type="button"
-            onClick={() => attendMutation.mutate()}
-            disabled={attendMutation.isPending}
-            className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-          >
+          <Button onClick={() => attendMutation.mutate()} disabled={attendMutation.isPending}>
             {attendMutation.isPending ? "Saving…" : "Mark Attended"}
-          </button>
+          </Button>
           {error && <ErrorMessage message={error} />}
         </>
       ) : (
@@ -183,14 +176,9 @@ function IncidentDetail({ incident, onChanged }: { incident: BreakdownIncident; 
             className="mb-2 w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
           />
           {error && <ErrorMessage message={error} />}
-          <button
-            type="button"
-            onClick={handleResolve}
-            disabled={resolveMutation.isPending}
-            className="mt-2 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
-          >
+          <Button variant="success" className="mt-2" onClick={handleResolve} disabled={resolveMutation.isPending}>
             {resolveMutation.isPending ? "Saving…" : "Mark Resolved"}
-          </button>
+          </Button>
         </>
       )}
     </div>
@@ -236,9 +224,9 @@ export function OperateIncidentsPage() {
       <h2 className="mb-2 text-sm font-semibold text-slate-800">Open Incidents</h2>
       {isLoading && <LoadingSpinner />}
       {isError && <ErrorMessage message="Failed to load incidents." />}
-      {data && incidents.length === 0 && <p className="text-sm text-slate-400">No open or in-progress incidents.</p>}
+      {data && incidents.length === 0 && <EmptyState message="No open or in-progress incidents." />}
 
-      <div className="divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white">
+      <Card padded={false} className="divide-y divide-slate-100">
         {incidents.map((incident) => (
           <div key={incident.id}>
             <button
@@ -259,7 +247,7 @@ export function OperateIncidentsPage() {
             {expandedId === incident.id && <IncidentDetail incident={incident} onChanged={refresh} />}
           </div>
         ))}
-      </div>
+      </Card>
     </div>
   );
 }
