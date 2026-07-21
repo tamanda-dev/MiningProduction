@@ -42,6 +42,18 @@ export const radius = {
   lg: 16,
 } as const;
 
+// Subtle elevation for card-style surfaces (site/machine cards, the
+// handover bottom sheet) — cross-platform via both the iOS shadow* props
+// and Android's `elevation`, kept low so it reads as depth, not a shadow
+// this app's high-contrast/outdoor-readability design would otherwise avoid.
+export const shadow = {
+  shadowColor: "#000000",
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.08,
+  shadowRadius: 6,
+  elevation: 2,
+} as const;
+
 export const fontSize = {
   label: 15,
   body: 18,

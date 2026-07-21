@@ -1,5 +1,6 @@
 import { Redirect } from "expo-router";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/src/auth/useAuth";
 import { useSession } from "@/src/auth/useSession";
 import { colors } from "@/src/theme/theme";
@@ -10,9 +11,11 @@ export default function Index() {
 
   if (isLoading || (isAuthenticated && isRestoring)) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background }}>
+      <SafeAreaView
+        style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background }}
+      >
         <ActivityIndicator size="large" color={colors.primary} />
-      </View>
+      </SafeAreaView>
     );
   }
 

@@ -1,5 +1,6 @@
 import { Redirect, Tabs } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useSession } from "@/src/auth/useSession";
 import { SyncStatusBar } from "@/src/components/SyncStatusBar";
 import { SyncEngineProvider } from "@/src/hooks/SyncEngineContext";
@@ -23,7 +24,7 @@ export default function SessionLayout() {
 
   return (
     <SyncEngineProvider>
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.header}>
           <Text style={styles.machineLabel}>
             {activeMachine.machine_type_code.toUpperCase()} {activeMachine.fleet_number}
@@ -53,7 +54,7 @@ export default function SessionLayout() {
           <Tabs.Screen name="incident" options={{ href: null }} />
           <Tabs.Screen name="release" options={{ title: "Release" }} />
         </Tabs>
-      </View>
+      </SafeAreaView>
     </SyncEngineProvider>
   );
 }

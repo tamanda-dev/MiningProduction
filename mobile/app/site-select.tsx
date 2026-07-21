@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
@@ -6,7 +7,7 @@ import type { MachineTypeQualification, Paginated, Site } from "@/src/api/types"
 import { useAuth } from "@/src/auth/useAuth";
 import { useSession } from "@/src/auth/useSession";
 import { Screen } from "@/src/components/Screen";
-import { colors, fontSize, MIN_TAP_TARGET, radius, spacing } from "@/src/theme/theme";
+import { colors, fontSize, MIN_TAP_TARGET, radius, shadow, spacing } from "@/src/theme/theme";
 
 export default function SiteSelectScreen() {
   const { accessibleSiteIds, logout, user } = useAuth();
@@ -78,8 +79,11 @@ export default function SiteSelectScreen() {
             onPress={() => handleSelect(item)}
             style={({ pressed }) => [styles.siteCard, pressed && styles.pressed]}
           >
-            <Text style={styles.siteName}>{item.name}</Text>
-            <Text style={styles.siteCode}>{item.code}</Text>
+            <View style={styles.siteCardText}>
+              <Text style={styles.siteName}>{item.name}</Text>
+              <Text style={styles.siteCode}>{item.code}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={22} color={colors.textMuted} />
           </Pressable>
         )}
       />
@@ -100,12 +104,18 @@ const styles = StyleSheet.create({
   },
   siteCard: {
     minHeight: MIN_TAP_TARGET + 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     borderWidth: 2,
     borderColor: colors.border,
     borderRadius: radius.md,
     padding: spacing.md,
     backgroundColor: colors.surface,
-    justifyContent: "center",
+    ...shadow,
+  },
+  siteCardText: {
+    flexShrink: 1,
   },
   pressed: {
     opacity: 0.7,

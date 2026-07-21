@@ -153,7 +153,7 @@ export default function ReleaseScreen() {
           autoCorrect={false}
         />
         <Text style={styles.sectionLabel}>Password</Text>
-        <TextField value={handoverPassword} onChangeText={setHandoverPassword} secureTextEntry />
+        <TextField value={handoverPassword} onChangeText={setHandoverPassword} secureToggle />
 
         {handoverError && <Text style={styles.error}>{handoverError}</Text>}
 

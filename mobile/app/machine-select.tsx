@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -8,7 +9,7 @@ import { useSession } from "@/src/auth/useSession";
 import { BigButton } from "@/src/components/BigButton";
 import { ModalSheet } from "@/src/components/ModalSheet";
 import { Screen } from "@/src/components/Screen";
-import { colors, fontSize, MIN_TAP_TARGET, radius, spacing } from "@/src/theme/theme";
+import { colors, fontSize, MIN_TAP_TARGET, radius, shadow, spacing } from "@/src/theme/theme";
 
 function extractErrorMessage(error: unknown): string {
   if (error && typeof error === "object" && "response" in error) {
@@ -115,10 +116,13 @@ export default function MachineSelectScreen() {
             onPress={() => openSectionPicker(item)}
             style={({ pressed }) => [styles.machineCard, pressed && styles.pressed]}
           >
-            <Text style={styles.machineLabel}>
-              {item.machine_type_code.toUpperCase()} {item.fleet_number}
-            </Text>
-            {item.name ? <Text style={styles.machineSub}>{item.name}</Text> : null}
+            <View style={styles.machineCardText}>
+              <Text style={styles.machineLabel}>
+                {item.machine_type_code.toUpperCase()} {item.fleet_number}
+              </Text>
+              {item.name ? <Text style={styles.machineSub}>{item.name}</Text> : null}
+            </View>
+            <Ionicons name="chevron-forward" size={22} color={colors.textMuted} />
           </Pressable>
         )}
       />
@@ -187,12 +191,18 @@ const styles = StyleSheet.create({
   },
   machineCard: {
     minHeight: MIN_TAP_TARGET + 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     borderWidth: 2,
     borderColor: colors.border,
     borderRadius: radius.md,
     padding: spacing.md,
     backgroundColor: colors.surface,
-    justifyContent: "center",
+    ...shadow,
+  },
+  machineCardText: {
+    flexShrink: 1,
   },
   pressed: {
     opacity: 0.7,

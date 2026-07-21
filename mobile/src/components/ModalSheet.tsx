@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Modal, StyleSheet, Text, View } from "react-native";
-import { colors, fontSize, radius, spacing } from "@/src/theme/theme";
+import { colors, fontSize, radius, shadow, spacing } from "@/src/theme/theme";
 
 export function ModalSheet({
   visible,
@@ -36,6 +36,8 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
     padding: spacing.lg,
+    ...shadow,
+    shadowOffset: { width: 0, height: -2 },
   },
   title: {
     fontSize: fontSize.title,

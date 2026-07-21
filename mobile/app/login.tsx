@@ -1,10 +1,19 @@
+import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { BigButton } from "@/src/components/BigButton";
 import { Screen } from "@/src/components/Screen";
+import { TextField } from "@/src/components/TextField";
 import { useAuth } from "@/src/auth/useAuth";
-import { colors, fontSize, radius, spacing } from "@/src/theme/theme";
+import { colors, fontSize, spacing } from "@/src/theme/theme";
+
+// Shown at the bottom of the login screen so a build can always be
+// positively identified during support/troubleshooting — sideloaded APK
+// updates on Android don't always make it obvious whether an install
+// actually replaced the previous build.
+const APP_VERSION = Constants.expoConfig?.version ?? "unknown";
+const BUILD_ID = Constants.expoConfig?.android?.versionCode ?? "?";
 
 function extractErrorMessage(error: unknown): string {
   if (error && typeof error === "object" && "response" in error) {
@@ -45,22 +54,16 @@ export default function LoginScreen() {
 
       <View style={styles.form}>
         <Text style={styles.label}>Username</Text>
-        <TextInput
+        <TextField
           value={username}
           onChangeText={setUsername}
           autoCapitalize="none"
           autoCorrect={false}
-          style={styles.input}
           placeholder="e.g. demo_operator1"
         />
 
         <Text style={styles.label}>Password</Text>
-        <TextInput
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          style={styles.input}
-        />
+        <TextField value={password} onChangeText={setPassword} secureToggle />
 
         {error && <Text style={styles.error}>{error}</Text>}
 
@@ -68,6 +71,10 @@ export default function LoginScreen() {
           <BigButton label="Sign In" onPress={handleSubmit} loading={submitting} />
         </View>
       </View>
+
+      <Text style={styles.version}>
+        v{APP_VERSION} (build {BUILD_ID})
+      </Text>
     </Screen>
   );
 }
@@ -98,20 +105,16 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     marginBottom: spacing.xs,
   },
-  input: {
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    fontSize: fontSize.body,
-    color: colors.text,
-    backgroundColor: colors.background,
-  },
   error: {
     color: colors.critical,
     fontSize: fontSize.label,
     marginTop: spacing.md,
     fontWeight: "600",
+  },
+  version: {
+    marginTop: spacing.xl,
+    textAlign: "center",
+    fontSize: fontSize.label,
+    color: colors.textMuted,
   },
 });
