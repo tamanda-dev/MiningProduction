@@ -2,12 +2,15 @@
 __pycache__/
 *.pyc
 .venv/
+venv/
 *.sqlite3
+*.sqlite3.bak.*
 staticfiles/
 media/
 
 # Env
 .env
+.env.*
 backend/.env
 
 # Node
