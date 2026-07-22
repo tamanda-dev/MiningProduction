@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
+import { useAuth } from "@/auth/useAuth";
 import { ProtectedRoute } from "@/auth/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { AuditLogPage } from "@/pages/audit/AuditLogPage";
@@ -30,6 +31,7 @@ import { CrusherUnitsPage } from "@/pages/masterdata/CrusherUnitsPage";
 import { DeliveryDestinationsPage } from "@/pages/masterdata/DeliveryDestinationsPage";
 import { DowntimeReasonCodesPage } from "@/pages/masterdata/DowntimeReasonCodesPage";
 import { MachinesPage } from "@/pages/masterdata/MachinesPage";
+import { MachineQualificationsPage } from "@/pages/masterdata/MachineQualificationsPage";
 import { MachineTypesPage } from "@/pages/masterdata/MachineTypesPage";
 import { ParametersPage } from "@/pages/masterdata/ParametersPage";
 import { PlanTargetsPage } from "@/pages/masterdata/PlanTargetsPage";
@@ -42,6 +44,16 @@ import { SubSectionsPage } from "@/pages/masterdata/SubSectionsPage";
 import { TeamMembersPage } from "@/pages/masterdata/TeamMembersPage";
 import { TeamsPage } from "@/pages/masterdata/TeamsPage";
 import { UOMsPage } from "@/pages/masterdata/UOMsPage";
+import { UsersPage } from "@/pages/masterdata/UsersPage";
+
+// Operators have no requireRole="supervisor" route to land on, so sending
+// everyone to /dashboard/summary would bounce them straight back here via
+// ProtectedRoute's redirect-to-"/" — an infinite loop. Send each role to
+// somewhere it can actually see.
+function Home() {
+  const { hasRole } = useAuth();
+  return <Navigate to={hasRole("supervisor") ? "/dashboard/summary" : "/operate/session"} replace />;
+}
 
 function App() {
   return (
@@ -50,26 +62,33 @@ function App() {
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
-          <Route path="/" element={<Navigate to="/dashboard/summary" replace />} />
+          <Route path="/" element={<Home />} />
 
-          <Route path="/dashboard/summary" element={<LiveShiftViewPage />} />
-          <Route path="/dashboard/trends" element={<TrendsPage />} />
-          <Route path="/dashboard/availability" element={<AvailabilityBoardPage />} />
-          <Route path="/dashboard/downtime" element={<DowntimeParetoPage />} />
-          <Route path="/dashboard/machines" element={<MachineStatusBoardPage />} />
+          <Route element={<ProtectedRoute requireRole="supervisor" />}>
+            <Route path="/dashboard/summary" element={<LiveShiftViewPage />} />
+            <Route path="/dashboard/trends" element={<TrendsPage />} />
+            <Route path="/dashboard/availability" element={<AvailabilityBoardPage />} />
+            <Route path="/dashboard/downtime" element={<DowntimeParetoPage />} />
+            <Route path="/dashboard/machines" element={<MachineStatusBoardPage />} />
+          </Route>
 
           <Route path="/entries/production" element={<ProductionEntriesPage />} />
           <Route path="/entries/breakdowns" element={<BreakdownLogsPage />} />
 
-          <Route path="/operate" element={<OperateLayout />}>
-            <Route index element={<Navigate to="/operate/session" replace />} />
-            <Route path="session" element={<OperateSessionPage />} />
-            <Route path="entry" element={<OperateEntryPage />} />
-            <Route path="breakdown" element={<OperateBreakdownPage />} />
-            <Route path="checklist" element={<OperateChecklistPage />} />
-            <Route path="breakdown-matrix" element={<OperateBreakdownMatrixPage />} />
-            <Route path="incidents" element={<OperateIncidentsPage />} />
-            <Route path="release" element={<OperateReleasePage />} />
+          {/* Operating a machine is an Operator's job — Admin/Supervisor
+              assign machines to operators instead of running one
+              themselves (see the "Assign Machines" pages/actions). */}
+          <Route element={<ProtectedRoute requireRole="operator" />}>
+            <Route path="/operate" element={<OperateLayout />}>
+              <Route index element={<Navigate to="/operate/session" replace />} />
+              <Route path="session" element={<OperateSessionPage />} />
+              <Route path="entry" element={<OperateEntryPage />} />
+              <Route path="breakdown" element={<OperateBreakdownPage />} />
+              <Route path="checklist" element={<OperateChecklistPage />} />
+              <Route path="breakdown-matrix" element={<OperateBreakdownMatrixPage />} />
+              <Route path="incidents" element={<OperateIncidentsPage />} />
+              <Route path="release" element={<OperateReleasePage />} />
+            </Route>
           </Route>
 
           <Route path="/crusher/summary" element={<CrusherPlantSummaryPage />} />
@@ -78,7 +97,11 @@ function App() {
           <Route path="/crusher/checklist-heatmap" element={<ChecklistComplianceHeatmapPage />} />
           <Route path="/crusher/open-incidents" element={<OpenIncidentsPage />} />
 
-          <Route element={<ProtectedRoute requireRole="manager" />}>
+          {/* Manager was removed as a distinct role — Supervisor absorbed
+              everything it used to do, so master data (previously split
+              across a stricter "manager" tier and a separate
+              ReadOnlyOrSupervisorOrAbove tier) is now one Supervisor+ gate. */}
+          <Route element={<ProtectedRoute requireRole="supervisor" />}>
             <Route path="/admin/sites" element={<SitesPage />} />
             <Route path="/admin/sections" element={<SectionsPage />} />
             <Route path="/admin/subsections" element={<SubSectionsPage />} />
@@ -89,19 +112,21 @@ function App() {
             <Route path="/admin/crusher-units" element={<CrusherUnitsPage />} />
             <Route path="/admin/delivery-destinations" element={<DeliveryDestinationsPage />} />
             <Route path="/admin/downtime-reasons" element={<DowntimeReasonCodesPage />} />
+            <Route path="/admin/plan-targets" element={<PlanTargetsPage />} />
+            <Route path="/admin/breakdown-causes" element={<BreakdownCausesPage />} />
+            <Route path="/admin/checklist-items" element={<ChecklistItemsPage />} />
+            <Route path="/admin/hourly-slots" element={<HourlySlotsPage />} />
             <Route path="/admin/shift-patterns" element={<ShiftPatternsPage />} />
             <Route path="/admin/teams" element={<TeamsPage />} />
             <Route path="/admin/team-members" element={<TeamMembersPage />} />
             <Route path="/admin/shifts" element={<ShiftsPage />} />
             <Route path="/admin/shift-instances" element={<ShiftInstancesPage />} />
-            <Route path="/admin/plan-targets" element={<PlanTargetsPage />} />
-            <Route path="/admin/breakdown-causes" element={<BreakdownCausesPage />} />
-            <Route path="/admin/checklist-items" element={<ChecklistItemsPage />} />
-            <Route path="/admin/hourly-slots" element={<HourlySlotsPage />} />
+            <Route path="/admin/machine-qualifications" element={<MachineQualificationsPage />} />
+            <Route path="/audit-log" element={<AuditLogPage />} />
           </Route>
 
-          <Route element={<ProtectedRoute requireRole="supervisor" />}>
-            <Route path="/audit-log" element={<AuditLogPage />} />
+          <Route element={<ProtectedRoute requireRole="admin" />}>
+            <Route path="/admin/users" element={<UsersPage />} />
           </Route>
         </Route>
       </Route>

@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
 from core import scoping
-from core.permissions import IsManagerOrAdmin, ReadOnlyOrSupervisorOrAbove, IsSupervisorOrAbove
+from core.permissions import ReadOnlyOrSupervisorOrAbove, IsSupervisorOrAbove
 from masterdata.models import Site
 
 from .models import Shift, ShiftInstance
@@ -64,7 +64,7 @@ class ShiftInstanceViewSet(ModelViewSet):
         instance.save(update_fields=["status", "closed_at", "closed_by", "updated_at"])
         return Response(ShiftInstanceSerializer(instance).data)
 
-    @action(detail=True, methods=["post"], permission_classes=(IsManagerOrAdmin,))
+    @action(detail=True, methods=["post"], permission_classes=(IsSupervisorOrAbove,))
     def approve(self, request, pk=None):
         instance = self.get_object()
         if instance.status != ShiftInstance.STATUS_CLOSED:

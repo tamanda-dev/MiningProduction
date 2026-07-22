@@ -54,7 +54,8 @@ export function MachinesPage() {
         key: "current_section",
         label: "Current Section",
         type: "select",
-        options: sections?.map((s) => ({ value: s.id, label: s.name })) ?? [],
+        options: (values) =>
+          sections?.filter((s) => String(s.site) === String(values.site)).map((s) => ({ value: s.id, label: s.name })) ?? [],
       },
     ],
   };

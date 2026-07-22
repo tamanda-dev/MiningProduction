@@ -17,7 +17,10 @@ export interface FieldConfig {
   key: string;
   label: string;
   type: "text" | "textarea" | "number" | "boolean" | "select" | "multiselect" | "time" | "date";
-  options?: FieldOption[];
+  // A function lets a field's choices depend on another field's current
+  // value in the same form (e.g. "Section" narrowed to the selected
+  // "Site") instead of always listing every row from the lookup.
+  options?: FieldOption[] | ((values: FormValues) => FieldOption[]);
   required?: boolean;
   helpText?: string;
 }
@@ -39,6 +42,29 @@ export interface MasterDataResourceConfig<T extends { id: number }> {
 }
 
 type FormValues = Record<string, unknown>;
+
+function resolveOptions(field: FieldConfig, values: FormValues): FieldOption[] {
+  if (typeof field.options === "function") return field.options(values);
+  return field.options ?? [];
+}
+
+function buildPayload(fields: FieldConfig[], values: FormValues): FormValues {
+  const payload: FormValues = { ...values };
+  fields.forEach((f) => {
+    if (f.required || payload[f.key] !== "") return;
+    // DRF's non-char fields (numbers, dates/times, FK selects) reject an
+    // empty string outright ("A valid integer is required.", etc.) even
+    // when the underlying model field is null=True/blank=True with a
+    // default — only CharField-backed types treat "" as a real value.
+    // Leaving an optional field like this untouched should mean "use the
+    // model's default/null", so omit it rather than send a "" the API
+    // will always reject.
+    if (f.type !== "text" && f.type !== "textarea") {
+      delete payload[f.key];
+    }
+  });
+  return payload;
+}
 
 function fieldDefault(field: FieldConfig): unknown {
   if (field.type === "boolean") return true;
@@ -115,11 +141,25 @@ export function MasterDataTable<T extends { id: number }>({ config }: { config: 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFormError(null);
-    saveMutation.mutate(formValues);
+    saveMutation.mutate(buildPayload(fields, formValues));
   }
 
   function updateField(key: string, value: unknown) {
-    setFormValues((prev) => ({ ...prev, [key]: value }));
+    setFormValues((prev) => {
+      const next = { ...prev, [key]: value };
+      // A field whose options depend on another field (e.g. "Section"
+      // narrowed by "Site") can end up holding a value that's no longer a
+      // valid choice once the field it depends on changes — clear it
+      // rather than silently submitting a stale, now-hidden option.
+      fields.forEach((f) => {
+        if (f.key === key || typeof f.options !== "function") return;
+        const allowed = f.options(next);
+        if (allowed.length > 0 && !allowed.some((opt) => String(opt.value) === String(next[f.key]))) {
+          next[f.key] = "";
+        }
+      });
+      return next;
+    });
   }
 
   return (
@@ -211,7 +251,7 @@ export function MasterDataTable<T extends { id: number }>({ config }: { config: 
                 />
               ) : field.type === "multiselect" ? (
                 <div className="flex flex-wrap gap-x-4 gap-y-1 rounded-md border border-slate-200 p-2">
-                  {field.options?.map((opt) => {
+                  {resolveOptions(field, formValues).map((opt) => {
                     const selected = Array.isArray(formValues[field.key])
                       ? (formValues[field.key] as (string | number)[])
                       : [];
@@ -242,7 +282,7 @@ export function MasterDataTable<T extends { id: number }>({ config }: { config: 
                   className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
                 >
                   <option value="">—</option>
-                  {field.options?.map((opt) => (
+                  {resolveOptions(field, formValues).map((opt) => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
                     </option>
@@ -262,7 +302,18 @@ export function MasterDataTable<T extends { id: number }>({ config }: { config: 
                   value={String(formValues[field.key] ?? "")}
                   required={field.required}
                   onChange={(e) =>
-                    updateField(field.key, field.type === "number" ? e.target.valueAsNumber : e.target.value)
+                    updateField(
+                      field.key,
+                      // A cleared number input's valueAsNumber is NaN, not
+                      // "" — left as NaN it would sail past buildPayload's
+                      // `=== ""` blank-field check, then JSON.stringify to
+                      // `null` and get rejected by DRF's non-nullable
+                      // fields (or silently null out one that IS nullable
+                      // but shouldn't be touched). Normalize to "" so a
+                      // cleared number field is indistinguishable from any
+                      // other untouched-optional-field case.
+                      field.type === "number" ? (e.target.value === "" ? "" : e.target.valueAsNumber) : e.target.value,
+                    )
                   }
                   className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
                 />

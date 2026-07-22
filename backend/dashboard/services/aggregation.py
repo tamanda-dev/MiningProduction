@@ -135,6 +135,157 @@ def act_vs_plan_for_date_range(site_id, date_from, date_to, plan_period_type, pl
     return results
 
 
+def _parameter_totals(value_qs, plan_qs):
+    """Act (sum of ParameterValue.value_number) and Plan (sum of matching
+    PlanTarget.target_value) per parameter, collapsed across every section —
+    the grain the source "Daily Production Report" spreadsheet uses (one row
+    per parameter for the whole site, not broken out by section). Shared by
+    both the per-shift and the date-range branches of
+    daily_production_report_rows below.
+    """
+    act_rows = value_qs.values(
+        "parameter_id", "parameter__code", "parameter__name", "parameter__uom__abbreviation", "parameter__display_order"
+    ).annotate(act=Sum("value_number"))
+
+    plan_by_parameter = defaultdict(lambda: Decimal("0"))
+    for pt in plan_qs:
+        plan_by_parameter[pt.parameter_id] += pt.target_value
+
+    totals = {}
+    for row in act_rows:
+        parameter_id = row["parameter_id"]
+        totals[parameter_id] = {
+            "parameter": parameter_id,
+            "parameter_code": row["parameter__code"],
+            "parameter_name": row["parameter__name"],
+            "uom": row["parameter__uom__abbreviation"],
+            "display_order": row["parameter__display_order"],
+            "act": row["act"] or Decimal("0"),
+            "plan": plan_by_parameter.get(parameter_id),
+        }
+    # A parameter with a Plan target but zero Act this period still belongs
+    # on the report (e.g. nothing logged yet for an hour that just started).
+    for parameter_id, plan_total in plan_by_parameter.items():
+        totals.setdefault(
+            parameter_id,
+            {
+                "parameter": parameter_id,
+                "parameter_code": None,
+                "parameter_name": None,
+                "uom": None,
+                "display_order": 0,
+                "act": Decimal("0"),
+                "plan": plan_total,
+            },
+        )
+    return totals
+
+
+def daily_production_report_rows(site_id, date):
+    """Per-parameter Act/Plan/%Var for every ShiftInstance on `date` (keyed
+    by that instance's Shift name — whatever a site calls its shifts, e.g.
+    "Day"/"Night" — not hardcoded), plus Daily Total and Month-to-Date
+    columns, matching the source "Daily Production Report" spreadsheet's
+    layout: one row per parameter, with a Act/Plan/%Var column-group per
+    shift plus Daily Total and MTD column-groups. Reuses
+    act_vs_plan_for_shift_instance's per-shift PlanTarget lookup convention
+    (PERIOD_SHIFT) and act_vs_plan_for_date_range's day/month convention,
+    just collapsed across sections via _parameter_totals above.
+    """
+    from shiftmgmt.models import ShiftInstance
+
+    date = parse_date(date) if isinstance(date, str) else date
+    month_start = date.replace(day=1)
+
+    instances = list(
+        ShiftInstance.objects.filter(site_id=site_id, date=date).select_related("shift").order_by("shift__start_time")
+    )
+
+    by_shift = {}
+    for instance in instances:
+        value_qs = ParameterValue.objects.filter(
+            production_entry__shift_instance=instance, value_number__isnull=False
+        )
+        plan_qs = PlanTarget.objects.filter(shift_instance=instance, period_type=PlanTarget.PERIOD_SHIFT)
+        by_shift[instance.shift.name] = _parameter_totals(value_qs, plan_qs)
+
+    daily_value_qs = ParameterValue.objects.filter(
+        production_entry__site_id=site_id, production_entry__slot_start_at__date=date, value_number__isnull=False
+    )
+    daily_plan_qs = PlanTarget.objects.filter(site_id=site_id, period_type=PlanTarget.PERIOD_DAY, period_date=date)
+    daily_total = _parameter_totals(daily_value_qs, daily_plan_qs)
+
+    mtd_value_qs = ParameterValue.objects.filter(
+        production_entry__site_id=site_id,
+        production_entry__slot_start_at__date__gte=month_start,
+        production_entry__slot_start_at__date__lte=date,
+        value_number__isnull=False,
+    )
+    mtd_plan_qs = PlanTarget.objects.filter(site_id=site_id, period_type=PlanTarget.PERIOD_MONTH, period_date=month_start)
+    mtd = _parameter_totals(mtd_value_qs, mtd_plan_qs)
+
+    parameter_ids = set(daily_total) | set(mtd)
+    for shift_totals in by_shift.values():
+        parameter_ids |= set(shift_totals)
+
+    def _display_order(pid):
+        for source in (daily_total, mtd, *by_shift.values()):
+            if pid in source:
+                return source[pid]["display_order"]
+        return 0
+
+    rows = []
+    for parameter_id in sorted(parameter_ids, key=_display_order):
+        base = daily_total.get(parameter_id) or mtd.get(parameter_id) or next(
+            s[parameter_id] for s in by_shift.values() if parameter_id in s
+        )
+        by_shift_row = {}
+        for shift_name, totals in by_shift.items():
+            entry = totals.get(parameter_id)
+            act = entry["act"] if entry else Decimal("0")
+            plan = entry["plan"] if entry else None
+            var = (act - plan) if plan is not None else None
+            by_shift_row[shift_name] = {"act": act, "plan": plan, "var": var, "pct_var": _pct_var(act, plan)}
+
+        daily_entry = daily_total.get(parameter_id)
+        daily_act = daily_entry["act"] if daily_entry else Decimal("0")
+        daily_plan = daily_entry["plan"] if daily_entry else None
+        daily_var = (daily_act - daily_plan) if daily_plan is not None else None
+
+        mtd_entry = mtd.get(parameter_id)
+        mtd_act = mtd_entry["act"] if mtd_entry else Decimal("0")
+        mtd_plan = mtd_entry["plan"] if mtd_entry else None
+        mtd_var = (mtd_act - mtd_plan) if mtd_plan is not None else None
+
+        # base's code/name/uom can be None if every source that mentioned
+        # this parameter only did so via the plan-only fallback in
+        # _parameter_totals (a Plan target with zero Act logged anywhere
+        # today) — fall back to the Parameter row directly rather than show
+        # a blank label on the report.
+        parameter_code, parameter_name, uom = base["parameter_code"], base["parameter_name"], base["uom"]
+        if parameter_code is None:
+            from masterdata.models import Parameter
+
+            param = Parameter.objects.select_related("uom").filter(pk=parameter_id).first()
+            if param:
+                parameter_code = param.code
+                parameter_name = param.name
+                uom = param.uom.abbreviation if param.uom else None
+
+        rows.append(
+            {
+                "parameter": parameter_id,
+                "parameter_code": parameter_code,
+                "parameter_name": parameter_name,
+                "uom": uom,
+                "by_shift": by_shift_row,
+                "daily_total": {"act": daily_act, "plan": daily_plan, "var": daily_var, "pct_var": _pct_var(daily_act, daily_plan)},
+                "mtd": {"act": mtd_act, "plan": mtd_plan, "var": mtd_var, "pct_var": _pct_var(mtd_act, mtd_plan)},
+            }
+        )
+    return {"shift_names": [i.shift.name for i in instances], "rows": rows}
+
+
 def daily_trend(site_id, section_id, parameter_id, date_from, date_to):
     """Daily Act vs Plan series between two dates for one section+parameter
     — feeds the daily/MTD trend graphs and variance-over-time chart.

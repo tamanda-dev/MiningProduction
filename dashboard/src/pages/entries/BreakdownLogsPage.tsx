@@ -7,7 +7,7 @@ import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { Modal } from "@/components/common/Modal";
 import { EntryHistoryPanel } from "@/components/entries/EntryHistoryPanel";
 import { api } from "@/lib/api";
-import { STATUS } from "@/lib/chartTheme";
+import { NEUTRAL, STATUS } from "@/lib/chartTheme";
 import { useSiteFilter } from "@/lib/SiteFilterContext";
 import { useLookup } from "@/lib/useLookup";
 import type { BreakdownLog, DowntimeReasonCode, Machine, Paginated } from "@/types";
@@ -16,7 +16,7 @@ const SEVERITY_COLOR: Record<string, string> = {
   low: STATUS.good,
   medium: STATUS.warning,
   high: STATUS.critical,
-  "": "#898781",
+  "": NEUTRAL,
 };
 
 function BreakdownDetailModal({ log, onClose }: { log: BreakdownLog; onClose: () => void }) {

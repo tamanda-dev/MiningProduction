@@ -302,6 +302,19 @@ class DeliveryEntry(TimeStampedModel):
 
     class Meta:
         ordering = ["-slot_start_at", "-created_at"]
+        constraints = [
+            # DeliveryEntry has no entry_type (unlike ProductionEntry/
+            # CrusherEntry) — it's always slot-based, so this is the single
+            # matching "hourly" constraint those two models split in two.
+            # Without it, nothing stops the mobile app's offline-sync retry
+            # path (or a plain double-submit) from creating two delivery
+            # records for the same slot, silently inflating tonnes/trip_count
+            # totals downstream.
+            models.UniqueConstraint(
+                fields=["shift_instance", "delivery_destination", "slot_index"],
+                name="uniq_deliveryentry_hourly_slot",
+            ),
+        ]
         indexes = [models.Index(fields=["site", "shift_instance"])]
 
     def __str__(self):

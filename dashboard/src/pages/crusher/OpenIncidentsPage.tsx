@@ -120,7 +120,7 @@ export function OpenIncidentsPage() {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-lg font-semibold text-slate-900">Open Incidents</h1>
         {siteId && (
-          <RoleGate role="manager">
+          <RoleGate role="supervisor">
             <PdfExportButton siteId={siteId} />
           </RoleGate>
         )}
@@ -159,11 +159,12 @@ export function OpenIncidentsPage() {
                     {hasRole("supervisor") ? (
                       <select
                         value={incident.artisan ?? ""}
+                        disabled={assignMutation.isPending && assignMutation.variables?.incidentId === incident.id}
                         onChange={(e) => {
                           if (!e.target.value) return;
                           assignMutation.mutate({ incidentId: incident.id, artisanId: Number(e.target.value) });
                         }}
-                        className="rounded-md border border-slate-300 px-2 py-1 text-xs"
+                        className="rounded-md border border-slate-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         <option value="">{incident.artisan ? artisanLabel(incident.artisan) : "Unassigned"}</option>
                         {artisans?.map((a) => (

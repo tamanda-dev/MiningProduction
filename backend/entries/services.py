@@ -87,17 +87,17 @@ def resolve_slot_datetimes(shift_instance, slot_index):
 
 
 def enforce_shift_window(shift_instance, user, override_reason=""):
-    """Supervisors/Operators may only write while the shift instance is
-    open. Once closed/approved, only Manager/Admin may write, and only
-    with a non-blank override_reason, which is logged to AuditLog here
-    (the entry itself doesn't persist override_reason as a column, so this
-    is the only durable record of why a closed shift instance was edited).
+    """Operators may only write while the shift instance is open. Once
+    closed/approved, only Supervisor/Admin may write, and only with a
+    non-blank override_reason, which is logged to AuditLog here (the entry
+    itself doesn't persist override_reason as a column, so this is the
+    only durable record of why a closed shift instance was edited).
     """
     if shift_instance.status == ShiftInstance.STATUS_OPEN:
         return
-    if not scoping.is_manager(user):
+    if not scoping.is_supervisor(user):
         raise PermissionDenied(
-            f"Shift instance is '{shift_instance.status}'; only a Manager/Admin can edit it, with an override reason."
+            f"Shift instance is '{shift_instance.status}'; only a Supervisor/Admin can edit it, with an override reason."
         )
     if not override_reason:
         raise ValidationError(
@@ -132,7 +132,7 @@ def enforce_status_change_permission(instance, new_status, user):
     if new_status == current_status:
         return
     if not scoping.is_supervisor(user):
-        raise PermissionDenied("Only a Supervisor/Manager/Admin may change an entry's status.")
+        raise PermissionDenied("Only a Supervisor/Admin may change an entry's status.")
 
 
 def apply_breakdown_side_effects(breakdown_log):

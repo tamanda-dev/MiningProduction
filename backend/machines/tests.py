@@ -97,3 +97,55 @@ def test_release_then_reclaim_succeeds(machines, sections, all_day_shifts, djang
 
     new_assignment = services.claim_machine(m_a, op2, sec_a)
     assert new_assignment.operator == op2
+
+
+@pytest.mark.django_db
+def test_supervisor_can_assign_machine_to_operator(
+    api_client, machines, sections, all_day_shifts, supervisor_site_a, django_user_model
+):
+    """The push-assignment counterpart to self-activation: a Supervisor
+    names the operator instead of it defaulting to request.user."""
+    m_a, _ = machines
+    sec_a, _ = sections
+    operator = django_user_model.objects.create_user(username="op1", password="pass12345")
+    MachineTypeQualification.objects.create(user=operator, machine_type=m_a.machine_type, site=m_a.site)
+
+    api_client.force_authenticate(user=supervisor_site_a)
+    resp = api_client.post(
+        f"/api/machines/{m_a.id}/assign/", {"operator": operator.id, "section": sec_a.id}, format="json"
+    )
+
+    assert resp.status_code == 201, resp.data
+    assert resp.data["operator"] == operator.id
+    assert resp.data["status"] == "active"
+
+
+@pytest.mark.django_db
+def test_operator_cannot_assign_machines(api_client, machines, sections, all_day_shifts, django_user_model):
+    m_a, _ = machines
+    sec_a, _ = sections
+    requester = django_user_model.objects.create_user(username="op1", password="pass12345")
+    target = django_user_model.objects.create_user(username="op2", password="pass12345")
+    MachineTypeQualification.objects.create(user=target, machine_type=m_a.machine_type, site=m_a.site)
+
+    api_client.force_authenticate(user=requester)
+    resp = api_client.post(
+        f"/api/machines/{m_a.id}/assign/", {"operator": target.id, "section": sec_a.id}, format="json"
+    )
+
+    assert resp.status_code == 403
+
+
+@pytest.mark.django_db
+def test_assign_rejects_unqualified_operator(api_client, machines, sections, all_day_shifts, supervisor_site_a, django_user_model):
+    m_a, _ = machines
+    sec_a, _ = sections
+    unqualified = django_user_model.objects.create_user(username="op1", password="pass12345")
+
+    api_client.force_authenticate(user=supervisor_site_a)
+    resp = api_client.post(
+        f"/api/machines/{m_a.id}/assign/", {"operator": unqualified.id, "section": sec_a.id}, format="json"
+    )
+
+    assert resp.status_code == 403
+    assert "not qualified" in str(resp.data).lower()

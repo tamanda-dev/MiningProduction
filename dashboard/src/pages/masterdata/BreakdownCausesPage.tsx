@@ -9,6 +9,12 @@ export function BreakdownCausesPage() {
     resource: "breakdown-causes",
     title: "Breakdown Causes",
     canWrite: hasRole("admin"),
+    // MasterDataTable defaults every boolean field to `true` on create,
+    // which is right for "Active" but wrong here — the backend now
+    // rejects a second is_other=True cause, so pre-checking this on every
+    // new row would make creating any cause after the first "Other" one
+    // fail validation unless the admin remembers to uncheck it.
+    defaultValues: { is_other: false },
     columns: [
       { key: "name", label: "Name" },
       { key: "code", label: "Code" },

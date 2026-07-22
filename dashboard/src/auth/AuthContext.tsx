@@ -10,7 +10,7 @@ interface AuthContextValue {
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
   hasRole: (role: Role) => boolean;
-  accessibleSiteIds: number[] | null; // null = unrestricted (Admin, or Manager with no grants)
+  accessibleSiteIds: number[] | null; // null = unrestricted (Admin, or Supervisor with no grants)
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -58,7 +58,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const accessibleSiteIds = useMemo(() => {
     if (!user) return [];
     if (user.roles.includes("admin")) return null;
-    if (user.roles.includes("manager") && user.site_accesses.length === 0) return null;
+    // Unrestricted-when-no-grants used to be Manager-only; Supervisor
+    // absorbed it when the Manager role was removed (mirrors
+    // core.scoping.accessible_site_ids on the backend).
+    if (user.roles.includes("supervisor") && user.site_accesses.length === 0) return null;
     return user.site_accesses.map((a) => a.site);
   }, [user]);
 

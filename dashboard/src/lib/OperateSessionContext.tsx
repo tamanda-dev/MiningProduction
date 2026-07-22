@@ -54,7 +54,7 @@ export function OperateSessionProvider({ children }: { children: ReactNode }) {
 
   // Restore an in-progress session on mount (e.g. after a page refresh).
   // The `operator` filter must be explicit: unlike mobile (always an
-  // Operator), a Supervisor/Manager/Admin can also use this screen, and
+  // Operator), a Supervisor/Admin can also use this screen, and
   // MachineAssignmentViewSet.get_queryset() returns *every* active
   // assignment at their sites for Supervisor+, not just their own.
   useEffect(() => {

@@ -7,12 +7,13 @@ from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
 
 from core import scoping
-from core.permissions import ReadOnlyOrAdmin
+from core.permissions import IsSupervisorOrAbove, ReadOnlyOrAdmin, ReadOnlyOrSupervisorOrAbove
 
 from . import services
 from .models import Machine, MachineAssignment, MachineTypeQualification
 from .serializers import (
     ActivateMachineSerializer,
+    AssignMachineSerializer,
     HandoverMachineSerializer,
     MachineAssignmentSerializer,
     MachineSerializer,
@@ -31,6 +32,8 @@ class MachineViewSet(ModelViewSet):
     def get_permissions(self):
         if self.action in ("activate", "release", "handover"):
             return [IsAuthenticated()]
+        if self.action == "assign":
+            return [IsSupervisorOrAbove()]
         return super().get_permissions()
 
     def get_queryset(self):
@@ -77,13 +80,34 @@ class MachineViewSet(ModelViewSet):
         return Response(MachineAssignmentSerializer(assignment).data, status=201)
 
     @action(detail=True, methods=["post"])
+    def assign(self, request, pk=None):
+        """Supervisor+ push-assigns a machine to a named operator — the
+        counterpart to `activate` (which always claims for request.user).
+        Reuses claim_machine as-is: it already takes `operator` as a plain
+        parameter rather than assuming request.user, so the exact same
+        qualification check, shift-instance resolution, and 409-on-conflict
+        behavior apply here too — an unqualified operator still can't be
+        assigned a machine type they're not certified for.
+        """
+        machine = self.get_object()
+        serializer = AssignMachineSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        assignment = services.claim_machine(
+            machine=machine,
+            operator=serializer.validated_data["operator"],
+            section=serializer.validated_data["section"],
+            sub_section=serializer.validated_data.get("sub_section"),
+        )
+        return Response(MachineAssignmentSerializer(assignment).data, status=201)
+
+    @action(detail=True, methods=["post"])
     def release(self, request, pk=None):
         machine = self.get_object()
         serializer = ReleaseMachineSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         qs = MachineAssignment.objects.filter(machine=machine, status=MachineAssignment.STATUS_ACTIVE)
-        if not scoping.is_manager(request.user):
+        if not scoping.is_supervisor(request.user):
             qs = qs.filter(operator=request.user)
         assignment = qs.first()
         if assignment is None:
@@ -114,16 +138,32 @@ class MachineViewSet(ModelViewSet):
 
 
 class MachineTypeQualificationViewSet(ModelViewSet):
+    """Write (assigning a machine-type qualification to an operator) is
+    Supervisor+, not just Admin — a Supervisor is the one who actually
+    knows which operators on their site are certified on which machine
+    types, and this is exactly the "assign machines to operators" workflow
+    they need day to day.
+    """
+
     queryset = MachineTypeQualification.objects.select_related("user", "machine_type", "site").all()
     serializer_class = MachineTypeQualificationSerializer
-    permission_classes = (ReadOnlyOrAdmin,)
+    permission_classes = (ReadOnlyOrSupervisorOrAbove,)
     filterset_fields = ("user", "machine_type", "site", "active")
 
     def get_queryset(self):
         qs = super().get_queryset()
-        if not scoping.is_manager(self.request.user):
-            qs = qs.filter(user=self.request.user)
-        return qs
+        user = self.request.user
+        if not scoping.is_supervisor(user):
+            return qs.filter(user=user)
+        # A site-restricted Supervisor (accessible_site_ids returns
+        # a set, not None) must not see every other site's qualification
+        # rows just because is_supervisor() is True — mirror
+        # MachineViewSet's scoping. site=null rows are global ("qualified
+        # anywhere") qualifications, visible regardless of site restriction.
+        site_ids = scoping.accessible_site_ids(user)
+        if site_ids is None:
+            return qs
+        return qs.filter(Q(site_id__in=site_ids) | Q(site__isnull=True))
 
 
 class MachineAssignmentViewSet(RetrieveModelMixin, ListModelMixin, GenericViewSet):

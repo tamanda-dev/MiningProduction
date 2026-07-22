@@ -25,13 +25,21 @@ class BulkSyncMixin:
     @action(detail=False, methods=["post"])
     def bulk(self, request):
         items = request.data if isinstance(request.data, list) else request.data.get("items", [])
-        model = self.get_queryset().model
         results = []
         for item in items:
             client_uuid = item.get("client_uuid")
-            existing = model.objects.filter(client_uuid=client_uuid).first() if client_uuid else None
-            serializer = self.get_serializer(instance=existing, data=item, partial=bool(existing))
             try:
+                # Resolve through the scoped queryset (not the raw model
+                # manager) so an existing row outside this user's
+                # site/ownership is invisible here, then run the same
+                # object-level permission check a normal update() would —
+                # otherwise this per-item update path would let anyone
+                # rewrite any other site's/operator's entry just by
+                # guessing its client_uuid.
+                existing = self.get_queryset().filter(client_uuid=client_uuid).first() if client_uuid else None
+                if existing is not None:
+                    self.check_object_permissions(request, existing)
+                serializer = self.get_serializer(instance=existing, data=item, partial=bool(existing))
                 serializer.is_valid(raise_exception=True)
                 obj = serializer.save()
                 results.append({"client_uuid": client_uuid, "success": True, "id": obj.id})

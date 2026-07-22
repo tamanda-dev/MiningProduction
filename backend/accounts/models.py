@@ -6,6 +6,12 @@ from core.models import TimeStampedModel
 
 
 class User(AbstractUser):
+    # password is excluded: simple_history tracks every field by default,
+    # and the password *hash* must never end up queryable via the
+    # audit/AuditLog bridge (audit/signals.py bridges every
+    # HistoricalRecords-tracked model save into /api/audit-log/ generically).
+    history = HistoricalRecords(excluded_fields=["password"])
+
     employee_code = models.CharField(max_length=32, unique=True, null=True, blank=True)
     phone = models.CharField(max_length=32, blank=True)
     maintenance_technician = models.BooleanField(

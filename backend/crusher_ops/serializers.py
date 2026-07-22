@@ -56,6 +56,23 @@ class BreakdownCauseSerializer(serializers.ModelSerializer):
         model = BreakdownCause
         fields = ("id", "name", "code", "is_other", "display_order", "active")
 
+    def validate_is_other(self, value):
+        # The model docstring's "exactly one row should have is_other=True"
+        # invariant was previously unenforced — nothing stopped an Admin
+        # from creating a second "Other" cause, which wouldn't break the
+        # free-text-required checks (those key off the selected cause's own
+        # is_other, not a singleton lookup) but would show two indistinguishable
+        # "Other" options in every cause picker.
+        if value:
+            existing = BreakdownCause.objects.filter(is_other=True)
+            if self.instance is not None:
+                existing = existing.exclude(pk=self.instance.pk)
+            if existing.exists():
+                raise serializers.ValidationError(
+                    f'"{existing.first().name}" is already the Other cause — only one is allowed.'
+                )
+        return value
+
 
 class ChecklistItemSerializer(serializers.ModelSerializer):
     class Meta:
@@ -244,7 +261,14 @@ class BreakdownIncidentSerializer(serializers.ModelSerializer):
             "repair_minutes",
             "resolution_minutes",
         )
-        read_only_fields = ("site", "status", "reported_by", "recorded_by")
+        # artisan is read-only here on purpose: it's only ever set through
+        # the Supervisor+-only /assign action (views.py), which also
+        # validates the artisan is a maintenance_technician, transitions
+        # status open->in_progress, and writes an audit-log event — a
+        # direct PATCH here (which the reporting Operator can otherwise
+        # make while status=="open", per CanWriteBreakdownIncident) would
+        # silently bypass all of that.
+        read_only_fields = ("site", "status", "artisan", "reported_by", "recorded_by")
 
     def validate(self, attrs):
         request = self.context["request"]

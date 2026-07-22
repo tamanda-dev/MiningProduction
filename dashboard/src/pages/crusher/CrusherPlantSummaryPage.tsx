@@ -129,8 +129,21 @@ export function CrusherPlantSummaryPage() {
         <StatTile label="Stoppage Instances" value={summary?.stoppage_instances ?? "—"} />
         <StatTile
           label="Open Incidents"
-          value={openIncidentsQuery.data ?? "—"}
-          tone={openIncidentsQuery.data ? "critical" : "good"}
+          // Loading and "failed to fetch" both used to collapse into the
+          // same "—" with a green/good tone — a fetch failure looked
+          // identical to "confirmed zero open incidents" instead of an
+          // error. Three distinct states now: loading "…", error "?!" in
+          // warning tone, success shows the real (possibly zero) count.
+          value={openIncidentsQuery.isLoading ? "…" : openIncidentsQuery.isError ? "?!" : (openIncidentsQuery.data ?? 0)}
+          tone={
+            openIncidentsQuery.isError
+              ? "warning"
+              : openIncidentsQuery.isLoading
+                ? "neutral"
+                : openIncidentsQuery.data
+                  ? "critical"
+                  : "good"
+          }
         />
       </div>
     </div>

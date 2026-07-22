@@ -72,7 +72,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const accessibleSiteIds = useMemo(() => {
     if (!user) return [];
     if (user.roles.includes("admin")) return null;
-    if (user.roles.includes("manager") && user.site_accesses.length === 0) return null;
+    // Unrestricted-when-no-grants used to be Manager-only; Supervisor
+    // absorbed it when the Manager role was removed (mirrors the backend's
+    // core.scoping.accessible_site_ids and the dashboard's AuthContext).
+    if (user.roles.includes("supervisor") && user.site_accesses.length === 0) return null;
     return user.site_accesses.map((a) => a.site);
   }, [user]);
 

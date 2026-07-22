@@ -11,7 +11,7 @@ Talks to the same Django backend as the manager dashboard (see `../backend`).
    web implementation).
 2. **Select Site** — filtered to sites the operator holds a machine-type
    qualification at (operators normally have no `UserSiteAccess` grants at
-   all — that's the Manager/Supervisor mechanism).
+   all — that's the Supervisor mechanism).
 3. **Select Machine** — filtered by site + machine type the operator is
    qualified for and currently `active`; picking one opens a section
    picker, then claims it via `POST /machines/{id}/activate/`. A 409 (someone
@@ -88,11 +88,13 @@ npx expo start
   on a real device.
 - Demo operator logins (see `backend/seed/management/commands/seed_demo_data.py`):
   `demo_operator1` / `Operator123!`, `demo_operator2` / `Operator123!`.
-  Only `demo_operator2` is qualified on the Crusher machine type — use it
-  (not `demo_operator1`) to reach the Checklist/Breakdown Matrix/Incidents
-  tabs, which only appear once a Crusher machine is activated. For the
-  attend/resolve flow specifically, `demo_artisan` / `Artisan123!` is
-  seeded as a `maintenance_technician`.
+  `seed_demo_data` only creates accounts — no sites, machines, or
+  qualifications — so to reach the Checklist/Breakdown Matrix/Incidents
+  tabs you first need a Crusher machine set up and a qualification granted
+  to one of these operators for it (`demo_admin`, via the dashboard's
+  Master Data > Assign Machines, or Django Admin). For the attend/resolve
+  flow specifically, `demo_artisan` / `Artisan123!` is seeded as a
+  `maintenance_technician`.
 
 ### `EXPO_PUBLIC_API_BASE_URL`
 
@@ -196,7 +198,7 @@ have one.
   screen brightness can be raised for dark conditions, but glare can't be
   un-done for a low-contrast UI.
 - **Machine-type qualification, not `UserSiteAccess`**: operators typically
-  hold zero `UserSiteAccess` grants (that's the Manager/Supervisor
+  hold zero `UserSiteAccess` grants (that's the Supervisor
   mechanism) — site and machine visibility here is derived from
   `MachineTypeQualification` instead, mirroring the backend's
   `MachineViewSet.get_queryset()` logic (see `app/site-select.tsx` and

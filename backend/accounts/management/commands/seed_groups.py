@@ -22,17 +22,16 @@ DOMAIN_APPS = [
 ]
 
 GROUP_ACCESS = {
-    scoping.MANAGER_GROUP: {"apps": DOMAIN_APPS, "actions": ["view", "add", "change"]},
-    scoping.SUPERVISOR_GROUP: {
-        "apps": ["entries", "machines", "shiftmgmt", "teams"],
-        "actions": ["view", "add", "change"],
-    },
+    # Supervisor absorbed the (now-removed) Manager role's full DOMAIN_APPS
+    # access — previously Supervisor only got entries/machines/shiftmgmt/
+    # teams, with Manager getting everything else on top.
+    scoping.SUPERVISOR_GROUP: {"apps": DOMAIN_APPS, "actions": ["view", "add", "change"]},
     scoping.OPERATOR_GROUP: {"apps": [], "actions": []},
 }
 
 
 class Command(BaseCommand):
-    help = "Creates the Admin/Manager/Supervisor/Operator groups and assigns Django Admin permissions."
+    help = "Creates the Admin/Supervisor/Operator groups and assigns Django Admin permissions."
 
     def handle(self, *args, **options):
         admin_group, _ = Group.objects.get_or_create(name=scoping.ADMIN_GROUP)

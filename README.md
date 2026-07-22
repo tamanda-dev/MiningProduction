@@ -35,7 +35,7 @@ and the dashboard dev server:
 
 ```bash
 cp .env.example .env
-# review .env — SEED_DEMO=true will load demo data on first boot
+# review .env — SEED_DEMO=true will create the demo login accounts on first boot
 docker compose up --build
 ```
 
@@ -45,12 +45,14 @@ docker compose up --build
 - Django Admin: http://localhost:8000/admin/
 - Demo users (only created when `SEED_DEMO=true`; see
   `backend/seed/management/commands/seed_demo_data.py` for the full list
-  and passwords): `demo_admin`, `demo_manager`, `demo_supervisor`,
-  `demo_operator1`, `demo_operator2`, `demo_artisan` (a maintenance
-  technician, for the Crushing & Breakdowns module). `demo_operator2` is
-  also qualified on the Crusher machine type (`demo_operator1` isn't) —
-  use it to exercise the Checklist/Breakdown Matrix/Incidents screens on
-  either client.
+  and passwords): `demo_admin`, `demo_supervisor`, `demo_operator1`,
+  `demo_operator2`, `demo_artisan` (a maintenance technician, for the
+  Crushing & Breakdowns module). **Accounts only** — no sites, machines,
+  parameters, or any other master data is seeded, so the system starts
+  genuinely empty; configure sites/sections/machine types/machines/
+  parameters/teams/shifts from scratch as `demo_admin` via the Master Data
+  screens (or the Django Admin) before there's anything to log entries
+  against.
 - No Django superuser is auto-created; if you need raw Django Admin access
   beyond `demo_admin`, run:
   ```bash
@@ -74,7 +76,7 @@ cp .env.example .env
 python manage.py migrate
 python manage.py seed_groups
 python manage.py createsuperuser
-python manage.py seed_demo_data --with-entries   # optional demo data
+python manage.py seed_demo_data   # optional: creates the demo login accounts only, no master data
 python manage.py runserver
 ```
 
@@ -101,9 +103,9 @@ npm run dev
 ```
 
 Open `http://localhost:5173`, log in with any of the seeded demo users
-(`demo_admin` / `Admin123!`, `demo_manager` / `Manager123!`,
-`demo_supervisor` / `Supervisor123!` — see `seed_demo_data.py` for the full
-list). Build for production with `npm run build` (outputs to `dashboard/dist`).
+(`demo_admin` / `Admin123!`, `demo_supervisor` / `Supervisor123!` — see
+`seed_demo_data.py` for the full list). Build for production with
+`npm run build` (outputs to `dashboard/dist`).
 
 ### Dashboard architecture notes
 
@@ -126,7 +128,7 @@ list). Build for production with `npm run build` (outputs to `dashboard/dist`).
   interceptor (`src/lib/api.ts`) transparently refreshes an expired access
   token and retries the original request once, redirecting to `/login` only
   if the refresh itself fails.
-- **Role gating**: mirrors the backend's Admin/Manager/Supervisor/Operator
+- **Role gating**: mirrors the backend's Admin/Supervisor/Operator
   groups (`src/auth/useAuth.ts::hasRole`) — used both to hide nav items/
   buttons and to guard entire routes (`src/auth/ProtectedRoute.tsx`). This is
   UX convenience only; the backend independently re-enforces every
@@ -160,7 +162,7 @@ full list. Key ones:
 | `DEBUG` | `true` for local dev only |
 | `DATABASE_URL` | Postgres connection string (omit for local SQLite) |
 | `REDIS_URL` | Celery broker/result backend + cache (omit for local eager/locmem) |
-| `SEED_DEMO` | `true` to load demo master data on container start |
+| `SEED_DEMO` | `true` to create the demo login accounts (no master data) on container start |
 | `CORS_ALLOWED_ORIGINS` | Origins allowed to call the API (e.g. the Vite dev server) |
 | `CRUSHER_SLA_UNATTENDED_MINUTES` | Crushing & Breakdowns module: minutes an open `BreakdownIncident` may go unattended before the SLA-notification Celery task flags it (default `30`) |
 
@@ -211,7 +213,7 @@ python manage.py spectacular --file ../docs/openapi-schema.yaml
   tabs appear only while operating a crusher machine; a "Quick Log
   Breakdown" fast path and an artisan attend/resolve flow that can span
   two different operators' devices (see `mobile/README.md`).
-- **RBAC**: Admin/Manager/Supervisor/Operator via Django Groups, enforced
+- **RBAC**: Admin/Supervisor/Operator via Django Groups, enforced
   by DRF permission classes plus per-viewset queryset scoping — a
   Supervisor for one site cannot see or edit another site's data (see
   `machines/tests.py` and `entries/tests.py` for the regression tests

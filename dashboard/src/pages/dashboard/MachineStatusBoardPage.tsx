@@ -1,15 +1,17 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Badge } from "@/components/common/Badge";
+import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
 import { EmptyState } from "@/components/common/EmptyState";
-import { ErrorMessage } from "@/components/common/ErrorMessage";
+import { ErrorMessage, extractErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
+import { Modal } from "@/components/common/Modal";
 import { api } from "@/lib/api";
 import { MACHINE_STATUS_COLOR } from "@/lib/chartTheme";
 import { useSiteFilter } from "@/lib/SiteFilterContext";
 import { useLookup } from "@/lib/useLookup";
-import type { MachineStatusRow, MachineType } from "@/types";
+import type { MachineStatusRow, MachineType, MachineTypeQualification, Paginated, Section, UserSummary } from "@/types";
 
 const STATUS_LABEL: Record<string, string> = {
   active: "Active",
@@ -18,10 +20,120 @@ const STATUS_LABEL: Record<string, string> = {
   retired: "Retired",
 };
 
+// Supervisor+ pushes an idle machine to a specific operator (rather than
+// the operator having to self-activate it) — the assignment then shows up
+// in that operator's own "My Shift" for them to enter production/breakdown
+// data against.
+function AssignMachineModal({
+  row,
+  siteId,
+  onClose,
+}: {
+  row: MachineStatusRow;
+  siteId: number;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const { data: sections } = useLookup<Section>("sections", { site: siteId });
+  const { data: qualifications } = useQuery({
+    queryKey: ["machine-qualifications", "for-assign", row.machine_type, siteId],
+    queryFn: async () => {
+      const { data } = await api.get<Paginated<MachineTypeQualification>>("/machine-qualifications/", {
+        params: { machine_type: row.machine_type, active: "true", page_size: 500 },
+      });
+      return data.results.filter((q) => q.site === siteId || q.site === null);
+    },
+  });
+  const { data: users } = useLookup<UserSummary>("users");
+  const qualifiedOperators = (users ?? []).filter((u) => qualifications?.some((q) => q.user === u.id));
+
+  const [operator, setOperator] = useState("");
+  const [section, setSection] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const assignMutation = useMutation({
+    mutationFn: async () =>
+      api.post(`/machines/${row.machine}/assign/`, { operator: Number(operator), section: Number(section) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "machine-status"] });
+      handleClose();
+    },
+    onError: (err) => setError(extractErrorMessage(err)),
+  });
+
+  function handleClose() {
+    setOperator("");
+    setSection("");
+    setError(null);
+    onClose();
+  }
+
+  return (
+    <Modal open onClose={handleClose} title={`Assign ${row.machine_type_name} ${row.fleet_number}`}>
+      <div className="flex flex-col gap-3">
+        <div>
+          <label className="mb-1 block text-xs font-medium text-slate-600">Operator</label>
+          <select
+            value={operator}
+            onChange={(e) => setOperator(e.target.value)}
+            className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+          >
+            <option value="">—</option>
+            {qualifiedOperators.map((u) => (
+              <option key={u.id} value={u.id}>
+                {[u.first_name, u.last_name].filter(Boolean).join(" ") || u.username}
+              </option>
+            ))}
+          </select>
+          {qualifications && qualifiedOperators.length === 0 && (
+            <p className="mt-1 text-xs text-slate-400">
+              No operator is qualified for this machine type at this site yet — grant a qualification first (Master
+              Data &gt; Assign Machines).
+            </p>
+          )}
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-slate-600">Section</label>
+          <select
+            value={section}
+            onChange={(e) => setSection(e.target.value)}
+            className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+          >
+            <option value="">—</option>
+            {sections?.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {error && <ErrorMessage message={error} />}
+
+        <div className="mt-2 flex justify-end gap-2">
+          <Button variant="secondary" onClick={handleClose}>
+            Cancel
+          </Button>
+          <Button
+            disabled={!operator || !section || assignMutation.isPending}
+            onClick={() => {
+              setError(null);
+              assignMutation.mutate();
+            }}
+          >
+            {assignMutation.isPending ? "Assigning…" : "Assign"}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 export function MachineStatusBoardPage() {
   const { siteId } = useSiteFilter();
   const { data: machineTypes } = useLookup<MachineType>("machine-types");
   const [machineTypeId, setMachineTypeId] = useState<number | null>(null);
+  const [assigningRow, setAssigningRow] = useState<MachineStatusRow | null>(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["dashboard", "machine-status", siteId, machineTypeId],
@@ -99,12 +211,27 @@ export function MachineStatusBoardPage() {
                   )}
                 </>
               ) : (
-                "Idle — no active operator"
+                <>
+                  <div className="mb-2">Idle — no active operator</div>
+                  {row.status === "active" && (
+                    <button
+                      type="button"
+                      onClick={() => setAssigningRow(row)}
+                      className="font-medium text-brand-600 hover:text-brand-700 hover:underline"
+                    >
+                      Assign to Operator
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </Card>
         ))}
       </div>
+
+      {assigningRow && siteId && (
+        <AssignMachineModal row={assigningRow} siteId={siteId} onClose={() => setAssigningRow(null)} />
+      )}
     </div>
   );
 }

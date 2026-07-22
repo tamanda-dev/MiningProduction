@@ -37,24 +37,36 @@ export const STATUS = {
   critical: "#d03b3b",
 };
 
+// The one neutral grey every "inactive/unset/no status" case across the
+// app uses — a single named export so it can't silently drift out of sync
+// across the handful of places that need it (previously duplicated as a
+// bare hex literal in several of them).
+export const NEUTRAL = "#898781";
+
 export const MACHINE_STATUS_COLOR: Record<string, string> = {
   active: STATUS.good,
   breakdown: STATUS.critical,
   maintenance: STATUS.warning,
-  retired: "#898781",
+  retired: NEUTRAL,
 };
 
 export const ENTRY_STATUS_COLOR: Record<string, string> = {
-  submitted: "#898781",
+  submitted: NEUTRAL,
   flagged: STATUS.warning,
   corrected: CATEGORICAL[0],
   approved: STATUS.good,
 };
 
+export const ROLE_COLOR: Record<string, string> = {
+  admin: CATEGORICAL[5],
+  supervisor: CATEGORICAL[4],
+  operator: CATEGORICAL[1],
+};
+
 export const CHART_INK = {
   primary: "#0b0b0b",
   secondary: "#52514e",
-  muted: "#898781",
+  muted: NEUTRAL,
   gridline: "#e1e0d9",
   axis: "#c3c2b7",
 };

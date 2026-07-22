@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
+import { displayName } from "@/components/layout/TopBar";
 import type { Role } from "@/types";
 
 interface NavItem {
@@ -10,14 +11,24 @@ interface NavItem {
   requireRole?: Role;
 }
 
-const OPERATE_ITEMS: NavItem[] = [{ to: "/operate/session", label: "My Shift" }];
+// Operating a machine (activating it, logging breakdowns/production) is an
+// Operator's job — Admin/Supervisor instead assign a machine to an
+// operator (Master Data > Assign Machines / the Machine Status Board),
+// rather than running one themselves. hasRole("operator") is true only for
+// the Operator group specifically (Admin/Supervisor never hold it, per
+// core.scoping's group hierarchy), so this hides "My Shift" for both.
+const OPERATE_ITEMS: NavItem[] = [{ to: "/operate/session", label: "My Shift", requireRole: "operator" }];
 
+// Site-wide analytics — Supervisor+ territory. An Operator's job is
+// submitting data through the "Operate" forms, not reviewing aggregated
+// production/downtime numbers, so these are hidden (and, per the matching
+// requireRole guards in App.tsx, unreachable by direct URL too) for them.
 const DASHBOARD_ITEMS: NavItem[] = [
-  { to: "/dashboard/summary", label: "Live Shift View" },
-  { to: "/dashboard/trends", label: "Trends" },
-  { to: "/dashboard/availability", label: "Availability & Utilization" },
-  { to: "/dashboard/downtime", label: "Downtime Pareto" },
-  { to: "/dashboard/machines", label: "Machine Status" },
+  { to: "/dashboard/summary", label: "Live Shift View", requireRole: "supervisor" },
+  { to: "/dashboard/trends", label: "Trends", requireRole: "supervisor" },
+  { to: "/dashboard/availability", label: "Availability & Utilization", requireRole: "supervisor" },
+  { to: "/dashboard/downtime", label: "Downtime Pareto", requireRole: "supervisor" },
+  { to: "/dashboard/machines", label: "Machine Status", requireRole: "supervisor" },
 ];
 
 const ENTRY_ITEMS: NavItem[] = [
@@ -34,26 +45,35 @@ const CRUSHER_PLANT_ITEMS: NavItem[] = [
 ];
 
 const MASTER_DATA_ITEMS: NavItem[] = [
-  { to: "/admin/sites", label: "Sites", requireRole: "manager" },
-  { to: "/admin/sections", label: "Sections", requireRole: "manager" },
-  { to: "/admin/subsections", label: "Sub-Sections", requireRole: "manager" },
-  { to: "/admin/machine-types", label: "Machine Types", requireRole: "manager" },
-  { to: "/admin/machines", label: "Machines", requireRole: "manager" },
-  { to: "/admin/uoms", label: "Units of Measure", requireRole: "manager" },
-  { to: "/admin/parameters", label: "Parameters", requireRole: "manager" },
-  { to: "/admin/crusher-units", label: "Crusher Units", requireRole: "manager" },
-  { to: "/admin/delivery-destinations", label: "Delivery Destinations", requireRole: "manager" },
-  { to: "/admin/downtime-reasons", label: "Downtime Reason Codes", requireRole: "manager" },
-  { to: "/admin/shift-patterns", label: "Shift Patterns", requireRole: "manager" },
-  { to: "/admin/teams", label: "Teams", requireRole: "manager" },
-  { to: "/admin/team-members", label: "Team Members", requireRole: "manager" },
-  { to: "/admin/shifts", label: "Shifts", requireRole: "manager" },
-  { to: "/admin/shift-instances", label: "Shift Instances", requireRole: "manager" },
-  { to: "/admin/plan-targets", label: "Plan Targets", requireRole: "manager" },
-  { to: "/admin/breakdown-causes", label: "Breakdown Causes", requireRole: "manager" },
-  { to: "/admin/checklist-items", label: "Checklist Items", requireRole: "manager" },
-  { to: "/admin/hourly-slots", label: "Hourly Slots", requireRole: "manager" },
+  { to: "/admin/sites", label: "Sites", requireRole: "supervisor" },
+  { to: "/admin/sections", label: "Sections", requireRole: "supervisor" },
+  { to: "/admin/subsections", label: "Sub-Sections", requireRole: "supervisor" },
+  { to: "/admin/machine-types", label: "Machine Types", requireRole: "supervisor" },
+  { to: "/admin/machines", label: "Machines", requireRole: "supervisor" },
+  { to: "/admin/uoms", label: "Units of Measure", requireRole: "supervisor" },
+  { to: "/admin/parameters", label: "Parameters", requireRole: "supervisor" },
+  { to: "/admin/crusher-units", label: "Crusher Units", requireRole: "supervisor" },
+  { to: "/admin/delivery-destinations", label: "Delivery Destinations", requireRole: "supervisor" },
+  { to: "/admin/downtime-reasons", label: "Downtime Reason Codes", requireRole: "supervisor" },
+  // Backed by ReadOnlyOrSupervisorOrAbove viewsets — Supervisors can write
+  // here too, not just read, so the nav floor matches the route guard.
+  { to: "/admin/shift-patterns", label: "Shift Patterns", requireRole: "supervisor" },
+  { to: "/admin/teams", label: "Teams", requireRole: "supervisor" },
+  { to: "/admin/team-members", label: "Team Members", requireRole: "supervisor" },
+  { to: "/admin/shifts", label: "Shifts", requireRole: "supervisor" },
+  { to: "/admin/shift-instances", label: "Shift Instances", requireRole: "supervisor" },
+  // /api/machine-qualifications/ write access is Supervisor+ too (a
+  // Supervisor is who actually knows which of their operators are
+  // certified on which machine types) — not folded into the Admin-only
+  // Users page's "Machines" action, which is the rest of that page.
+  { to: "/admin/machine-qualifications", label: "Assign Machines", requireRole: "supervisor" },
+  { to: "/admin/plan-targets", label: "Plan Targets", requireRole: "supervisor" },
+  { to: "/admin/breakdown-causes", label: "Breakdown Causes", requireRole: "supervisor" },
+  { to: "/admin/checklist-items", label: "Checklist Items", requireRole: "supervisor" },
+  { to: "/admin/hourly-slots", label: "Hourly Slots", requireRole: "supervisor" },
 ];
+
+const ADMINISTRATION_ITEMS: NavItem[] = [{ to: "/admin/users", label: "Users", requireRole: "admin" }];
 
 function NavSection({
   title,
@@ -97,18 +117,25 @@ function NavSection({
 }
 
 export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
-  const { hasRole } = useAuth();
+  const { hasRole, user } = useAuth();
+  // Admin keeps the generic "Manager Dashboard" app-shell label. A
+  // Supervisor isn't an Admin, so it's wrong for them — show their name
+  // instead (per explicit product feedback). An Operator never sees this
+  // shell at all (only Operate), so it gets its own label rather than a
+  // name that's already shown in the top bar.
+  const subtitle = hasRole("admin") ? "Manager Dashboard" : hasRole("supervisor") ? displayName(user) : "Operator Console";
   return (
     <div className="flex h-full flex-col overflow-y-auto py-4">
       <div className="mb-4 border-b border-slate-100 px-3 pb-4">
         <div className="text-sm font-bold text-slate-900">Mining Production</div>
-        <div className="text-xs text-slate-500">Manager Dashboard</div>
+        <div className="text-xs text-slate-500">{subtitle}</div>
       </div>
       <NavSection title="Operate" items={OPERATE_ITEMS} onNavigate={onNavigate} />
       <NavSection title="Dashboard" items={DASHBOARD_ITEMS} onNavigate={onNavigate} />
       <NavSection title="Entries" items={ENTRY_ITEMS} onNavigate={onNavigate} />
       <NavSection title="Crusher Plant" items={CRUSHER_PLANT_ITEMS} onNavigate={onNavigate} />
       <NavSection title="Master Data" items={MASTER_DATA_ITEMS} onNavigate={onNavigate} />
+      <NavSection title="Administration" items={ADMINISTRATION_ITEMS} onNavigate={onNavigate} />
       {hasRole("supervisor") && (
         <NavSection
           title="Audit"

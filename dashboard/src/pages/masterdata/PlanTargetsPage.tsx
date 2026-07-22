@@ -14,13 +14,17 @@ export function PlanTargetsPage() {
   const { hasRole } = useAuth();
   const { siteId } = useSiteFilter();
   const { data: sites } = useLookup<Site>("sites");
-  const { data: sections } = useLookup<Section>("sections", siteId ? { site: siteId } : undefined);
-  const { data: machines } = useLookup<Machine>("machines", siteId ? { site: siteId } : undefined);
+  // Unfiltered here on purpose: these used to be pre-filtered by the
+  // page-level site filter (siteId), which only matches the form's own
+  // "Site" field when they happen to agree — picking a different Site
+  // inside the create/edit modal left Section/Machine/Shift Instance still
+  // scoped to whatever the page-level filter was, or unfiltered-but-wrong
+  // if it was "All Sites". Filtering is now done per-field below, driven
+  // by the form's own site value (same pattern as Machines/Teams pages).
+  const { data: sections } = useLookup<Section>("sections");
+  const { data: machines } = useLookup<Machine>("machines");
   const { data: parameters } = useLookup<Parameter>("parameters");
-  const { data: shiftInstances } = useLookup<ShiftInstance>(
-    "shift-instances",
-    siteId ? { site: siteId } : undefined,
-  );
+  const { data: shiftInstances } = useLookup<ShiftInstance>("shift-instances");
 
   const paramName = (id: number) => parameters?.find((p) => p.id === id)?.name ?? id;
   const siteName = (id: number) => sites?.find((s) => s.id === id)?.name ?? id;
@@ -34,7 +38,7 @@ export function PlanTargetsPage() {
   const config: MasterDataResourceConfig<PlanTarget> = {
     resource: "plan-targets",
     title: "Plan Targets",
-    canWrite: hasRole("manager"),
+    canWrite: hasRole("supervisor"),
     extraParams: siteId ? { site: siteId } : undefined,
     columns: [
       { key: "parameter", label: "Parameter", render: (row) => paramName(row.parameter) },
@@ -64,20 +68,28 @@ export function PlanTargetsPage() {
         key: "section",
         label: "Section (or leave blank if machine-specific)",
         type: "select",
-        options: sections?.map((s) => ({ value: s.id, label: s.name })) ?? [],
+        options: (values) =>
+          sections?.filter((s) => String(s.site) === String(values.site)).map((s) => ({ value: s.id, label: s.name })) ??
+          [],
       },
       {
         key: "machine",
         label: "Machine (or leave blank if section-wide)",
         type: "select",
-        options: machines?.map((m) => ({ value: m.id, label: `${m.machine_type_code.toUpperCase()} ${m.fleet_number}` })) ?? [],
+        options: (values) =>
+          machines
+            ?.filter((m) => String(m.site) === String(values.site))
+            .map((m) => ({ value: m.id, label: `${m.machine_type_code.toUpperCase()} ${m.fleet_number}` })) ?? [],
       },
       { key: "period_type", label: "Period Type", type: "select", options: PERIOD_OPTIONS, required: true },
       {
         key: "shift_instance",
         label: "Shift Instance (if period is 'shift')",
         type: "select",
-        options: shiftInstances?.map((si) => ({ value: si.id, label: `${si.date} — ${si.shift_name}` })) ?? [],
+        options: (values) =>
+          shiftInstances
+            ?.filter((si) => String(si.site) === String(values.site))
+            .map((si) => ({ value: si.id, label: `${si.date} — ${si.shift_name}` })) ?? [],
       },
       { key: "period_date", label: "Period Date (if period is 'day'/'month')", type: "date" },
       { key: "target_value", label: "Target Value", type: "number", required: true },

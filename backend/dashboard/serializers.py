@@ -72,12 +72,12 @@ class MachineStatusRowSerializer(serializers.Serializer):
 
 
 class ExportTriggerRequestSerializer(serializers.Serializer):
-    report_type = serializers.ChoiceField(choices=["shift", "daily", "mtd"], default="shift")
+    report_type = serializers.ChoiceField(choices=["shift", "daily", "mtd", "daily_production"], default="shift")
     # Required for report_type="shift" only.
     shift_instance = serializers.IntegerField(required=False)
-    # Required for report_type="daily"/"mtd".
+    # Required for report_type="daily"/"mtd"/"daily_production".
     site = serializers.IntegerField(required=False)
-    date = serializers.DateField(required=False)  # "daily": the day to report on
+    date = serializers.DateField(required=False)  # "daily"/"daily_production": the day to report on
     year = serializers.IntegerField(required=False)  # "mtd"
     month = serializers.IntegerField(required=False, min_value=1, max_value=12)  # "mtd"
 
@@ -89,6 +89,10 @@ class ExportTriggerRequestSerializer(serializers.Serializer):
             raise serializers.ValidationError({"detail": "site and date are required for report_type='daily'."})
         if report_type == "mtd" and not (attrs.get("site") and attrs.get("year") and attrs.get("month")):
             raise serializers.ValidationError({"detail": "site, year and month are required for report_type='mtd'."})
+        if report_type == "daily_production" and not (attrs.get("site") and attrs.get("date")):
+            raise serializers.ValidationError(
+                {"detail": "site and date are required for report_type='daily_production'."}
+            )
         return attrs
 
 

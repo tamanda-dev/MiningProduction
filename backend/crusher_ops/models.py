@@ -27,6 +27,15 @@ class BreakdownCause(TimeStampedModel):
 
     class Meta:
         ordering = ["display_order", "name"]
+        constraints = [
+            # Backs up BreakdownCauseSerializer.validate_is_other at the DB
+            # level (e.g. against Django admin / shell writes that skip the
+            # API): a partial unique index on is_other=True permits any
+            # number of False rows but at most one True.
+            models.UniqueConstraint(
+                fields=["is_other"], condition=models.Q(is_other=True), name="uniq_breakdowncause_is_other"
+            ),
+        ]
 
     def __str__(self):
         return self.name

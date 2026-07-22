@@ -9,7 +9,7 @@ class Command(BaseCommand):
     the audit trail — so the app starts from a genuinely empty state instead
     of the seeded demo dataset. User accounts (and their group/role
     membership) are deliberately left untouched, so the existing
-    demo_admin/demo_manager/etc. logins keep working afterward; only their
+    demo_admin/demo_supervisor/etc. logins keep working afterward; only their
     UserSiteAccess/MachineTypeQualification grants are cleared, since those
     reference the master-data rows being deleted.
 

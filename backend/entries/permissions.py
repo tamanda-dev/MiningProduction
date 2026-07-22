@@ -6,10 +6,9 @@ from core import scoping
 class CanWriteEntry(BasePermission):
     """Create-time gating (shift-window + override_reason) lives in the
     serializers (services.enforce_shift_window); this handles update/delete
-    object-level rules: Manager/Admin always may (with an override_reason
-    once closed, enforced by the serializer); Supervisor may while the
-    shift instance is open; Operator may only edit their own entry, and
-    only while open.
+    object-level rules: Supervisor/Admin always may (with an override_reason
+    once closed, enforced by the serializer); Operator may only edit their
+    own entry, and only while the shift instance is open.
     """
 
     SAFE_METHODS = ("GET", "HEAD", "OPTIONS")
@@ -20,10 +19,8 @@ class CanWriteEntry(BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.method in self.SAFE_METHODS:
             return True
-        if scoping.is_manager(request.user):
+        if scoping.is_supervisor(request.user):
             return True
         if obj.shift_instance.status != obj.shift_instance.STATUS_OPEN:
             return False
-        if scoping.is_supervisor(request.user):
-            return True
         return obj.operator_id == request.user.id

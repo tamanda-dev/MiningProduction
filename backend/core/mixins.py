@@ -40,7 +40,7 @@ class SiteScopedOrOwnQuerySetMixin(SiteScopedQuerySetMixin):
     site scoping. Operators typically hold no UserSiteAccess rows at all —
     without this, a plain SiteScopedQuerySetMixin filters their own
     entries out entirely (accessible_site_ids returns an empty set, not
-    None, for a non-Manager/Admin with zero rows), so an operator could
+    None, for a non-Supervisor/Admin with zero rows), so an operator could
     never see or edit an entry they themselves just submitted.
 
     Subclasses set `owner_lookup` (default "operator_id") to the ORM

@@ -57,7 +57,7 @@ export function LiveShiftViewPage() {
         <h1 className="text-lg font-semibold text-slate-900">Live Shift View</h1>
         <div className="flex items-center gap-3">
           {shiftInstanceId && (
-            <RoleGate role="manager">
+            <RoleGate role="supervisor">
               <ExportButton shiftInstanceId={shiftInstanceId} />
             </RoleGate>
           )}

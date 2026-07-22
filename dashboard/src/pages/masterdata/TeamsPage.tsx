@@ -38,7 +38,8 @@ export function TeamsPage() {
         key: "section",
         label: "Section",
         type: "select",
-        options: sections?.map((s) => ({ value: s.id, label: s.name })) ?? [],
+        options: (values) =>
+          sections?.filter((s) => String(s.site) === String(values.site)).map((s) => ({ value: s.id, label: s.name })) ?? [],
       },
       {
         key: "shift_pattern",

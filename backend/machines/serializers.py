@@ -60,6 +60,19 @@ class ActivateMachineSerializer(serializers.Serializer):
     )
 
 
+class AssignMachineSerializer(serializers.Serializer):
+    """Like ActivateMachineSerializer, but a Supervisor+ names the operator
+    instead of it being implicitly request.user — the push-assignment
+    counterpart to an operator self-activating their own machine.
+    """
+
+    operator = serializers.PrimaryKeyRelatedField(queryset=get_user_model().objects.filter(is_active=True))
+    section = serializers.PrimaryKeyRelatedField(queryset=Section.objects.all())
+    sub_section = serializers.PrimaryKeyRelatedField(
+        queryset=SubSection.objects.all(), required=False, allow_null=True
+    )
+
+
 class ReleaseMachineSerializer(serializers.Serializer):
     reason = serializers.CharField(required=False, allow_blank=True, default="")
 

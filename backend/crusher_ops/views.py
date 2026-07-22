@@ -14,6 +14,7 @@ from rest_framework.viewsets import ModelViewSet
 
 from audit.services import log_event
 from core import scoping
+from core.export_tracking import is_export_owner, record_export_owner
 from core.mixins import SiteScopedOrOwnQuerySetMixin, SiteScopedQuerySetMixin
 from core.permissions import ReadOnlyOrAdmin, ReadOnlyOrSupervisorOrAbove
 from dashboard.serializers import ExportStatusSerializer
@@ -133,7 +134,7 @@ class BreakdownIncidentViewSet(BulkSyncMixin, ModelViewSet):
         call, not a reporter action.
         """
         if not scoping.is_supervisor(request.user):
-            raise PermissionDenied("Only a Supervisor/Manager/Admin may assign an artisan.")
+            raise PermissionDenied("Only a Supervisor/Admin may assign an artisan.")
         incident = self.get_object()
         serializer = BreakdownIncidentAssignSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -161,8 +162,8 @@ class BreakdownIncidentViewSet(BulkSyncMixin, ModelViewSet):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        if data.get("time_completed") and not scoping.is_manager(request.user):
-            raise PermissionDenied("Only a Manager/Admin may set an explicit (backdated) completion time.")
+        if data.get("time_completed") and not scoping.is_supervisor(request.user):
+            raise PermissionDenied("Only a Supervisor/Admin may set an explicit (backdated) completion time.")
 
         incident.root_cause_of_failure = data["root_cause_of_failure"]
         incident.remedial_action_taken = data["remedial_action_taken"]
@@ -290,10 +291,11 @@ class CrusherPlantExportView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         _require_site_access(request, data["site"])
-        if not scoping.is_manager(request.user):
-            raise PermissionDenied("Only a Manager/Admin may export reports.")
+        if not scoping.is_supervisor(request.user):
+            raise PermissionDenied("Only a Supervisor/Admin may export reports.")
 
         task = generate_crusher_plant_report.delay(data["site"], str(data["date_from"]), str(data["date_to"]))
+        record_export_owner(task.id, request.user.id)
         payload = {"task_id": task.id, "status": "queued"}
         if getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):
             payload["status"] = "success"
@@ -306,6 +308,8 @@ class CrusherPlantExportStatusView(APIView):
     permission_classes = (IsAuthenticated,)
 
     def get(self, request, task_id=None):
+        if not is_export_owner(task_id, request.user.id):
+            raise PermissionDenied("You did not trigger this export.")
         result = AsyncResult(task_id)
         payload = {"task_id": task_id, "status": result.status}
         if result.successful():

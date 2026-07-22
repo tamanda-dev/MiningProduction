@@ -24,7 +24,7 @@ export function OperateSessionPage() {
 
   const { data: sites } = useLookup<Site>("sites", { active: "true" });
   // Operators typically hold zero UserSiteAccess grants (that's the
-  // Manager/Supervisor mechanism) — their site visibility instead comes
+  // Supervisor mechanism) — their site visibility instead comes
   // from which sites they're qualified to operate machinery at, mirroring
   // mobile/app/site-select.tsx and the backend's MachineViewSet logic.
   const { data: qualifications } = useLookup<MachineTypeQualification>(

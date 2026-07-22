@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useAuth } from "@/auth/useAuth";
+import { Button } from "@/components/common/Button";
 import { ErrorMessage, extractErrorMessage } from "@/components/common/ErrorMessage";
 import { Modal } from "@/components/common/Modal";
 import { MasterDataTable, type MasterDataResourceConfig } from "@/components/masterdata/MasterDataTable";
@@ -27,6 +28,7 @@ function ChoicesManager({ parameter, onClose }: { parameter: Parameter; onClose:
   const [value, setValue] = useState("");
   const [label, setLabel] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   const addChoice = useMutation({
     mutationFn: async () =>
@@ -46,7 +48,10 @@ function ChoicesManager({ parameter, onClose }: { parameter: Parameter; onClose:
 
   const deleteChoice = useMutation({
     mutationFn: async (id: number) => api.delete(`/parameter-choices/${id}/`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["parameters"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["parameters"] });
+      setConfirmDeleteId(null);
+    },
   });
 
   return (
@@ -64,8 +69,8 @@ function ChoicesManager({ parameter, onClose }: { parameter: Parameter; onClose:
               </span>
               <button
                 type="button"
-                onClick={() => deleteChoice.mutate(c.id)}
-                className="text-red-600 hover:underline"
+                onClick={() => setConfirmDeleteId(c.id)}
+                className="font-medium text-red-600 hover:text-red-700 hover:underline"
               >
                 Remove
               </button>
@@ -104,6 +109,24 @@ function ChoicesManager({ parameter, onClose }: { parameter: Parameter; onClose:
         </div>
         {error && <ErrorMessage message={error} />}
       </div>
+
+      <Modal open={confirmDeleteId !== null} onClose={() => setConfirmDeleteId(null)} title="Remove choice?">
+        <p className="text-sm text-slate-600">This action cannot be undone.</p>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button variant="secondary" onClick={() => setConfirmDeleteId(null)}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={() => {
+              if (confirmDeleteId !== null) deleteChoice.mutate(confirmDeleteId);
+            }}
+            disabled={deleteChoice.isPending}
+          >
+            {deleteChoice.isPending ? "Removing…" : "Remove"}
+          </Button>
+        </div>
+      </Modal>
     </Modal>
   );
 }

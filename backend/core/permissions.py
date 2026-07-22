@@ -8,11 +8,6 @@ class IsAdmin(BasePermission):
         return scoping.is_admin(request.user)
 
 
-class IsManagerOrAdmin(BasePermission):
-    def has_permission(self, request, view):
-        return scoping.is_manager(request.user)
-
-
 class IsSupervisorOrAbove(BasePermission):
     def has_permission(self, request, view):
         return scoping.is_supervisor(request.user)
@@ -37,7 +32,7 @@ class ReadOnlyOrSupervisorOrAbove(BasePermission):
 class ReadOnlyOrAdmin(BasePermission):
     """Anyone authenticated may read master data; only Admin may write.
     Matches the spec's "Admin: manages all master data" role boundary —
-    Manager/Supervisor consume master data but don't redefine it.
+    Supervisor consumes master data but doesn't redefine it.
     """
 
     SAFE_METHODS = ("GET", "HEAD", "OPTIONS")
@@ -46,19 +41,6 @@ class ReadOnlyOrAdmin(BasePermission):
         if request.method in self.SAFE_METHODS:
             return bool(request.user and request.user.is_authenticated)
         return scoping.is_admin(request.user)
-
-
-class ReadOnlyOrManagerOrAdmin(BasePermission):
-    """Anyone with site access may read (e.g. Supervisors viewing Act vs
-    Plan on their live shift view); only Manager/Admin set targets.
-    """
-
-    SAFE_METHODS = ("GET", "HEAD", "OPTIONS")
-
-    def has_permission(self, request, view):
-        if request.method in self.SAFE_METHODS:
-            return bool(request.user and request.user.is_authenticated)
-        return scoping.is_manager(request.user)
 
 
 class HasSiteAccess(BasePermission):

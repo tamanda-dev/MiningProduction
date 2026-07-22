@@ -7,7 +7,12 @@ from machines.models import MachineAssignment
 from masterdata.models import Site
 from shiftmgmt.models import ShiftInstance
 
-from .services.export import build_daily_report_xlsx, build_mtd_report_xlsx, build_shift_report_xlsx
+from .services.export import (
+    build_daily_production_report_xlsx,
+    build_daily_report_xlsx,
+    build_mtd_report_xlsx,
+    build_shift_report_xlsx,
+)
 
 
 @shared_task
@@ -41,6 +46,19 @@ def generate_mtd_report(site_id, year, month):
     site = Site.objects.get(pk=site_id)
     buffer = build_mtd_report_xlsx(site, year, month)
     filename = f"reports/mtd_{site_id}_{year}{month:02d}_{timezone.now():%Y%m%d%H%M%S}.xlsx"
+    path = default_storage.save(filename, ContentFile(buffer.read()))
+    return default_storage.url(path)
+
+
+@shared_task
+def generate_daily_production_report(site_id, date):
+    """Builds the combined Day/Night/Daily-Total/MTD/Availabilities XLSX
+    matching the source "Daily Production Report" spreadsheet's exact
+    layout — see build_daily_production_report_xlsx.
+    """
+    site = Site.objects.get(pk=site_id)
+    buffer = build_daily_production_report_xlsx(site, date)
+    filename = f"reports/daily_production_{site_id}_{date}_{timezone.now():%Y%m%d%H%M%S}.xlsx"
     path = default_storage.save(filename, ContentFile(buffer.read()))
     return default_storage.url(path)
 

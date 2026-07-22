@@ -105,7 +105,7 @@ function DailyTrendTab() {
           />
         </Field>
         {siteId && (
-          <RoleGate role="manager">
+          <RoleGate role="supervisor">
             <Field label="Daily Export">
               <ExportButton reportType="daily" siteId={siteId} date={dateTo} />
             </Field>

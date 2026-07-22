@@ -55,7 +55,10 @@ def claim_machine(machine, operator, section, sub_section=None):
             status=MachineAssignment.STATUS_ACTIVE,
         ).exists()
         if operator_conflict:
-            raise ValidationError({"detail": "You already have an active machine for this shift."})
+            # Worded operator-agnostically: this fires both when an operator
+            # self-activates a second machine and when a Supervisor+
+            # assigns one to an operator who already has an active machine.
+            raise ValidationError({"detail": "That operator already has an active machine for this shift."})
 
         try:
             assignment = MachineAssignment.objects.create(

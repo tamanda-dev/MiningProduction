@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core import scoping
+from core.export_tracking import is_export_owner, record_export_owner
 from shiftmgmt.models import ShiftInstance
 
 from .serializers import (
@@ -24,7 +25,12 @@ from .services.aggregation import act_vs_plan_for_shift_instance, daily_trend, h
 from .services.availability import availability_utilization
 from .services.machine_status import machine_status_board
 from .services.pareto import downtime_pareto
-from .tasks import generate_daily_report, generate_mtd_report, generate_shift_report
+from .tasks import (
+    generate_daily_production_report,
+    generate_daily_report,
+    generate_mtd_report,
+    generate_shift_report,
+)
 
 
 def _require_site_access(request, site_id):
@@ -201,20 +207,26 @@ class DashboardExportView(APIView):
             if shift_instance is None:
                 raise ValidationError({"shift_instance": "Unknown shift instance."})
             _require_site_access(request, shift_instance.site_id)
-            if not scoping.is_manager(request.user):
-                raise PermissionDenied("Only a Manager/Admin may export reports.")
+            if not scoping.is_supervisor(request.user):
+                raise PermissionDenied("Only a Supervisor/Admin may export reports.")
             task = generate_shift_report.delay(shift_instance.id)
         elif report_type == "daily":
             site_id = _require_site_access(request, data["site"])
-            if not scoping.is_manager(request.user):
-                raise PermissionDenied("Only a Manager/Admin may export reports.")
+            if not scoping.is_supervisor(request.user):
+                raise PermissionDenied("Only a Supervisor/Admin may export reports.")
             task = generate_daily_report.delay(site_id, str(data["date"]))
-        else:  # "mtd"
+        elif report_type == "mtd":
             site_id = _require_site_access(request, data["site"])
-            if not scoping.is_manager(request.user):
-                raise PermissionDenied("Only a Manager/Admin may export reports.")
+            if not scoping.is_supervisor(request.user):
+                raise PermissionDenied("Only a Supervisor/Admin may export reports.")
             task = generate_mtd_report.delay(site_id, data["year"], data["month"])
+        else:  # "daily_production"
+            site_id = _require_site_access(request, data["site"])
+            if not scoping.is_supervisor(request.user):
+                raise PermissionDenied("Only a Supervisor/Admin may export reports.")
+            task = generate_daily_production_report.delay(site_id, str(data["date"]))
 
+        record_export_owner(task.id, request.user.id)
         payload = {"task_id": task.id, "status": "queued"}
         # In eager dev mode (no Redis broker) the task already ran
         # synchronously inside .delay() and its result isn't persisted
@@ -234,6 +246,8 @@ class DashboardExportStatusView(APIView):
     permission_classes = (IsAuthenticated,)
 
     def get(self, request, task_id=None):
+        if not is_export_owner(task_id, request.user.id):
+            raise PermissionDenied("You did not trigger this export.")
         result = AsyncResult(task_id)
         payload = {"task_id": task_id, "status": result.status}
         if result.successful():

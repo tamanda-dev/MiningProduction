@@ -7,7 +7,9 @@ export interface Paginated<T> {
   results: T[];
 }
 
-export type Role = "admin" | "manager" | "supervisor" | "operator";
+// Manager was removed as a distinct role — Supervisor absorbed everything
+// it used to do.
+export type Role = "admin" | "supervisor" | "operator";
 
 export interface Me {
   id: ID;
@@ -29,6 +31,28 @@ export interface UserSummary {
   last_name: string;
   employee_code: string | null;
   maintenance_technician: boolean;
+}
+
+export interface UserDetail extends UserSummary {
+  is_active: boolean;
+  roles: Role[];
+  date_joined: string;
+  last_login: string | null;
+}
+
+export interface UserSiteAccess {
+  id: ID;
+  user: ID;
+  site: ID;
+  section: ID | null;
+}
+
+export interface MachineTypeQualification {
+  id: ID;
+  user: ID;
+  machine_type: ID;
+  site: ID | null;
+  active: boolean;
 }
 
 // -- Master data ------------------------------------------------------------
