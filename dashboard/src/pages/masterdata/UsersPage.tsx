@@ -11,7 +11,7 @@ import { QualificationsModal, userLabel } from "@/components/users/Qualification
 import { api } from "@/lib/api";
 import { NEUTRAL, ROLE_COLOR, STATUS } from "@/lib/chartTheme";
 import { useLookup } from "@/lib/useLookup";
-import type { MachineType, MachineTypeQualification, Paginated, Role, Section, Site, UserDetail, UserSiteAccess } from "@/types";
+import type { Paginated, Role, Section, Site, UserDetail, UserSiteAccess } from "@/types";
 
 const ROLE_OPTIONS: { value: Role; label: string }[] = [
   { value: "admin", label: "Admin" },
