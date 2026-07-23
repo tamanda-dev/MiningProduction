@@ -159,3 +159,124 @@ def test_update_conflicting_slot_returns_400_not_500(
     )
     assert conflict_resp.status_code == 400
     assert "already exists" in conflict_resp.data.get("detail", "")
+
+
+@pytest.mark.django_db
+def test_failed_value_validation_does_not_orphan_the_entry(
+    api_client, machines, sections, all_day_shifts, django_user_model
+):
+    """Regression test: ProductionEntrySerializer.create() used to insert
+    the ProductionEntry row *before* processing `values`, with no shared
+    transaction — an invalid parameter code/value left a permanently
+    committed entry with zero ParameterValue rows: invisible in every Act
+    total (Live Shift View, Downtime Pareto, etc.) yet still occupying its
+    (machine, section, slot_index) slot, blocking a legitimate retry.
+    """
+    from machines.models import MachineAssignment
+    from shiftmgmt.services import get_or_create_open_instance
+
+    m_a, _ = machines
+    sec_a, _ = sections
+    operator = django_user_model.objects.create_user(username="op1", password="pass12345")
+
+    instance = get_or_create_open_instance(m_a.site)
+    assignment = MachineAssignment.objects.create(
+        machine=m_a, operator=operator, shift_instance=instance, section=sec_a, status=MachineAssignment.STATUS_ACTIVE
+    )
+
+    api_client.force_authenticate(user=operator)
+    bad_resp = api_client.post(
+        "/api/production-entries/",
+        {
+            "machine_assignment": assignment.id,
+            "entry_type": "hourly",
+            "slot_index": 0,
+            "values": [{"parameter": "does-not-exist", "value": 1}],
+        },
+        format="json",
+    )
+    assert bad_resp.status_code == 400
+
+    from entries.models import ProductionEntry
+
+    assert ProductionEntry.objects.filter(machine_assignment=assignment, slot_index=0).count() == 0
+
+    # The slot must be free for a corrected retry, not blocked by an orphan.
+    retry_resp = api_client.post(
+        "/api/production-entries/",
+        {"machine_assignment": assignment.id, "entry_type": "hourly", "slot_index": 0, "values": []},
+        format="json",
+    )
+    assert retry_resp.status_code == 201, retry_resp.data
+
+
+@pytest.mark.django_db
+def test_hourly_scoped_parameter_rejected_as_shift_total(
+    api_client, machines, sections, all_day_shifts, django_user_model, number_parameter
+):
+    """Regression test: a machine/section-scoped parameter (measured
+    hourly) must not also be submittable under entry_type='shift_total' —
+    its shift total is the sum of the hourly entries, computed
+    automatically, not a second manually-typed figure that would double
+    every downstream Act total.
+    """
+    from machines.models import MachineAssignment
+    from shiftmgmt.services import get_or_create_open_instance
+
+    m_a, _ = machines
+    sec_a, _ = sections
+    operator = django_user_model.objects.create_user(username="op1", password="pass12345")
+
+    instance = get_or_create_open_instance(m_a.site)
+    assignment = MachineAssignment.objects.create(
+        machine=m_a, operator=operator, shift_instance=instance, section=sec_a, status=MachineAssignment.STATUS_ACTIVE
+    )
+
+    api_client.force_authenticate(user=operator)
+    resp = api_client.post(
+        "/api/production-entries/",
+        {
+            "machine_assignment": assignment.id,
+            "entry_type": "shift_total",
+            "values": [{"parameter": number_parameter.code, "value": 50}],
+        },
+        format="json",
+    )
+    assert resp.status_code == 400
+    assert "tracked hourly" in str(resp.data).lower()
+
+
+@pytest.mark.django_db
+def test_shift_scoped_parameter_accepted_as_shift_total(
+    api_client, machines, sections, all_day_shifts, django_user_model
+):
+    """The counterpart to the above: a genuine Parameter.SCOPE_SHIFT
+    parameter is exactly what entry_type='shift_total' is for, and must
+    still work."""
+    from machines.models import MachineAssignment
+    from shiftmgmt.services import get_or_create_open_instance
+
+    m_a, _ = machines
+    sec_a, _ = sections
+    shift_param = Parameter.objects.create(
+        name="Shift Notes Count", code="shift-notes-count", scope=Parameter.SCOPE_SHIFT,
+        data_type=Parameter.DATA_TYPE_NUMBER, section=sec_a,
+    )
+    operator = django_user_model.objects.create_user(username="op1", password="pass12345")
+
+    instance = get_or_create_open_instance(m_a.site)
+    assignment = MachineAssignment.objects.create(
+        machine=m_a, operator=operator, shift_instance=instance, section=sec_a, status=MachineAssignment.STATUS_ACTIVE
+    )
+
+    api_client.force_authenticate(user=operator)
+    resp = api_client.post(
+        "/api/production-entries/",
+        {
+            "machine_assignment": assignment.id,
+            "entry_type": "shift_total",
+            "values": [{"parameter": shift_param.code, "value": 3}],
+        },
+        format="json",
+    )
+    assert resp.status_code == 201, resp.data

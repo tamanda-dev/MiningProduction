@@ -51,7 +51,17 @@ export function OperateEntryPage() {
   });
 
   const slots = slotsQuery.data ?? [];
-  const parameters = schemaQuery.data ?? [];
+  // "Shift Total" is not a second place to type the same figure — a
+  // machine/section-scoped parameter (e.g. "Tonnes Hauled") is measured
+  // hourly, and its shift total is just the sum of those hourly entries
+  // (the dashboard already computes it that way). Only scope="shift"
+  // parameters — the ones actually meant to be entered once per shift —
+  // belong on this tab; showing hourly parameters here too let an
+  // operator double-count by entering both. The backend enforces this
+  // same split independently (ProductionEntrySerializer.validate()).
+  const parameters = (schemaQuery.data ?? []).filter((p) =>
+    entryType === "shift_total" ? p.scope === "shift" : p.scope !== "shift",
+  );
 
   useEffect(() => {
     if (slotIndex === null && slots.length > 0) {
@@ -144,6 +154,12 @@ export function OperateEntryPage() {
 
       <Card className="mb-4">
         {schemaQuery.isLoading && <p className="text-sm text-slate-400">Loading form…</p>}
+        {!schemaQuery.isLoading && entryType === "shift_total" && parameters.length === 0 && (
+          <p className="mb-3 text-sm text-slate-500">
+            Nothing is tracked as a once-per-shift figure for this machine/section — every parameter here is logged
+            hourly instead, and its shift total is computed automatically from those entries.
+          </p>
+        )}
         {parameters.map((param) => (
           <DynamicField key={param.code} parameter={param} value={values[param.code]} onChange={(v) => updateValue(param.code, v)} />
         ))}

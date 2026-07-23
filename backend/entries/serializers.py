@@ -1,8 +1,8 @@
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from rest_framework import serializers
 
 from machines.models import MachineAssignment
-from masterdata.models import Section
+from masterdata.models import Parameter, Section
 from shiftmgmt.models import ShiftInstance
 from shiftmgmt.services import get_or_create_open_instance
 
@@ -122,6 +122,28 @@ class ProductionEntrySerializer(serializers.ModelSerializer):
             attrs["slot_start_at"] = None
             attrs["slot_end_at"] = None
 
+        # A machine/section-scoped parameter (e.g. "Tonnes Hauled") is
+        # measured per hour — its shift total is the *sum* of those hourly
+        # entries (act_vs_plan_for_shift_instance already computes it that
+        # way), never a second, separately-typed-in figure. Only
+        # Parameter.SCOPE_SHIFT parameters ("Shift-total" in the model's
+        # own choices) are legitimately entered once per shift. Without
+        # this, nothing stopped an operator from also logging an hourly
+        # parameter under entry_type='shift_total', silently double-
+        # counting it in every Act total downstream.
+        if entry_type == ProductionEntry.ENTRY_TYPE_SHIFT_TOTAL:
+            for item in attrs.get("values", []):
+                parameter = services.resolve_parameter(item["parameter"])
+                if parameter.scope != Parameter.SCOPE_SHIFT:
+                    raise serializers.ValidationError(
+                        {
+                            "values": (
+                                f"'{parameter.name}' is tracked hourly — its shift total is computed "
+                                "automatically from hourly entries, not entered separately."
+                            )
+                        }
+                    )
+
         services.enforce_shift_window(attrs["shift_instance"], request.user, attrs.get("override_reason", ""))
         services.enforce_status_change_permission(self.instance, attrs.get("status"), request.user)
         attrs["recorded_by"] = request.user
@@ -131,10 +153,17 @@ class ProductionEntrySerializer(serializers.ModelSerializer):
         values = validated_data.pop("values")
         validated_data.pop("override_reason", None)
         try:
-            entry = ProductionEntry.objects.create(**validated_data)
+            # entry.create() and set_parameter_values() share one savepoint:
+            # if the parameter values fail validation (bad code, out-of-
+            # range, wrong type), the entry row itself must not survive
+            # either — previously it did, leaving an orphaned entry with
+            # zero values that still occupied its slot (blocking a
+            # legitimate retry) and reported nothing in Act totals.
+            with transaction.atomic():
+                entry = ProductionEntry.objects.create(**validated_data)
+                services.set_parameter_values("production_entry", entry, values)
         except IntegrityError:
             _conflict("An entry already exists for this machine/section/slot in this shift instance.")
-        services.set_parameter_values("production_entry", entry, values)
         return entry
 
     def update(self, instance, validated_data):
@@ -143,11 +172,12 @@ class ProductionEntrySerializer(serializers.ModelSerializer):
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         try:
-            instance.save()
+            with transaction.atomic():
+                instance.save()
+                if values is not None:
+                    services.set_parameter_values("production_entry", instance, values)
         except IntegrityError:
             _conflict("An entry already exists for this machine/section/slot in this shift instance.")
-        if values is not None:
-            services.set_parameter_values("production_entry", instance, values)
         return instance
 
 
@@ -217,10 +247,15 @@ class BreakdownLogSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         values = validated_data.pop("values", [])
         validated_data.pop("override_reason", None)
-        log = BreakdownLog.objects.create(**validated_data)
-        if values:
-            services.set_parameter_values("breakdown_log", log, values)
-        services.apply_breakdown_side_effects(log)
+        # Parent row + parameter values + the machine.status side effect all
+        # share one savepoint — a values validation failure must not leave
+        # an orphaned, empty BreakdownLog behind (see ProductionEntry's
+        # create() for the full rationale).
+        with transaction.atomic():
+            log = BreakdownLog.objects.create(**validated_data)
+            if values:
+                services.set_parameter_values("breakdown_log", log, values)
+            services.apply_breakdown_side_effects(log)
         return log
 
     def update(self, instance, validated_data):
@@ -228,10 +263,11 @@ class BreakdownLogSerializer(serializers.ModelSerializer):
         validated_data.pop("override_reason", None)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-        instance.save()
-        if values is not None:
-            services.set_parameter_values("breakdown_log", instance, values)
-        services.apply_breakdown_side_effects(instance)
+        with transaction.atomic():
+            instance.save()
+            if values is not None:
+                services.set_parameter_values("breakdown_log", instance, values)
+            services.apply_breakdown_side_effects(instance)
         return instance
 
 
@@ -298,11 +334,12 @@ class CrusherEntrySerializer(serializers.ModelSerializer):
         values = validated_data.pop("values", [])
         validated_data.pop("override_reason", None)
         try:
-            entry = CrusherEntry.objects.create(**validated_data)
+            with transaction.atomic():
+                entry = CrusherEntry.objects.create(**validated_data)
+                if values:
+                    services.set_parameter_values("crusher_entry", entry, values)
         except IntegrityError:
             _conflict("An entry already exists for this crusher unit/slot in this shift instance.")
-        if values:
-            services.set_parameter_values("crusher_entry", entry, values)
         return entry
 
     def update(self, instance, validated_data):
@@ -311,11 +348,12 @@ class CrusherEntrySerializer(serializers.ModelSerializer):
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         try:
-            instance.save()
+            with transaction.atomic():
+                instance.save()
+                if values is not None:
+                    services.set_parameter_values("crusher_entry", instance, values)
         except IntegrityError:
             _conflict("An entry already exists for this crusher unit/slot in this shift instance.")
-        if values is not None:
-            services.set_parameter_values("crusher_entry", instance, values)
         return instance
 
 
@@ -372,9 +410,13 @@ class DeliveryEntrySerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         values = validated_data.pop("values", [])
         validated_data.pop("override_reason", None)
-        entry = DeliveryEntry.objects.create(**validated_data)
-        if values:
-            services.set_parameter_values("delivery_entry", entry, values)
+        try:
+            with transaction.atomic():
+                entry = DeliveryEntry.objects.create(**validated_data)
+                if values:
+                    services.set_parameter_values("delivery_entry", entry, values)
+        except IntegrityError:
+            _conflict("An entry already exists for this destination/slot in this shift instance.")
         return entry
 
     def update(self, instance, validated_data):
@@ -382,7 +424,11 @@ class DeliveryEntrySerializer(serializers.ModelSerializer):
         validated_data.pop("override_reason", None)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-        instance.save()
-        if values is not None:
-            services.set_parameter_values("delivery_entry", instance, values)
+        try:
+            with transaction.atomic():
+                instance.save()
+                if values is not None:
+                    services.set_parameter_values("delivery_entry", instance, values)
+        except IntegrityError:
+            _conflict("An entry already exists for this destination/slot in this shift instance.")
         return instance
