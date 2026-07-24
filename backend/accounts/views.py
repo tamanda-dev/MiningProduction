@@ -1,4 +1,4 @@
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -153,12 +153,19 @@ class UserSiteAccessViewSet(ModelViewSet):
 
     def perform_create(self, serializer):
         try:
-            serializer.save()
+            # atomic() gives the save its own savepoint so a caught
+            # IntegrityError doesn't poison the surrounding transaction
+            # (Django raises "you can't execute queries until the end of
+            # the 'atomic' block" on any later query in the same request
+            # otherwise).
+            with transaction.atomic():
+                serializer.save()
         except IntegrityError:
             raise ValidationError({"detail": "This user already has an access grant for that site/section."})
 
     def perform_update(self, serializer):
         try:
-            serializer.save()
+            with transaction.atomic():
+                serializer.save()
         except IntegrityError:
             raise ValidationError({"detail": "This user already has an access grant for that site/section."})

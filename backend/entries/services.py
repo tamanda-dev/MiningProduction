@@ -15,7 +15,14 @@ from .models import ParameterValue
 def resolve_parameter(parameter_ref):
     if isinstance(parameter_ref, Parameter):
         return parameter_ref
-    lookup = {"pk": parameter_ref} if isinstance(parameter_ref, int) else {"code": parameter_ref}
+    # ParameterValueInSerializer.parameter is a plain CharField, so by the
+    # time a value reaches here it's always a str — `isinstance(..., int)`
+    # never matched, even for a client that sent a numeric id, silently
+    # forcing every id-based lookup through the "code" branch instead
+    # (where it would 400 as "unknown parameter"). Real callers only ever
+    # send the code today, so this was dead code rather than a live bug,
+    # but the id path should actually work per this function's contract.
+    lookup = {"pk": int(parameter_ref)} if isinstance(parameter_ref, int) or str(parameter_ref).isdigit() else {"code": parameter_ref}
     try:
         return Parameter.objects.get(**lookup)
     except Parameter.DoesNotExist as exc:

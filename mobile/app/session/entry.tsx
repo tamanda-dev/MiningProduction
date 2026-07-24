@@ -65,7 +65,13 @@ export default function EntryScreen() {
   });
 
   const slots = slotsQuery.data ?? [];
-  const parameters = schemaQuery.data ?? [];
+  // "Shift Total" is not a second place to type the same figure — see
+  // dashboard/src/pages/operate/OperateEntryPage.tsx for the full
+  // rationale (mirrored here). Only scope="shift" parameters belong on
+  // this tab; the backend enforces the same split independently.
+  const parameters = (schemaQuery.data ?? []).filter((p) =>
+    entryType === "shift_total" ? p.scope === "shift" : p.scope !== "shift",
+  );
 
   useEffect(() => {
     if (slotIndex === null && slots.length > 0) {
