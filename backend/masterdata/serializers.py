@@ -9,7 +9,6 @@ from .models import (
     ParameterChoice,
     Section,
     Site,
-    SubSection,
     UOM,
 )
 
@@ -18,18 +17,23 @@ class SiteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Site
         fields = ("id", "name", "code", "timezone", "active", "created_at", "updated_at")
+        extra_kwargs = {"code": {"help_text": "Auto-generated from name if left blank."}}
 
 
 class SectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Section
         fields = ("id", "site", "name", "code", "active", "created_at", "updated_at")
-
-
-class SubSectionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SubSection
-        fields = ("id", "section", "name", "code", "active", "display_order", "created_at", "updated_at")
+        extra_kwargs = {"code": {"help_text": "Auto-generated from name if left blank."}}
+        # DRF auto-generates a UniqueTogetherValidator from the model's
+        # UniqueConstraint(fields=["site","code"]) and, to support it,
+        # force-marks every field in that set as required=True — including
+        # `code`, which is blank=True on the model precisely so it's
+        # optional (auto-slugified in Section.save() otherwise). Same issue
+        # fixed this session in several other serializers; disabled here
+        # too, relying on the IntegrityError -> clean 400 handling in the
+        # view for a genuine duplicate (site, code) pair.
+        validators = []
 
 
 class MachineTypeSerializer(serializers.ModelSerializer):
@@ -47,7 +51,7 @@ class UOMSerializer(serializers.ModelSerializer):
 class ParameterChoiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = ParameterChoice
-        fields = ("id", "value", "label", "display_order")
+        fields = ("id", "value", "label")
 
 
 class ParameterSerializer(serializers.ModelSerializer):
@@ -68,7 +72,6 @@ class ParameterSerializer(serializers.ModelSerializer):
             "min_value",
             "max_value",
             "is_required",
-            "display_order",
             "active",
             "choices",
         )

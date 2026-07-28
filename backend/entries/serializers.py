@@ -53,7 +53,6 @@ class ProductionEntrySerializer(serializers.ModelSerializer):
             "shift_instance",
             "site",
             "section",
-            "sub_section",
             "machine",
             "machine_assignment",
             "entry_type",
@@ -94,7 +93,6 @@ class ProductionEntrySerializer(serializers.ModelSerializer):
                 )
             attrs["machine"] = machine_assignment.machine
             attrs["section"] = machine_assignment.section
-            attrs["sub_section"] = machine_assignment.sub_section
             attrs["shift_instance"] = machine_assignment.shift_instance
             attrs["site"] = machine_assignment.machine.site
             attrs["operator"] = machine_assignment.operator

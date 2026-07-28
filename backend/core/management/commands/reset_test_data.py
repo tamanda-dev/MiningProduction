@@ -30,7 +30,6 @@ from masterdata.models import (
     ParameterChoice,
     Section,
     Site,
-    SubSection,
 )
 from planning.models import PlanTarget
 from shiftmgmt.models import Shift, ShiftInstance
@@ -65,7 +64,6 @@ DELETE_ORDER = [
     ("Master/setup data", MachineType),
     ("Master/setup data", ParameterChoice),
     ("Master/setup data", Parameter),
-    ("Master/setup data", SubSection),
     ("Master/setup data", DeliveryDestination),
     ("Master/setup data", CrusherUnit),
     ("Master/setup data", UserSiteAccess),

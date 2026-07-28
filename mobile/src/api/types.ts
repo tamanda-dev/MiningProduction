@@ -40,15 +40,6 @@ export interface Section {
   active: boolean;
 }
 
-export interface SubSection {
-  id: ID;
-  section: ID;
-  name: string;
-  code: string;
-  active: boolean;
-  display_order: number;
-}
-
 export interface MachineType {
   id: ID;
   name: string;
@@ -91,7 +82,6 @@ export interface MachineAssignment {
   operator_label: string;
   shift_instance: ID;
   section: ID;
-  sub_section: ID | null;
   started_at: string;
   ended_at: string | null;
   status: AssignmentStatus;
@@ -112,7 +102,6 @@ export interface FormSchemaParameter {
   is_required: boolean;
   min_value: string | null;
   max_value: string | null;
-  display_order: number;
   choices: { value: string; label: string }[];
 }
 
@@ -162,7 +151,6 @@ export interface Parameter {
   min_value: string | null;
   max_value: string | null;
   is_required: boolean;
-  display_order: number;
   active: boolean;
 }
 
@@ -294,7 +282,6 @@ export interface BreakdownCause {
   name: string;
   code: string;
   is_other: boolean;
-  display_order: number;
   active: boolean;
 }
 
@@ -303,7 +290,6 @@ export interface ChecklistItem {
   name: string;
   code: string;
   description: string;
-  display_order: number;
   active: boolean;
 }
 

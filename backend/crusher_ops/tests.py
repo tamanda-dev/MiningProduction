@@ -67,7 +67,7 @@ def hourly_slot(db, site):
 
 @pytest.fixture
 def breakdown_cause(db):
-    return BreakdownCause.objects.create(name="Belt Tear", code="belt-tear", display_order=0)
+    return BreakdownCause.objects.create(name="Belt Tear", code="belt-tear")
 
 
 @pytest.fixture

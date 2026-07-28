@@ -28,7 +28,6 @@ class ProductionEntryAdmin(admin.ModelAdmin):
         "shift_instance",
         "site",
         "section",
-        "sub_section",
         "machine",
         "machine_assignment",
         "operator",

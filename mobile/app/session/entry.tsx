@@ -184,7 +184,6 @@ export default function EntryScreen() {
             is_required: false,
             min_value: null,
             max_value: null,
-            display_order: 999,
             choices: [],
           }}
           value={comments}

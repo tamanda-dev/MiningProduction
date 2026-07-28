@@ -13,14 +13,14 @@ from .models import (
 
 @admin.register(BreakdownCause)
 class BreakdownCauseAdmin(admin.ModelAdmin):
-    list_display = ("name", "code", "is_other", "display_order", "active")
+    list_display = ("name", "code", "is_other", "active")
     list_filter = ("is_other", "active")
     search_fields = ("name", "code")
 
 
 @admin.register(ChecklistItem)
 class ChecklistItemAdmin(admin.ModelAdmin):
-    list_display = ("name", "code", "display_order", "active")
+    list_display = ("name", "code", "active")
     list_filter = ("active",)
     search_fields = ("name", "code")
 

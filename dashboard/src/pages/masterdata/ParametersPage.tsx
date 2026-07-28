@@ -41,7 +41,6 @@ function ChoicesManager({ parameter, onClose }: { parameter: Parameter; onClose:
         parameter: parameter.id,
         value,
         label,
-        display_order: parameter.choices.length,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["parameters"] });
@@ -209,7 +208,6 @@ export function ParametersPage() {
       { key: "min_value", label: "Min Value", type: "number" },
       { key: "max_value", label: "Max Value", type: "number" },
       { key: "is_required", label: "Required", type: "boolean" },
-      { key: "display_order", label: "Display Order", type: "number" },
       { key: "active", label: "Active", type: "boolean" },
     ],
     defaultValues: { aggregation: "sum" },

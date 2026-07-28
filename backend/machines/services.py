@@ -32,7 +32,7 @@ def _check_qualified(operator, machine):
         raise PermissionDenied("Operator is not qualified for this machine type.")
 
 
-def claim_machine(machine, operator, section, sub_section=None):
+def claim_machine(machine, operator, section):
     """The machine-activation workflow entry point. DB-first concurrency
     safety: MachineAssignment's partial unique constraints are the
     race-proof source of truth; select_for_update() here just turns a lost
@@ -73,7 +73,6 @@ def claim_machine(machine, operator, section, sub_section=None):
                 operator=operator,
                 shift_instance=shift_instance,
                 section=section,
-                sub_section=sub_section,
                 status=MachineAssignment.STATUS_ACTIVE,
             )
         except IntegrityError as exc:
@@ -95,7 +94,7 @@ def release_machine(assignment, reason=""):
     return assignment
 
 
-def handover_machine(assignment, new_operator, section=None, sub_section=None):
+def handover_machine(assignment, new_operator, section=None):
     if assignment.status != MachineAssignment.STATUS_ACTIVE:
         raise ValidationError({"detail": "Assignment is not active."})
     _check_qualified(new_operator, assignment.machine)
@@ -110,7 +109,6 @@ def handover_machine(assignment, new_operator, section=None, sub_section=None):
             operator=new_operator,
             shift_instance=assignment.shift_instance,
             section=section or assignment.section,
-            sub_section=sub_section or assignment.sub_section,
             status=MachineAssignment.STATUS_ACTIVE,
             handed_over_from=assignment,
         )

@@ -10,7 +10,6 @@ from masterdata.models import (
     Parameter,
     Section,
     Site,
-    SubSection,
 )
 from shiftmgmt.models import ShiftInstance
 
@@ -42,9 +41,6 @@ class ProductionEntry(TimeStampedModel):
     shift_instance = models.ForeignKey(ShiftInstance, on_delete=models.PROTECT, related_name="production_entries")
     site = models.ForeignKey(Site, on_delete=models.PROTECT, related_name="production_entries")
     section = models.ForeignKey(Section, on_delete=models.PROTECT, related_name="production_entries")
-    sub_section = models.ForeignKey(
-        SubSection, on_delete=models.PROTECT, null=True, blank=True, related_name="production_entries"
-    )
     machine = models.ForeignKey(
         Machine, on_delete=models.PROTECT, null=True, blank=True, related_name="production_entries"
     )

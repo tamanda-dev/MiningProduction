@@ -19,7 +19,6 @@ export function BreakdownCausesPage() {
       { key: "name", label: "Name" },
       { key: "code", label: "Code" },
       { key: "is_other", label: "Is 'Other'", render: (row) => (row.is_other ? "Yes" : "No") },
-      { key: "display_order", label: "Order" },
       { key: "active", label: "Active", render: (row) => (row.active ? "Yes" : "No") },
     ],
     fields: [
@@ -31,7 +30,6 @@ export function BreakdownCausesPage() {
         type: "boolean",
         helpText: "Exactly one cause should be flagged as 'Other'.",
       },
-      { key: "display_order", label: "Display Order", type: "number" },
       { key: "active", label: "Active", type: "boolean" },
     ],
   };

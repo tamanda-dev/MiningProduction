@@ -17,7 +17,6 @@ import type {
   ShiftInstance,
   ShiftPattern,
   Site,
-  SubSection,
   Team,
   TeamMember,
   UOM,
@@ -50,7 +49,7 @@ export function SitesScreen() {
     secondaryLabel: (row) => row.code,
     fields: [
       { key: "name", label: "Name", type: "text", required: true },
-      { key: "code", label: "Code", type: "text", required: true },
+      { key: "code", label: "Code", type: "text", helpText: "Optional — auto-generated from Name if left blank." },
       { key: "timezone", label: "Timezone", type: "text", required: true, helpText: "e.g. Africa/Harare" },
       { key: "active", label: "Active", type: "boolean" },
     ],
@@ -70,29 +69,8 @@ export function SectionsScreen() {
     secondaryLabel: (row) => siteName(row.site),
     fields: [
       { key: "name", label: "Name", type: "text", required: true },
-      { key: "code", label: "Code", type: "text", required: true },
+      { key: "code", label: "Code", type: "text", helpText: "Optional — auto-generated from Name if left blank." },
       { key: "site", label: "Site", type: "select", required: true, options: sites?.map((s) => ({ value: s.id, label: s.name })) ?? [] },
-      { key: "active", label: "Active", type: "boolean" },
-    ],
-  };
-  return <MasterDataScreen config={config} />;
-}
-
-export function SubSectionsScreen() {
-  const { hasRole } = useAuth();
-  const { data: sections } = useLookup<Section>("sections");
-  const sectionName = (id: number) => sections?.find((s) => s.id === id)?.name ?? String(id);
-  const config: MasterDataConfig<SubSection> = {
-    resource: "subsections",
-    title: "Sub-Sections",
-    canWrite: hasRole("admin"),
-    primaryLabel: (row) => row.name,
-    secondaryLabel: (row) => sectionName(row.section),
-    fields: [
-      { key: "name", label: "Name", type: "text", required: true },
-      { key: "code", label: "Code", type: "text", required: true },
-      { key: "section", label: "Section", type: "select", required: true, options: sections?.map((s) => ({ value: s.id, label: s.name })) ?? [] },
-      { key: "display_order", label: "Display Order", type: "number" },
       { key: "active", label: "Active", type: "boolean" },
     ],
   };
@@ -218,7 +196,6 @@ export function ParametersScreen() {
       { key: "min_value", label: "Min Value", type: "number" },
       { key: "max_value", label: "Max Value", type: "number" },
       { key: "is_required", label: "Required", type: "boolean" },
-      { key: "display_order", label: "Display Order", type: "number" },
       { key: "active", label: "Active", type: "boolean" },
     ],
   };
@@ -385,7 +362,6 @@ export function BreakdownCausesScreen() {
       { key: "name", label: "Name", type: "text", required: true },
       { key: "code", label: "Code", type: "text", required: true },
       { key: "is_other", label: "Is 'Other' (requires free text elsewhere)", type: "boolean", helpText: "Only one cause may be flagged as 'Other'." },
-      { key: "display_order", label: "Display Order", type: "number" },
       { key: "active", label: "Active", type: "boolean" },
     ],
   };
@@ -404,7 +380,6 @@ export function ChecklistItemsScreen() {
       { key: "name", label: "Name", type: "text", required: true },
       { key: "code", label: "Code", type: "text", required: true },
       { key: "description", label: "Description", type: "text" },
-      { key: "display_order", label: "Display Order", type: "number" },
       { key: "active", label: "Active", type: "boolean" },
     ],
   };
@@ -498,7 +473,6 @@ export function PlanTargetsScreen() {
 export const MASTER_DATA_SCREENS: Record<string, { title: string; Component: React.ComponentType; requireRole: "admin" | "supervisor" }> = {
   sites: { title: "Sites", Component: SitesScreen, requireRole: "admin" },
   sections: { title: "Sections", Component: SectionsScreen, requireRole: "admin" },
-  subsections: { title: "Sub-Sections", Component: SubSectionsScreen, requireRole: "admin" },
   "machine-types": { title: "Machine Types", Component: MachineTypesScreen, requireRole: "admin" },
   machines: { title: "Machines", Component: MachinesEditScreen, requireRole: "admin" },
   uoms: { title: "Units of Measure", Component: UOMsScreen, requireRole: "admin" },

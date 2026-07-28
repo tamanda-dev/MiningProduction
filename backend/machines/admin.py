@@ -24,5 +24,5 @@ class MachineAssignmentAdmin(admin.ModelAdmin):
     list_display = ("machine", "operator", "shift_instance", "section", "status", "started_at", "ended_at")
     list_filter = ("machine__site", "status")
     search_fields = ("machine__fleet_number", "operator__username")
-    autocomplete_fields = ("machine", "operator", "shift_instance", "section", "sub_section", "handed_over_from")
+    autocomplete_fields = ("machine", "operator", "shift_instance", "section", "handed_over_from")
     readonly_fields = ("started_at",)

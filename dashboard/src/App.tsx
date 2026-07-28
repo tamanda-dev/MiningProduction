@@ -40,7 +40,6 @@ import { ShiftInstancesPage } from "@/pages/masterdata/ShiftInstancesPage";
 import { ShiftPatternsPage } from "@/pages/masterdata/ShiftPatternsPage";
 import { ShiftsPage } from "@/pages/masterdata/ShiftsPage";
 import { SitesPage } from "@/pages/masterdata/SitesPage";
-import { SubSectionsPage } from "@/pages/masterdata/SubSectionsPage";
 import { TeamMembersPage } from "@/pages/masterdata/TeamMembersPage";
 import { TeamsPage } from "@/pages/masterdata/TeamsPage";
 import { UOMsPage } from "@/pages/masterdata/UOMsPage";
@@ -104,7 +103,6 @@ function App() {
           <Route element={<ProtectedRoute requireRole="supervisor" />}>
             <Route path="/admin/sites" element={<SitesPage />} />
             <Route path="/admin/sections" element={<SectionsPage />} />
-            <Route path="/admin/subsections" element={<SubSectionsPage />} />
             <Route path="/admin/machine-types" element={<MachineTypesPage />} />
             <Route path="/admin/machines" element={<MachinesPage />} />
             <Route path="/admin/uoms" element={<UOMsPage />} />

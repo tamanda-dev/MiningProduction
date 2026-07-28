@@ -105,6 +105,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/AuditLog'
           description: ''
+  /api/auth/change-password/:
+    post:
+      operationId: api_auth_change_password_create
+      description: |-
+        Every authenticated user — Admin, Supervisor, Operator —
+        may change their own password here, current-password-verified. This is
+        distinct from UserViewSet.reset_password (Admin-only, no current
+        password needed, for resetting someone else's forgotten password).
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/auth/login/:
     post:
       operationId: api_auth_login_create
@@ -1805,10 +1820,12 @@ paths:
     post:
       operationId: api_dashboard_export_create
       description: |-
-        Enqueues a shift report export (Act/Plan/Var XLSX, formatted close to
-        the source report layout). Async-job pattern: XLSX generation shouldn't
-        block the request/response cycle, matching how the mobile/web clients
-        already expect long-running work (bulk sync) to be handled. Poll
+        Enqueues an Act/Plan/Var XLSX report export, formatted close to the
+        source report layout — either for one shift instance, one calendar day
+        (site-wide), or month-to-date (site-wide), selected by `report_type`.
+        Async-job pattern: XLSX generation shouldn't block the request/response
+        cycle, matching how the mobile/web clients already expect long-running
+        work (bulk sync) to be handled. Poll
         GET /api/dashboard/export/{task_id}/ for the download URL.
       tags:
       - api
@@ -1823,7 +1840,6 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/ExportTriggerRequestRequest'
-        required: true
       security:
       - jwtAuth: []
       responses:
@@ -3389,11 +3405,21 @@ paths:
   /api/machine-qualifications/:
     get:
       operationId: api_machine_qualifications_list
+      description: |-
+        Write (assigning a machine-type qualification to an operator) is
+        Supervisor+, not just Admin — a Supervisor is the one who actually
+        knows which operators on their site are certified on which machine
+        types, and this is exactly the "assign machines to operators" workflow
+        they need day to day.
       parameters:
       - in: query
         name: active
         schema:
           type: boolean
+      - in: query
+        name: machine
+        schema:
+          type: integer
       - in: query
         name: machine_type
         schema:
@@ -3443,6 +3469,12 @@ paths:
           description: ''
     post:
       operationId: api_machine_qualifications_create
+      description: |-
+        Write (assigning a machine-type qualification to an operator) is
+        Supervisor+, not just Admin — a Supervisor is the one who actually
+        knows which operators on their site are certified on which machine
+        types, and this is exactly the "assign machines to operators" workflow
+        they need day to day.
       tags:
       - api
       requestBody:
@@ -3469,6 +3501,12 @@ paths:
   /api/machine-qualifications/{id}/:
     get:
       operationId: api_machine_qualifications_retrieve
+      description: |-
+        Write (assigning a machine-type qualification to an operator) is
+        Supervisor+, not just Admin — a Supervisor is the one who actually
+        knows which operators on their site are certified on which machine
+        types, and this is exactly the "assign machines to operators" workflow
+        they need day to day.
       parameters:
       - in: path
         name: id
@@ -3489,6 +3527,12 @@ paths:
           description: ''
     put:
       operationId: api_machine_qualifications_update
+      description: |-
+        Write (assigning a machine-type qualification to an operator) is
+        Supervisor+, not just Admin — a Supervisor is the one who actually
+        knows which operators on their site are certified on which machine
+        types, and this is exactly the "assign machines to operators" workflow
+        they need day to day.
       parameters:
       - in: path
         name: id
@@ -3521,6 +3565,12 @@ paths:
           description: ''
     patch:
       operationId: api_machine_qualifications_partial_update
+      description: |-
+        Write (assigning a machine-type qualification to an operator) is
+        Supervisor+, not just Admin — a Supervisor is the one who actually
+        knows which operators on their site are certified on which machine
+        types, and this is exactly the "assign machines to operators" workflow
+        they need day to day.
       parameters:
       - in: path
         name: id
@@ -3552,6 +3602,12 @@ paths:
           description: ''
     delete:
       operationId: api_machine_qualifications_destroy
+      description: |-
+        Write (assigning a machine-type qualification to an operator) is
+        Supervisor+, not just Admin — a Supervisor is the one who actually
+        knows which operators on their site are certified on which machine
+        types, and this is exactly the "assign machines to operators" workflow
+        they need day to day.
       parameters:
       - in: path
         name: id
@@ -3956,6 +4012,47 @@ paths:
   /api/machines/{id}/activate/:
     post:
       operationId: api_machines_activate_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this machine.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MachineRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MachineRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MachineRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Machine'
+          description: ''
+  /api/machines/{id}/assign/:
+    post:
+      operationId: api_machines_assign_create
+      description: |-
+        Supervisor+ push-assigns a machine to a named operator — the
+        counterpart to `activate` (which always claims for request.user).
+        Reuses claim_machine as-is: it already takes `operator` as a plain
+        parameter rather than assuming request.user, so the exact same
+        qualification check, shift-instance resolution, and 409-on-conflict
+        behavior apply here too — an unqualified operator still can't be
+        assigned a machine type they're not certified for.
       parameters:
       - in: path
         name: id
@@ -6248,178 +6345,6 @@ paths:
       responses:
         '204':
           description: No response body
-  /api/subsections/:
-    get:
-      operationId: api_subsections_list
-      parameters:
-      - in: query
-        name: active
-        schema:
-          type: boolean
-      - name: ordering
-        required: false
-        in: query
-        description: Which field to use when ordering the results.
-        schema:
-          type: string
-      - name: page
-        required: false
-        in: query
-        description: A page number within the paginated result set.
-        schema:
-          type: integer
-      - name: page_size
-        required: false
-        in: query
-        description: Number of results to return per page.
-        schema:
-          type: integer
-      - name: search
-        required: false
-        in: query
-        description: A search term.
-        schema:
-          type: string
-      - in: query
-        name: section
-        schema:
-          type: integer
-      tags:
-      - api
-      security:
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedSubSectionList'
-          description: ''
-    post:
-      operationId: api_subsections_create
-      tags:
-      - api
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SubSectionRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/SubSectionRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/SubSectionRequest'
-        required: true
-      security:
-      - jwtAuth: []
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SubSection'
-          description: ''
-  /api/subsections/{id}/:
-    get:
-      operationId: api_subsections_retrieve
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this sub section.
-        required: true
-      tags:
-      - api
-      security:
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SubSection'
-          description: ''
-    put:
-      operationId: api_subsections_update
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this sub section.
-        required: true
-      tags:
-      - api
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SubSectionRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/SubSectionRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/SubSectionRequest'
-        required: true
-      security:
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SubSection'
-          description: ''
-    patch:
-      operationId: api_subsections_partial_update
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this sub section.
-        required: true
-      tags:
-      - api
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedSubSectionRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedSubSectionRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedSubSectionRequest'
-      security:
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SubSection'
-          description: ''
-    delete:
-      operationId: api_subsections_destroy
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this sub section.
-        required: true
-      tags:
-      - api
-      security:
-      - jwtAuth: []
-      responses:
-        '204':
-          description: No response body
   /api/team-members/:
     get:
       operationId: api_team_members_list
@@ -7056,14 +6981,237 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/user-site-accesses/:
+    get:
+      operationId: api_user_site_accesses_list
+      description: |-
+        Grants a user access to a Site (or one Section within it) — the
+        User Management module's "assign departments" feature (Department ==
+        masterdata.Section per this session's scoping). Admin-only throughout:
+        unlike UserViewSet's read side, no other part of the app needs to read
+        other users' access grants, only the Admin managing them.
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: section
+        schema:
+          type: integer
+      - in: query
+        name: site
+        schema:
+          type: integer
+      - in: query
+        name: user
+        schema:
+          type: integer
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUserSiteAccessList'
+          description: ''
+    post:
+      operationId: api_user_site_accesses_create
+      description: |-
+        Grants a user access to a Site (or one Section within it) — the
+        User Management module's "assign departments" feature (Department ==
+        masterdata.Section per this session's scoping). Admin-only throughout:
+        unlike UserViewSet's read side, no other part of the app needs to read
+        other users' access grants, only the Admin managing them.
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserSiteAccessRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserSiteAccessRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserSiteAccessRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSiteAccess'
+          description: ''
+  /api/user-site-accesses/{id}/:
+    get:
+      operationId: api_user_site_accesses_retrieve
+      description: |-
+        Grants a user access to a Site (or one Section within it) — the
+        User Management module's "assign departments" feature (Department ==
+        masterdata.Section per this session's scoping). Admin-only throughout:
+        unlike UserViewSet's read side, no other part of the app needs to read
+        other users' access grants, only the Admin managing them.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user site access.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSiteAccess'
+          description: ''
+    put:
+      operationId: api_user_site_accesses_update
+      description: |-
+        Grants a user access to a Site (or one Section within it) — the
+        User Management module's "assign departments" feature (Department ==
+        masterdata.Section per this session's scoping). Admin-only throughout:
+        unlike UserViewSet's read side, no other part of the app needs to read
+        other users' access grants, only the Admin managing them.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user site access.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserSiteAccessRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserSiteAccessRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserSiteAccessRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSiteAccess'
+          description: ''
+    patch:
+      operationId: api_user_site_accesses_partial_update
+      description: |-
+        Grants a user access to a Site (or one Section within it) — the
+        User Management module's "assign departments" feature (Department ==
+        masterdata.Section per this session's scoping). Admin-only throughout:
+        unlike UserViewSet's read side, no other part of the app needs to read
+        other users' access grants, only the Admin managing them.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user site access.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUserSiteAccessRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUserSiteAccessRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUserSiteAccessRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSiteAccess'
+          description: ''
+    delete:
+      operationId: api_user_site_accesses_destroy
+      description: |-
+        Grants a user access to a Site (or one Section within it) — the
+        User Management module's "assign departments" feature (Department ==
+        masterdata.Section per this session's scoping). Admin-only throughout:
+        unlike UserViewSet's read side, no other part of the app needs to read
+        other users' access grants, only the Admin managing them.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user site access.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/users/:
     get:
       operationId: api_users_list
       description: |-
-        Read-only user picker for admin screens (assigning team members,
-        machine-type qualifications, plan-target owners, etc.) — Supervisor+
-        only, since it lists other users' basic identity info.
+        Read: Supervisor+ (existing pickers elsewhere in the app — assigning
+        team members, machine-type qualifications, plan-target owners — depend
+        on this staying broadly readable). Write (create/update, and every
+        custom action below): Admin only — this is account/access management,
+        stricter than ordinary master data.
+
+        No hard DELETE: users are referenced everywhere (entries, machine
+        assignments, audit-log actors), so a real delete would either be
+        blocked by PROTECT constraints or destroy history. "Disable user"
+        means `is_active=False`, not a row deletion.
       parameters:
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
       - in: query
         name: is_staff
         schema:
@@ -7105,15 +7253,58 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedUserSummaryList'
+                $ref: '#/components/schemas/PaginatedUserDetailList'
+          description: ''
+    post:
+      operationId: api_users_create
+      description: |-
+        Read: Supervisor+ (existing pickers elsewhere in the app — assigning
+        team members, machine-type qualifications, plan-target owners — depend
+        on this staying broadly readable). Write (create/update, and every
+        custom action below): Admin only — this is account/access management,
+        stricter than ordinary master data.
+
+        No hard DELETE: users are referenced everywhere (entries, machine
+        assignments, audit-log actors), so a real delete would either be
+        blocked by PROTECT constraints or destroy history. "Disable user"
+        means `is_active=False`, not a row deletion.
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserCreate'
           description: ''
   /api/users/{id}/:
     get:
       operationId: api_users_retrieve
       description: |-
-        Read-only user picker for admin screens (assigning team members,
-        machine-type qualifications, plan-target owners, etc.) — Supervisor+
-        only, since it lists other users' basic identity info.
+        Read: Supervisor+ (existing pickers elsewhere in the app — assigning
+        team members, machine-type qualifications, plan-target owners — depend
+        on this staying broadly readable). Write (create/update, and every
+        custom action below): Admin only — this is account/access management,
+        stricter than ordinary master data.
+
+        No hard DELETE: users are referenced everywhere (entries, machine
+        assignments, audit-log actors), so a real delete would either be
+        blocked by PROTECT constraints or destroy history. "Disable user"
+        means `is_active=False`, not a row deletion.
       parameters:
       - in: path
         name: id
@@ -7130,7 +7321,295 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserSummary'
+                $ref: '#/components/schemas/UserDetail'
+          description: ''
+    put:
+      operationId: api_users_update
+      description: |-
+        Read: Supervisor+ (existing pickers elsewhere in the app — assigning
+        team members, machine-type qualifications, plan-target owners — depend
+        on this staying broadly readable). Write (create/update, and every
+        custom action below): Admin only — this is account/access management,
+        stricter than ordinary master data.
+
+        No hard DELETE: users are referenced everywhere (entries, machine
+        assignments, audit-log actors), so a real delete would either be
+        blocked by PROTECT constraints or destroy history. "Disable user"
+        means `is_active=False`, not a row deletion.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserDetailRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserDetailRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserDetailRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDetail'
+          description: ''
+    patch:
+      operationId: api_users_partial_update
+      description: |-
+        Read: Supervisor+ (existing pickers elsewhere in the app — assigning
+        team members, machine-type qualifications, plan-target owners — depend
+        on this staying broadly readable). Write (create/update, and every
+        custom action below): Admin only — this is account/access management,
+        stricter than ordinary master data.
+
+        No hard DELETE: users are referenced everywhere (entries, machine
+        assignments, audit-log actors), so a real delete would either be
+        blocked by PROTECT constraints or destroy history. "Disable user"
+        means `is_active=False`, not a row deletion.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUserDetailRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUserDetailRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUserDetailRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDetail'
+          description: ''
+    delete:
+      operationId: api_users_destroy
+      description: |-
+        Read: Supervisor+ (existing pickers elsewhere in the app — assigning
+        team members, machine-type qualifications, plan-target owners — depend
+        on this staying broadly readable). Write (create/update, and every
+        custom action below): Admin only — this is account/access management,
+        stricter than ordinary master data.
+
+        No hard DELETE: users are referenced everywhere (entries, machine
+        assignments, audit-log actors), so a real delete would either be
+        blocked by PROTECT constraints or destroy history. "Disable user"
+        means `is_active=False`, not a row deletion.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/users/{id}/assign_role/:
+    post:
+      operationId: api_users_assign_role_create
+      description: |-
+        Read: Supervisor+ (existing pickers elsewhere in the app — assigning
+        team members, machine-type qualifications, plan-target owners — depend
+        on this staying broadly readable). Write (create/update, and every
+        custom action below): Admin only — this is account/access management,
+        stricter than ordinary master data.
+
+        No hard DELETE: users are referenced everywhere (entries, machine
+        assignments, audit-log actors), so a real delete would either be
+        blocked by PROTECT constraints or destroy history. "Disable user"
+        means `is_active=False`, not a row deletion.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserDetailRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserDetailRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserDetailRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDetail'
+          description: ''
+  /api/users/{id}/disable/:
+    post:
+      operationId: api_users_disable_create
+      description: |-
+        Read: Supervisor+ (existing pickers elsewhere in the app — assigning
+        team members, machine-type qualifications, plan-target owners — depend
+        on this staying broadly readable). Write (create/update, and every
+        custom action below): Admin only — this is account/access management,
+        stricter than ordinary master data.
+
+        No hard DELETE: users are referenced everywhere (entries, machine
+        assignments, audit-log actors), so a real delete would either be
+        blocked by PROTECT constraints or destroy history. "Disable user"
+        means `is_active=False`, not a row deletion.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserDetailRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserDetailRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserDetailRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDetail'
+          description: ''
+  /api/users/{id}/enable/:
+    post:
+      operationId: api_users_enable_create
+      description: |-
+        Read: Supervisor+ (existing pickers elsewhere in the app — assigning
+        team members, machine-type qualifications, plan-target owners — depend
+        on this staying broadly readable). Write (create/update, and every
+        custom action below): Admin only — this is account/access management,
+        stricter than ordinary master data.
+
+        No hard DELETE: users are referenced everywhere (entries, machine
+        assignments, audit-log actors), so a real delete would either be
+        blocked by PROTECT constraints or destroy history. "Disable user"
+        means `is_active=False`, not a row deletion.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserDetailRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserDetailRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserDetailRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDetail'
+          description: ''
+  /api/users/{id}/reset_password/:
+    post:
+      operationId: api_users_reset_password_create
+      description: |-
+        Read: Supervisor+ (existing pickers elsewhere in the app — assigning
+        team members, machine-type qualifications, plan-target owners — depend
+        on this staying broadly readable). Write (create/update, and every
+        custom action below): Admin only — this is account/access management,
+        stricter than ordinary master data.
+
+        No hard DELETE: users are referenced everywhere (entries, machine
+        assignments, audit-log actors), so a real delete would either be
+        blocked by PROTECT constraints or destroy history. "Disable user"
+        means `is_active=False`, not a row deletion.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserDetailRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserDetailRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserDetailRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDetail'
           description: ''
 components:
   schemas:
@@ -7179,6 +7658,14 @@ components:
       - section_name
       - uom
       - var
+    AggregationEnum:
+      enum:
+      - sum
+      - average
+      type: string
+      description: |-
+        * `sum` - Sum
+        * `average` - Average
     AuditLog:
       type: object
       properties:
@@ -7310,11 +7797,6 @@ components:
         is_other:
           type: boolean
           description: Selecting this cause requires free-text detail elsewhere.
-        display_order:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: 0
-          format: int64
         active:
           type: boolean
       required:
@@ -7336,11 +7818,6 @@ components:
         is_other:
           type: boolean
           description: Selecting this cause requires free-text detail elsewhere.
-        display_order:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: 0
-          format: int64
         active:
           type: boolean
       required:
@@ -7379,6 +7856,7 @@ components:
           nullable: true
         artisan:
           type: integer
+          readOnly: true
           nullable: true
         cause:
           type: integer
@@ -7429,6 +7907,7 @@ components:
             delay).'
           readOnly: true
       required:
+      - artisan
       - attend_minutes
       - crusher
       - id
@@ -7463,9 +7942,6 @@ components:
         time_completed:
           type: string
           format: date-time
-          nullable: true
-        artisan:
-          type: integer
           nullable: true
         cause:
           type: integer
@@ -7721,11 +8197,6 @@ components:
           pattern: ^[-a-zA-Z0-9_]+$
         description:
           type: string
-        display_order:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: 0
-          format: int64
         active:
           type: boolean
       required:
@@ -7746,11 +8217,6 @@ components:
           pattern: ^[-a-zA-Z0-9_]+$
         description:
           type: string
-        display_order:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: 0
-          format: int64
         active:
           type: boolean
       required:
@@ -8052,6 +8518,7 @@ components:
       - shift_instance
       - site
       - slot_end_at
+      - slot_index
       - slot_start_at
       - tonnes
       - values_display
@@ -8098,6 +8565,7 @@ components:
           writeOnly: true
       required:
       - delivery_destination
+      - slot_index
       - tonnes
     DowntimeParetoRow:
       type: object
@@ -8186,10 +8654,23 @@ components:
     ExportTriggerRequestRequest:
       type: object
       properties:
+        report_type:
+          allOf:
+          - $ref: '#/components/schemas/ReportTypeEnum'
+          default: shift
         shift_instance:
           type: integer
-      required:
-      - shift_instance
+        site:
+          type: integer
+        date:
+          type: string
+          format: date
+        year:
+          type: integer
+        month:
+          type: integer
+          maximum: 12
+          minimum: 1
     HourlyBreakdownEntry:
       type: object
       properties:
@@ -8494,10 +8975,6 @@ components:
         section:
           type: integer
           readOnly: true
-        sub_section:
-          type: integer
-          readOnly: true
-          nullable: true
         started_at:
           type: string
           format: date-time
@@ -8531,7 +9008,6 @@ components:
       - shift_instance
       - started_at
       - status
-      - sub_section
     MachineAssignmentStatusEnum:
       enum:
       - active
@@ -8652,8 +9128,17 @@ components:
           readOnly: true
         user:
           type: integer
+        machine:
+          type: integer
+          nullable: true
+        machine_fleet_number:
+          type: string
+          readOnly: true
         machine_type:
           type: integer
+        machine_type_code:
+          type: string
+          readOnly: true
         site:
           type: integer
           nullable: true
@@ -8661,14 +9146,17 @@ components:
           type: boolean
       required:
       - id
-      - machine_type
-      - site
+      - machine_fleet_number
+      - machine_type_code
       - user
     MachineTypeQualificationRequest:
       type: object
       properties:
         user:
           type: integer
+        machine:
+          type: integer
+          nullable: true
         machine_type:
           type: integer
         site:
@@ -8677,8 +9165,6 @@ components:
         active:
           type: boolean
       required:
-      - machine_type
-      - site
       - user
     MachineTypeRequest:
       type: object
@@ -9393,29 +9879,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Site'
-    PaginatedSubSectionList:
-      type: object
-      required:
-      - count
-      - results
-      properties:
-        count:
-          type: integer
-          example: 123
-        next:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=4
-        previous:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=2
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/SubSection'
     PaginatedTeamList:
       type: object
       required:
@@ -9485,7 +9948,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/UOM'
-    PaginatedUserSummaryList:
+    PaginatedUserDetailList:
       type: object
       required:
       - count
@@ -9507,7 +9970,30 @@ components:
         results:
           type: array
           items:
-            $ref: '#/components/schemas/UserSummary'
+            $ref: '#/components/schemas/UserDetail'
+    PaginatedUserSiteAccessList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserSiteAccess'
     Parameter:
       type: object
       properties:
@@ -9535,6 +10021,8 @@ components:
           $ref: '#/components/schemas/ScopeEnum'
         data_type:
           $ref: '#/components/schemas/DataTypeEnum'
+        aggregation:
+          $ref: '#/components/schemas/AggregationEnum'
         min_value:
           type: string
           format: decimal
@@ -9547,11 +10035,6 @@ components:
           nullable: true
         is_required:
           type: boolean
-        display_order:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: 0
-          format: int64
         active:
           type: boolean
         choices:
@@ -9578,11 +10061,6 @@ components:
         label:
           type: string
           maxLength: 150
-        display_order:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: 0
-          format: int64
       required:
       - id
       - label
@@ -9598,11 +10076,6 @@ components:
           type: string
           minLength: 1
           maxLength: 150
-        display_order:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: 0
-          format: int64
       required:
       - label
       - value
@@ -9632,6 +10105,8 @@ components:
           $ref: '#/components/schemas/ScopeEnum'
         data_type:
           $ref: '#/components/schemas/DataTypeEnum'
+        aggregation:
+          $ref: '#/components/schemas/AggregationEnum'
         min_value:
           type: string
           format: decimal
@@ -9644,11 +10119,6 @@ components:
           nullable: true
         is_required:
           type: boolean
-        display_order:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: 0
-          format: int64
         active:
           type: boolean
       required:
@@ -9716,11 +10186,6 @@ components:
         is_other:
           type: boolean
           description: Selecting this cause requires free-text detail elsewhere.
-        display_order:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: 0
-          format: int64
         active:
           type: boolean
     PatchedBreakdownIncidentRequest:
@@ -9747,9 +10212,6 @@ components:
         time_completed:
           type: string
           format: date-time
-          nullable: true
-        artisan:
-          type: integer
           nullable: true
         cause:
           type: integer
@@ -9846,11 +10308,6 @@ components:
           pattern: ^[-a-zA-Z0-9_]+$
         description:
           type: string
-        display_order:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: 0
-          format: int64
         active:
           type: boolean
     PatchedCrusherEntryRequest:
@@ -10077,6 +10534,9 @@ components:
       properties:
         user:
           type: integer
+        machine:
+          type: integer
+          nullable: true
         machine_type:
           type: integer
         site:
@@ -10111,11 +10571,6 @@ components:
           type: string
           minLength: 1
           maxLength: 150
-        display_order:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: 0
-          format: int64
     PatchedParameterRequest:
       type: object
       properties:
@@ -10142,6 +10597,8 @@ components:
           $ref: '#/components/schemas/ScopeEnum'
         data_type:
           $ref: '#/components/schemas/DataTypeEnum'
+        aggregation:
+          $ref: '#/components/schemas/AggregationEnum'
         min_value:
           type: string
           format: decimal
@@ -10154,11 +10611,6 @@ components:
           nullable: true
         is_required:
           type: boolean
-        display_order:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: 0
-          format: int64
         active:
           type: boolean
     PatchedPlanTargetRequest:
@@ -10194,9 +10646,6 @@ components:
           type: integer
         section:
           type: integer
-        sub_section:
-          type: integer
-          nullable: true
         machine:
           type: integer
           nullable: true
@@ -10240,7 +10689,7 @@ components:
           maxLength: 100
         code:
           type: string
-          minLength: 1
+          description: Auto-generated from name if left blank.
           maxLength: 20
           pattern: ^[-a-zA-Z0-9_]+$
         active:
@@ -10318,7 +10767,7 @@ components:
           maxLength: 100
         code:
           type: string
-          minLength: 1
+          description: Auto-generated from name if left blank.
           maxLength: 20
           pattern: ^[-a-zA-Z0-9_]+$
         timezone:
@@ -10327,27 +10776,6 @@ components:
           maxLength: 64
         active:
           type: boolean
-    PatchedSubSectionRequest:
-      type: object
-      properties:
-        section:
-          type: integer
-        name:
-          type: string
-          minLength: 1
-          maxLength: 100
-        code:
-          type: string
-          minLength: 1
-          maxLength: 20
-          pattern: ^[-a-zA-Z0-9_]+$
-        active:
-          type: boolean
-        display_order:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: 0
-          format: int64
     PatchedTeamMemberRequest:
       type: object
       properties:
@@ -10387,6 +10815,54 @@ components:
           type: string
           minLength: 1
           maxLength: 10
+    PatchedUserDetailRequest:
+      type: object
+      description: |-
+        Admin-facing view of a user for the User Management module — adds
+        account-status and role fields UserSummarySerializer deliberately omits
+        (that one's used for read-only pickers elsewhere in the app).
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        employee_code:
+          type: string
+          nullable: true
+          maxLength: 32
+        maintenance_technician:
+          type: boolean
+          description: Eligible to be assigned as the artisan on a BreakdownIncident
+            (crusher_ops).
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+    PatchedUserSiteAccessRequest:
+      type: object
+      properties:
+        user:
+          type: integer
+        site:
+          type: integer
+        section:
+          type: integer
+          nullable: true
     PeriodTypeEnum:
       enum:
       - shift
@@ -10476,9 +10952,6 @@ components:
           readOnly: true
         section:
           type: integer
-        sub_section:
-          type: integer
-          nullable: true
         machine:
           type: integer
           nullable: true
@@ -10540,9 +11013,6 @@ components:
           type: integer
         section:
           type: integer
-        sub_section:
-          type: integer
-          nullable: true
         machine:
           type: integer
           nullable: true
@@ -10578,6 +11048,28 @@ components:
       required:
       - entry_type
       - values
+    ReportTypeEnum:
+      enum:
+      - shift
+      - daily
+      - mtd
+      - daily_production
+      type: string
+      description: |-
+        * `shift` - shift
+        * `daily` - daily
+        * `mtd` - mtd
+        * `daily_production` - daily_production
+    RoleEnum:
+      enum:
+      - admin
+      - supervisor
+      - operator
+      type: string
+      description: |-
+        * `admin` - admin
+        * `supervisor` - supervisor
+        * `operator` - operator
     RoleOnTeamEnum:
       enum:
       - operator
@@ -10609,6 +11101,7 @@ components:
           maxLength: 100
         code:
           type: string
+          description: Auto-generated from name if left blank.
           maxLength: 20
           pattern: ^[-a-zA-Z0-9_]+$
         active:
@@ -10622,7 +11115,6 @@ components:
           format: date-time
           readOnly: true
       required:
-      - code
       - created_at
       - id
       - name
@@ -10639,13 +11131,12 @@ components:
           maxLength: 100
         code:
           type: string
-          minLength: 1
+          description: Auto-generated from name if left blank.
           maxLength: 20
           pattern: ^[-a-zA-Z0-9_]+$
         active:
           type: boolean
       required:
-      - code
       - name
       - site
     SeverityEnum:
@@ -10911,6 +11402,7 @@ components:
           maxLength: 100
         code:
           type: string
+          description: Auto-generated from name if left blank.
           maxLength: 20
           pattern: ^[-a-zA-Z0-9_]+$
         timezone:
@@ -10927,7 +11419,6 @@ components:
           format: date-time
           readOnly: true
       required:
-      - code
       - created_at
       - id
       - name
@@ -10941,7 +11432,7 @@ components:
           maxLength: 100
         code:
           type: string
-          minLength: 1
+          description: Auto-generated from name if left blank.
           maxLength: 20
           pattern: ^[-a-zA-Z0-9_]+$
         timezone:
@@ -10951,7 +11442,6 @@ components:
         active:
           type: boolean
       required:
-      - code
       - name
     SourceEnum:
       enum:
@@ -10975,68 +11465,6 @@ components:
         * `flagged` - Flagged
         * `corrected` - Corrected
         * `approved` - Approved
-    SubSection:
-      type: object
-      properties:
-        id:
-          type: integer
-          readOnly: true
-        section:
-          type: integer
-        name:
-          type: string
-          maxLength: 100
-        code:
-          type: string
-          maxLength: 20
-          pattern: ^[-a-zA-Z0-9_]+$
-        active:
-          type: boolean
-        display_order:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: 0
-          format: int64
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
-      required:
-      - code
-      - created_at
-      - id
-      - name
-      - section
-      - updated_at
-    SubSectionRequest:
-      type: object
-      properties:
-        section:
-          type: integer
-        name:
-          type: string
-          minLength: 1
-          maxLength: 100
-        code:
-          type: string
-          minLength: 1
-          maxLength: 20
-          pattern: ^[-a-zA-Z0-9_]+$
-        active:
-          type: boolean
-        display_order:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: 0
-          format: int64
-      required:
-      - code
-      - name
-      - section
     Team:
       type: object
       properties:
@@ -11222,8 +11650,79 @@ components:
       required:
       - abbreviation
       - name
-    UserSummary:
+    UserCreate:
       type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        employee_code:
+          type: string
+          nullable: true
+          maxLength: 32
+      required:
+      - id
+      - username
+    UserCreateRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        employee_code:
+          type: string
+          nullable: true
+          maxLength: 32
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          writeOnly: true
+      required:
+      - password
+      - role
+      - username
+    UserDetail:
+      type: object
+      description: |-
+        Admin-facing view of a user for the User Management module — adds
+        account-status and role fields UserSummarySerializer deliberately omits
+        (that one's used for read-only pickers elsewhere in the app).
       properties:
         id:
           type: integer
@@ -11253,9 +11752,101 @@ components:
           type: boolean
           description: Eligible to be assigned as the artisan on a BreakdownIncident
             (crusher_ops).
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        roles:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+        last_login:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - date_joined
+      - id
+      - last_login
+      - roles
+      - username
+    UserDetailRequest:
+      type: object
+      description: |-
+        Admin-facing view of a user for the User Management module — adds
+        account-status and role fields UserSummarySerializer deliberately omits
+        (that one's used for read-only pickers elsewhere in the app).
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        employee_code:
+          type: string
+          nullable: true
+          maxLength: 32
+        maintenance_technician:
+          type: boolean
+          description: Eligible to be assigned as the artisan on a BreakdownIncident
+            (crusher_ops).
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+      required:
+      - username
+    UserSiteAccess:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user:
+          type: integer
+        site:
+          type: integer
+        section:
+          type: integer
+          nullable: true
       required:
       - id
-      - username
+      - site
+      - user
+    UserSiteAccessRequest:
+      type: object
+      properties:
+        user:
+          type: integer
+        site:
+          type: integer
+        section:
+          type: integer
+          nullable: true
+      required:
+      - site
+      - user
   securitySchemes:
     jwtAuth:
       type: http

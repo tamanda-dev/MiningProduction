@@ -17,7 +17,7 @@ export function SitesPage() {
     ],
     fields: [
       { key: "name", label: "Name", type: "text", required: true },
-      { key: "code", label: "Code", type: "text", required: true, helpText: "URL-safe slug, e.g. south-pit" },
+      { key: "code", label: "Code", type: "text", helpText: "Optional — auto-generated from Name if left blank." },
       { key: "timezone", label: "Timezone", type: "text", required: true },
       { key: "active", label: "Active", type: "boolean" },
     ],

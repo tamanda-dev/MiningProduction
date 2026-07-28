@@ -130,13 +130,6 @@ class MachineAssignment(TimeStampedModel):
         "shiftmgmt.ShiftInstance", on_delete=models.PROTECT, related_name="machine_assignments"
     )
     section = models.ForeignKey(Section, on_delete=models.PROTECT, related_name="machine_assignments")
-    sub_section = models.ForeignKey(
-        "masterdata.SubSection",
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name="machine_assignments",
-    )
     started_at = models.DateTimeField(auto_now_add=True)
     ended_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, default=STATUS_ACTIVE)

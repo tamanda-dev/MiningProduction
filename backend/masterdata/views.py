@@ -1,7 +1,9 @@
 from django.conf import settings
 from django.core.cache import cache
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
@@ -16,7 +18,6 @@ from .models import (
     ParameterChoice,
     Section,
     Site,
-    SubSection,
     UOM,
 )
 from .signals import FORM_SCHEMA_VERSION_KEY
@@ -29,7 +30,6 @@ from .serializers import (
     ParameterSerializer,
     SectionSerializer,
     SiteSerializer,
-    SubSectionSerializer,
     UOMSerializer,
 )
 
@@ -49,13 +49,19 @@ class SectionViewSet(ModelViewSet):
     filterset_fields = ("site", "active")
     search_fields = ("name", "code")
 
+    def perform_create(self, serializer):
+        try:
+            with transaction.atomic():
+                serializer.save()
+        except IntegrityError:
+            raise ValidationError({"detail": "A section with that code already exists at this site."})
 
-class SubSectionViewSet(ModelViewSet):
-    queryset = SubSection.objects.select_related("section", "section__site").all()
-    serializer_class = SubSectionSerializer
-    permission_classes = (ReadOnlyOrAdmin,)
-    filterset_fields = ("section", "active")
-    search_fields = ("name", "code")
+    def perform_update(self, serializer):
+        try:
+            with transaction.atomic():
+                serializer.save()
+        except IntegrityError:
+            raise ValidationError({"detail": "A section with that code already exists at this site."})
 
 
 class MachineTypeViewSet(ModelViewSet):
@@ -91,7 +97,7 @@ class MachineTypeViewSet(ModelViewSet):
         parameters = (
             Parameter.objects.filter(scope_filter, active=True)
             .distinct()
-            .order_by("display_order", "name")
+            .order_by("name")
             .select_related("uom")
             .prefetch_related("choices")
         )
@@ -107,7 +113,6 @@ class MachineTypeViewSet(ModelViewSet):
                 "is_required": p.is_required,
                 "min_value": p.min_value,
                 "max_value": p.max_value,
-                "display_order": p.display_order,
                 "choices": [{"value": c.value, "label": c.label} for c in p.choices.all()],
             }
             for p in parameters

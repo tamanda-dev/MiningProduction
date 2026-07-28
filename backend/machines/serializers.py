@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from masterdata.models import Section, SubSection
+from masterdata.models import Section
 
 from .models import Machine, MachineAssignment, MachineTypeQualification
 
@@ -73,7 +73,6 @@ class MachineAssignmentSerializer(serializers.ModelSerializer):
             "operator_label",
             "shift_instance",
             "section",
-            "sub_section",
             "started_at",
             "ended_at",
             "status",
@@ -85,9 +84,6 @@ class MachineAssignmentSerializer(serializers.ModelSerializer):
 
 class ActivateMachineSerializer(serializers.Serializer):
     section = serializers.PrimaryKeyRelatedField(queryset=Section.objects.all())
-    sub_section = serializers.PrimaryKeyRelatedField(
-        queryset=SubSection.objects.all(), required=False, allow_null=True
-    )
 
 
 class AssignMachineSerializer(serializers.Serializer):
@@ -98,9 +94,6 @@ class AssignMachineSerializer(serializers.Serializer):
 
     operator = serializers.PrimaryKeyRelatedField(queryset=get_user_model().objects.filter(is_active=True))
     section = serializers.PrimaryKeyRelatedField(queryset=Section.objects.all())
-    sub_section = serializers.PrimaryKeyRelatedField(
-        queryset=SubSection.objects.all(), required=False, allow_null=True
-    )
 
 
 class ReleaseMachineSerializer(serializers.Serializer):
@@ -111,7 +104,4 @@ class HandoverMachineSerializer(serializers.Serializer):
     new_operator = serializers.PrimaryKeyRelatedField(queryset=get_user_model().objects.all())
     section = serializers.PrimaryKeyRelatedField(
         queryset=Section.objects.all(), required=False, allow_null=True
-    )
-    sub_section = serializers.PrimaryKeyRelatedField(
-        queryset=SubSection.objects.all(), required=False, allow_null=True
     )

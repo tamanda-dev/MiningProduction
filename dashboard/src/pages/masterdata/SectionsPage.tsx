@@ -27,7 +27,7 @@ export function SectionsPage() {
         options: sites?.map((s) => ({ value: s.id, label: s.name })) ?? [],
       },
       { key: "name", label: "Name", type: "text", required: true },
-      { key: "code", label: "Code", type: "text", required: true },
+      { key: "code", label: "Code", type: "text", helpText: "Optional — auto-generated from Name if left blank." },
       { key: "active", label: "Active", type: "boolean" },
     ],
   };

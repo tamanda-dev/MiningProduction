@@ -9,7 +9,6 @@ from .models import (
     ParameterChoice,
     Section,
     Site,
-    SubSection,
     UOM,
 )
 
@@ -25,13 +24,6 @@ class SiteAdmin(admin.ModelAdmin):
 class SectionAdmin(admin.ModelAdmin):
     list_display = ("name", "code", "site", "active")
     list_filter = ("site", "active")
-    search_fields = ("name", "code")
-
-
-@admin.register(SubSection)
-class SubSectionAdmin(admin.ModelAdmin):
-    list_display = ("name", "code", "section", "display_order", "active")
-    list_filter = ("section__site", "section", "active")
     search_fields = ("name", "code")
 
 

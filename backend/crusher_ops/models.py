@@ -22,11 +22,10 @@ class BreakdownCause(TimeStampedModel):
     is_other = models.BooleanField(
         default=False, help_text="Selecting this cause requires free-text detail elsewhere."
     )
-    display_order = models.PositiveIntegerField(default=0)
     active = models.BooleanField(default=True)
 
     class Meta:
-        ordering = ["display_order", "name"]
+        ordering = ["name"]
         constraints = [
             # Backs up BreakdownCauseSerializer.validate_is_other at the DB
             # level (e.g. against Django admin / shell writes that skip the
@@ -47,11 +46,10 @@ class ChecklistItem(TimeStampedModel):
     name = models.CharField(max_length=150)
     code = models.SlugField(max_length=40, unique=True)
     description = models.TextField(blank=True)
-    display_order = models.PositiveIntegerField(default=0)
     active = models.BooleanField(default=True)
 
     class Meta:
-        ordering = ["display_order", "name"]
+        ordering = ["name"]
 
     def __str__(self):
         return self.name

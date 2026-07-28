@@ -47,7 +47,6 @@ const CRUSHER_PLANT_ITEMS: NavItem[] = [
 const MASTER_DATA_ITEMS: NavItem[] = [
   { to: "/admin/sites", label: "Sites", requireRole: "supervisor" },
   { to: "/admin/sections", label: "Sections", requireRole: "supervisor" },
-  { to: "/admin/subsections", label: "Sub-Sections", requireRole: "supervisor" },
   { to: "/admin/machine-types", label: "Machine Types", requireRole: "supervisor" },
   { to: "/admin/machines", label: "Machines", requireRole: "supervisor" },
   { to: "/admin/uoms", label: "Units of Measure", requireRole: "supervisor" },

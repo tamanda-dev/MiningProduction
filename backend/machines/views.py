@@ -78,7 +78,6 @@ class MachineViewSet(ModelViewSet):
             machine=machine,
             operator=request.user,
             section=serializer.validated_data["section"],
-            sub_section=serializer.validated_data.get("sub_section"),
         )
         return Response(MachineAssignmentSerializer(assignment).data, status=201)
 
@@ -99,7 +98,6 @@ class MachineViewSet(ModelViewSet):
             machine=machine,
             operator=serializer.validated_data["operator"],
             section=serializer.validated_data["section"],
-            sub_section=serializer.validated_data.get("sub_section"),
         )
         return Response(MachineAssignmentSerializer(assignment).data, status=201)
 
@@ -135,7 +133,6 @@ class MachineViewSet(ModelViewSet):
             assignment,
             new_operator=serializer.validated_data["new_operator"],
             section=serializer.validated_data.get("section"),
-            sub_section=serializer.validated_data.get("sub_section"),
         )
         return Response(MachineAssignmentSerializer(new_assignment).data, status=201)
 
@@ -191,7 +188,7 @@ class MachineAssignmentViewSet(RetrieveModelMixin, ListModelMixin, GenericViewSe
     """
 
     queryset = MachineAssignment.objects.select_related(
-        "machine", "machine__site", "operator", "shift_instance", "section", "sub_section"
+        "machine", "machine__site", "operator", "shift_instance", "section"
     ).all()
     serializer_class = MachineAssignmentSerializer
     permission_classes = (IsAuthenticated,)

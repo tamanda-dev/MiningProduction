@@ -9,14 +9,12 @@ from .views import (
     ParameterViewSet,
     SectionViewSet,
     SiteViewSet,
-    SubSectionViewSet,
     UOMViewSet,
 )
 
 router = DefaultRouter()
 router.register("sites", SiteViewSet, basename="site")
 router.register("sections", SectionViewSet, basename="section")
-router.register("subsections", SubSectionViewSet, basename="subsection")
 router.register("machine-types", MachineTypeViewSet, basename="machinetype")
 router.register("uoms", UOMViewSet, basename="uom")
 router.register("parameters", ParameterViewSet, basename="parameter")

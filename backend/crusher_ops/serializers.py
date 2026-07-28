@@ -54,7 +54,7 @@ class ChecklistHeatmapRowSerializer(serializers.Serializer):
 class BreakdownCauseSerializer(serializers.ModelSerializer):
     class Meta:
         model = BreakdownCause
-        fields = ("id", "name", "code", "is_other", "display_order", "active")
+        fields = ("id", "name", "code", "is_other", "active")
 
     def validate_is_other(self, value):
         # The model docstring's "exactly one row should have is_other=True"
@@ -77,7 +77,7 @@ class BreakdownCauseSerializer(serializers.ModelSerializer):
 class ChecklistItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChecklistItem
-        fields = ("id", "name", "code", "description", "display_order", "active")
+        fields = ("id", "name", "code", "description", "active")
 
 
 class HourlySlotSerializer(serializers.ModelSerializer):

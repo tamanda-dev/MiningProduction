@@ -141,7 +141,7 @@ def checklist_compliance_heatmap(site_id, shift_instance_id, crusher_id=None):
     entries_by_slot_item = {(e.hourly_slot_id, e.checklist_item_id): e.is_completed for e in qs}
 
     slots = HourlySlot.objects.filter(site_id=site_id, active=True).order_by("slot_index")
-    items = ChecklistItem.objects.filter(active=True).order_by("display_order")
+    items = ChecklistItem.objects.filter(active=True).order_by("name")
     now = timezone.localtime()
 
     grid = []

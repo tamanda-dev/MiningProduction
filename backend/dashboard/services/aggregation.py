@@ -164,7 +164,7 @@ def _parameter_totals(value_qs, plan_qs):
     """
     act_rows = _act_rows(
         value_qs,
-        ["parameter_id", "parameter__code", "parameter__name", "parameter__uom__abbreviation", "parameter__display_order"],
+        ["parameter_id", "parameter__code", "parameter__name", "parameter__uom__abbreviation"],
     )
 
     plan_by_parameter = defaultdict(lambda: Decimal("0"))
@@ -179,7 +179,6 @@ def _parameter_totals(value_qs, plan_qs):
             "parameter_code": row["parameter__code"],
             "parameter_name": row["parameter__name"],
             "uom": row["parameter__uom__abbreviation"],
-            "display_order": row["parameter__display_order"],
             "act": row["act"] or Decimal("0"),
             "plan": plan_by_parameter.get(parameter_id),
         }
@@ -193,7 +192,6 @@ def _parameter_totals(value_qs, plan_qs):
                 "parameter_code": None,
                 "parameter_name": None,
                 "uom": None,
-                "display_order": 0,
                 "act": Decimal("0"),
                 "plan": plan_total,
             },
@@ -248,14 +246,14 @@ def daily_production_report_rows(site_id, date):
     for shift_totals in by_shift.values():
         parameter_ids |= set(shift_totals)
 
-    def _display_order(pid):
+    def _parameter_name(pid):
         for source in (daily_total, mtd, *by_shift.values()):
-            if pid in source:
-                return source[pid]["display_order"]
-        return 0
+            if pid in source and source[pid]["parameter_name"] is not None:
+                return source[pid]["parameter_name"]
+        return ""
 
     rows = []
-    for parameter_id in sorted(parameter_ids, key=_display_order):
+    for parameter_id in sorted(parameter_ids, key=_parameter_name):
         base = daily_total.get(parameter_id) or mtd.get(parameter_id) or next(
             s[parameter_id] for s in by_shift.values() if parameter_id in s
         )

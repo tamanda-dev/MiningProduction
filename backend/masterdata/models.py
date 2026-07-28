@@ -1,14 +1,33 @@
 from django.db import models
+from django.utils.text import slugify
 from simple_history.models import HistoricalRecords
 
 from core.models import TimeStampedModel
+
+
+def _unique_slug(queryset, base, max_length, fallback):
+    """Shared by Site/Section's save() overrides: slugify(name), falling
+    back to `fallback` if that yields nothing (e.g. a non-ASCII-only name),
+    then suffix -2/-3/... until it's unique within `queryset` — so leaving
+    "Code" blank in the form never 500s on a collision.
+    """
+    base = slugify(base)[:max_length] or fallback
+    candidate = base
+    n = 1
+    while queryset.filter(code=candidate).exists():
+        n += 1
+        suffix = f"-{n}"
+        candidate = f"{base[: max_length - len(suffix)]}{suffix}"
+    return candidate
 
 
 class Site(TimeStampedModel):
     history = HistoricalRecords()
 
     name = models.CharField(max_length=100)
-    code = models.SlugField(max_length=20, unique=True)
+    # Optional from the client — auto-generated from `name` in save() when
+    # left blank, so "Code" is a convenience override, not a required field.
+    code = models.SlugField(max_length=20, unique=True, blank=True)
     timezone = models.CharField(max_length=64, default="Africa/Harare")
     active = models.BooleanField(default=True)
 
@@ -18,13 +37,18 @@ class Site(TimeStampedModel):
     def __str__(self):
         return self.name
 
+    def save(self, *args, **kwargs):
+        if not self.code:
+            self.code = _unique_slug(Site.objects.exclude(pk=self.pk), self.name, 20, "site")
+        super().save(*args, **kwargs)
+
 
 class Section(TimeStampedModel):
     history = HistoricalRecords()
 
     site = models.ForeignKey(Site, on_delete=models.PROTECT, related_name="sections")
     name = models.CharField(max_length=100)
-    code = models.SlugField(max_length=20)
+    code = models.SlugField(max_length=20, blank=True)
     active = models.BooleanField(default=True)
 
     class Meta:
@@ -37,24 +61,11 @@ class Section(TimeStampedModel):
     def __str__(self):
         return f"{self.site.code}/{self.name}"
 
-
-class SubSection(TimeStampedModel):
-    history = HistoricalRecords()
-
-    section = models.ForeignKey(Section, on_delete=models.PROTECT, related_name="subsections")
-    name = models.CharField(max_length=100)
-    code = models.SlugField(max_length=20)
-    active = models.BooleanField(default=True)
-    display_order = models.PositiveIntegerField(default=0)
-
-    class Meta:
-        ordering = ["section", "display_order", "name"]
-        constraints = [
-            models.UniqueConstraint(fields=["section", "code"], name="uniq_subsection_section_code"),
-        ]
-
-    def __str__(self):
-        return f"{self.section} / {self.name}"
+    def save(self, *args, **kwargs):
+        if not self.code:
+            scoped = Section.objects.filter(site_id=self.site_id).exclude(pk=self.pk)
+            self.code = _unique_slug(scoped, self.name, 20, "section")
+        super().save(*args, **kwargs)
 
 
 class MachineType(TimeStampedModel):
@@ -140,11 +151,10 @@ class Parameter(TimeStampedModel):
     min_value = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
     max_value = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
     is_required = models.BooleanField(default=True)
-    display_order = models.PositiveIntegerField(default=0)
     active = models.BooleanField(default=True)
 
     class Meta:
-        ordering = ["display_order", "name"]
+        ordering = ["name"]
         constraints = [
             models.CheckConstraint(
                 condition=(
@@ -165,10 +175,9 @@ class ParameterChoice(TimeStampedModel):
     parameter = models.ForeignKey(Parameter, on_delete=models.CASCADE, related_name="choices")
     value = models.CharField(max_length=100)
     label = models.CharField(max_length=150)
-    display_order = models.PositiveIntegerField(default=0)
 
     class Meta:
-        ordering = ["parameter", "display_order"]
+        ordering = ["parameter", "label"]
         constraints = [
             models.UniqueConstraint(fields=["parameter", "value"], name="uniq_parameterchoice_value"),
         ]

@@ -51,7 +51,7 @@ class BulkSyncMixin:
 
 class ProductionEntryViewSet(BulkSyncMixin, SiteScopedOrOwnQuerySetMixin, ModelViewSet):
     queryset = ProductionEntry.objects.select_related(
-        "site", "section", "sub_section", "machine", "shift_instance", "operator", "recorded_by"
+        "site", "section", "machine", "shift_instance", "operator", "recorded_by"
     ).prefetch_related("values", "values__parameter").all()
     serializer_class = ProductionEntrySerializer
     permission_classes = (CanWriteEntry,)

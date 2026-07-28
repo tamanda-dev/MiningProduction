@@ -17,7 +17,6 @@ const SECTIONS: { title: string; items: NavRow[] }[] = [
     items: [
       { label: "Sites", href: "/manage/master-data/sites", requireRole: "admin" },
       { label: "Sections", href: "/manage/master-data/sections", requireRole: "admin" },
-      { label: "Sub-Sections", href: "/manage/master-data/subsections", requireRole: "admin" },
       { label: "Machine Types", href: "/manage/master-data/machine-types", requireRole: "admin" },
       { label: "Machines", href: "/manage/master-data/machines", requireRole: "admin" },
       { label: "Units of Measure", href: "/manage/master-data/uoms", requireRole: "admin" },

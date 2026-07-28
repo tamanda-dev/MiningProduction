@@ -58,7 +58,6 @@ class Command(BaseCommand):
             Parameter,
             Section,
             Site,
-            SubSection,
             UOM,
         )
         from planning.models import PlanTarget
@@ -89,7 +88,6 @@ class Command(BaseCommand):
             UserSiteAccess.objects.all().delete()
 
             HourlySlot.objects.all().delete()
-            SubSection.objects.all().delete()
             Section.objects.all().delete()
             CrusherUnit.objects.all().delete()
             DeliveryDestination.objects.all().delete()
