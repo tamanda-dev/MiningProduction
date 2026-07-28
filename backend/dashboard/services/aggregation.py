@@ -2,10 +2,11 @@ from collections import defaultdict
 from datetime import timedelta
 from decimal import Decimal
 
-from django.db.models import Sum
+from django.db.models import Avg, Sum
 from django.utils.dateparse import parse_date
 
 from entries.models import ParameterValue
+from masterdata.models import Parameter
 from planning.models import PlanTarget
 
 
@@ -13,6 +14,27 @@ def _pct_var(act, plan):
     if plan in (None, 0):
         return None
     return float((act - plan) / plan * 100)
+
+
+def _act_rows(value_qs, group_fields):
+    """Groups `value_qs` by `group_fields` and annotates `act` — summed for
+    ordinary additive parameters (tonnes hauled, bucket loads), but
+    averaged for Parameter.aggregation="average" ones (a rate/percentage
+    like machine availability, where summing three hourly readings of
+    99/99/100% into "298%" is meaningless — see Parameter.aggregation's
+    model-field docstring). Returns a plain list of dict rows, the same
+    shape a single `.annotate()` call would, so call sites don't care that
+    this is really two queries merged together.
+    """
+    avg_parameter_ids = set(
+        Parameter.objects.filter(aggregation=Parameter.AGGREGATION_AVERAGE).values_list("id", flat=True)
+    )
+    if not avg_parameter_ids:
+        return list(value_qs.values(*group_fields).annotate(act=Sum("value_number")))
+
+    sum_rows = value_qs.exclude(parameter_id__in=avg_parameter_ids).values(*group_fields).annotate(act=Sum("value_number"))
+    avg_rows = value_qs.filter(parameter_id__in=avg_parameter_ids).values(*group_fields).annotate(act=Avg("value_number"))
+    return list(sum_rows) + list(avg_rows)
 
 
 def act_vs_plan_for_shift_instance(shift_instance):
@@ -26,19 +48,16 @@ def act_vs_plan_for_shift_instance(shift_instance):
     (or section-aggregate) targets are matched here — per-machine targets
     are available via the drill-down endpoint, not rolled up automatically.
     """
-    rows = (
-        ParameterValue.objects.filter(
-            production_entry__shift_instance=shift_instance, value_number__isnull=False
-        )
-        .values(
+    rows = _act_rows(
+        ParameterValue.objects.filter(production_entry__shift_instance=shift_instance, value_number__isnull=False),
+        [
             "production_entry__section_id",
             "production_entry__section__name",
             "parameter_id",
             "parameter__code",
             "parameter__name",
             "parameter__uom__abbreviation",
-        )
-        .annotate(act=Sum("value_number"))
+        ],
     )
 
     plan_lookup = {
@@ -86,22 +105,21 @@ def act_vs_plan_for_date_range(site_id, date_from, date_to, plan_period_type, pl
     date_from = parse_date(date_from) if isinstance(date_from, str) else date_from
     date_to = parse_date(date_to) if isinstance(date_to, str) else date_to
 
-    rows = (
+    rows = _act_rows(
         ParameterValue.objects.filter(
             production_entry__site_id=site_id,
             production_entry__slot_start_at__date__gte=date_from,
             production_entry__slot_start_at__date__lte=date_to,
             value_number__isnull=False,
-        )
-        .values(
+        ),
+        [
             "production_entry__section_id",
             "production_entry__section__name",
             "parameter_id",
             "parameter__code",
             "parameter__name",
             "parameter__uom__abbreviation",
-        )
-        .annotate(act=Sum("value_number"))
+        ],
     )
 
     plan_lookup = {
@@ -136,16 +154,18 @@ def act_vs_plan_for_date_range(site_id, date_from, date_to, plan_period_type, pl
 
 
 def _parameter_totals(value_qs, plan_qs):
-    """Act (sum of ParameterValue.value_number) and Plan (sum of matching
-    PlanTarget.target_value) per parameter, collapsed across every section —
-    the grain the source "Daily Production Report" spreadsheet uses (one row
-    per parameter for the whole site, not broken out by section). Shared by
-    both the per-shift and the date-range branches of
-    daily_production_report_rows below.
+    """Act (sum, or average for Parameter.aggregation="average" parameters —
+    see _act_rows) and Plan (sum of matching PlanTarget.target_value) per
+    parameter, collapsed across every section — the grain the source
+    "Daily Production Report" spreadsheet uses (one row per parameter for
+    the whole site, not broken out by section). Shared by both the
+    per-shift and the date-range branches of daily_production_report_rows
+    below.
     """
-    act_rows = value_qs.values(
-        "parameter_id", "parameter__code", "parameter__name", "parameter__uom__abbreviation", "parameter__display_order"
-    ).annotate(act=Sum("value_number"))
+    act_rows = _act_rows(
+        value_qs,
+        ["parameter_id", "parameter__code", "parameter__name", "parameter__uom__abbreviation", "parameter__display_order"],
+    )
 
     plan_by_parameter = defaultdict(lambda: Decimal("0"))
     for pt in plan_qs:
@@ -301,8 +321,16 @@ def daily_trend(site_id, section_id, parameter_id, date_from, date_to):
         production_entry__slot_start_at__date__gte=date_from,
         production_entry__slot_start_at__date__lte=date_to,
     )
+    # Single fixed parameter here (unlike _act_rows' multi-parameter
+    # grouping), so just pick the one aggregate function it needs — see
+    # Parameter.aggregation's docstring for why this can't just always sum.
+    is_average = Parameter.objects.filter(
+        pk=parameter_id, aggregation=Parameter.AGGREGATION_AVERAGE
+    ).exists()
+    day_aggregate = Avg("value_number") if is_average else Sum("value_number")
+
     act_by_day = defaultdict(lambda: Decimal("0"))
-    for entry in qs.values("production_entry__slot_start_at__date").annotate(act=Sum("value_number")):
+    for entry in qs.values("production_entry__slot_start_at__date").annotate(act=day_aggregate):
         act_by_day[entry["production_entry__slot_start_at__date"]] = entry["act"] or Decimal("0")
 
     plan_by_day = {
@@ -341,6 +369,13 @@ def hourly_curve(shift_instance, section_id, parameter_id):
     report. The shift's PlanTarget (period_type='shift') is spread evenly
     across the shift's time slots for the cumulative-target line, since the
     source reports don't define per-slot targets independently.
+
+    Deliberately always Sum, unlike the other functions in this module: a
+    running cumulative total only makes sense for an additive quantity in
+    the first place (a "cumulative average" isn't a meaningful chart), so
+    this doesn't need Parameter.aggregation="average" handling — plotting
+    a rate/percentage parameter on this specific chart isn't a supported
+    use case regardless of aggregation method.
     """
     from shiftmgmt.services import time_slots_for_instance
 

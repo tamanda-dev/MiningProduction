@@ -24,9 +24,39 @@ class MachineSerializer(serializers.ModelSerializer):
 
 
 class MachineTypeQualificationSerializer(serializers.ModelSerializer):
+    machine_fleet_number = serializers.CharField(source="machine.fleet_number", read_only=True)
+    machine_type_code = serializers.CharField(source="machine_type.code", read_only=True)
+
     class Meta:
         model = MachineTypeQualification
-        fields = ("id", "user", "machine_type", "site", "active")
+        fields = ("id", "user", "machine", "machine_fleet_number", "machine_type", "machine_type_code", "site", "active")
+        # machine_type/site are the model's real granting dimensions (see
+        # _check_qualified), but the "assign a specific machine" UI only
+        # ever supplies `machine` — auto-derived below — so neither is
+        # required from the client. Still accepted directly for the older
+        # "qualified for this whole type, optionally at one site" grant
+        # shape (seed scripts, direct API use).
+        extra_kwargs = {"machine_type": {"required": False}}
+        # DRF auto-generates a UniqueTogetherValidator from the model's
+        # UniqueConstraint(fields=["user","machine_type","site","machine"])
+        # and, to support it, force-marks every field in that set as
+        # required=True — including site/machine_type, which this
+        # serializer deliberately leaves optional (same issue already fixed
+        # this session in ProductionEntrySerializer/UserSiteAccessSerializer).
+        # Disabled here too; a genuine duplicate grant surfaces as a plain
+        # IntegrityError, caught in the view for a clean 400 instead.
+        validators = []
+
+    def validate(self, attrs):
+        machine = attrs.get("machine") or getattr(self.instance, "machine", None)
+        if machine is not None:
+            attrs["machine_type"] = machine.machine_type
+            attrs["site"] = machine.site
+        elif not attrs.get("machine_type") and not (self.instance and self.instance.machine_type_id):
+            raise serializers.ValidationError(
+                {"machine": "Either machine (a specific unit) or machine_type is required."}
+            )
+        return attrs
 
 
 class MachineAssignmentSerializer(serializers.ModelSerializer):

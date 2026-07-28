@@ -149,3 +149,54 @@ def test_assign_rejects_unqualified_operator(api_client, machines, sections, all
 
     assert resp.status_code == 403
     assert "not qualified" in str(resp.data).lower()
+
+
+@pytest.mark.django_db
+def test_machine_specific_qualification_does_not_broaden_to_sibling_machines(
+    api_client, two_sites, machine_type, sections, all_day_shifts, django_user_model
+):
+    """Regression test: assigning an operator to one specific machine
+    (MachineTypeQualification.machine set) must qualify them for that unit
+    only — not silently broaden to every other machine of the same type at
+    the same site, which is what the old machine_type[+site]-only grant
+    shape would have done."""
+    site_a, _ = two_sites
+    sec_a, _ = sections
+    unit_1 = Machine.objects.create(site=site_a, machine_type=machine_type, fleet_number="1")
+    unit_2 = Machine.objects.create(site=site_a, machine_type=machine_type, fleet_number="2")
+    operator = django_user_model.objects.create_user(username="op1", password="pass12345")
+    MachineTypeQualification.objects.create(user=operator, machine=unit_1)
+
+    api_client.force_authenticate(user=operator)
+
+    ok_resp = api_client.post(f"/api/machines/{unit_1.id}/activate/", {"section": sec_a.id}, format="json")
+    assert ok_resp.status_code == 201, ok_resp.data
+
+    # 404, not 403: unit_2 is filtered out of the operator's queryset
+    # entirely (get_queryset() below), so get_object() reports it as not
+    # found rather than leaking that it exists but is forbidden.
+    blocked_resp = api_client.post(f"/api/machines/{unit_2.id}/activate/", {"section": sec_a.id}, format="json")
+    assert blocked_resp.status_code == 404
+
+    # And the machine picker (get_queryset) must mirror the same narrowing.
+    list_resp = api_client.get(f"/api/machines/?site={site_a.id}")
+    ids = {row["id"] for row in list_resp.data["results"]}
+    assert unit_1.id in ids
+    assert unit_2.id not in ids
+
+
+@pytest.mark.django_db
+def test_qualification_serializer_auto_derives_type_and_site_from_machine(api_client, machines, django_user_model):
+    """The "Assign Machines to Operators" UI only ever sends {user, machine}
+    — machine_type/site must be filled in server-side, not left for the
+    admin to pick separately (that's the whole point of this shape)."""
+    m_a, _ = machines
+    admin = django_user_model.objects.create_user(username="admin1", password="pass12345", is_superuser=True)
+    operator = django_user_model.objects.create_user(username="op1", password="pass12345")
+
+    api_client.force_authenticate(user=admin)
+    resp = api_client.post("/api/machine-qualifications/", {"user": operator.id, "machine": m_a.id}, format="json")
+
+    assert resp.status_code == 201, resp.data
+    assert resp.data["machine_type"] == m_a.machine_type_id
+    assert resp.data["site"] == m_a.site_id

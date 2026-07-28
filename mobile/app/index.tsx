@@ -6,7 +6,7 @@ import { useSession } from "@/src/auth/useSession";
 import { colors } from "@/src/theme/theme";
 
 export default function Index() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, hasRole } = useAuth();
   const { selectedSiteId, activeAssignment, isRestoring } = useSession();
 
   if (isLoading || (isAuthenticated && isRestoring)) {
@@ -23,8 +23,18 @@ export default function Index() {
     return <Redirect href="/login" />;
   }
 
+  // An in-progress machine assignment takes priority over role — e.g. a
+  // Supervisor who self-activated a machine before Operate became
+  // Operator-only should still be able to finish/release that session.
   if (activeAssignment) {
     return <Redirect href="/session/entry" />;
+  }
+
+  // Operating a machine (site-select -> machine-select -> session/*) is an
+  // Operator's job; Admin/Supervisor land in the management dashboard
+  // instead, mirroring the web dashboard's requireRole="operator" restriction on Operate.
+  if (!hasRole("operator")) {
+    return <Redirect href="/manage/dashboard" />;
   }
 
   if (!selectedSiteId) {

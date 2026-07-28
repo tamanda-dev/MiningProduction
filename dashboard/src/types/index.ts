@@ -47,14 +47,6 @@ export interface UserSiteAccess {
   section: ID | null;
 }
 
-export interface MachineTypeQualification {
-  id: ID;
-  user: ID;
-  machine_type: ID;
-  site: ID | null;
-  active: boolean;
-}
-
 // -- Master data ------------------------------------------------------------
 
 export interface Site {
@@ -106,6 +98,8 @@ export interface ParameterChoice {
   display_order: number;
 }
 
+export type ParameterAggregation = "sum" | "average";
+
 export interface Parameter {
   id: ID;
   name: string;
@@ -115,6 +109,7 @@ export interface Parameter {
   section: ID | null;
   scope: ParameterScope;
   data_type: ParameterDataType;
+  aggregation: ParameterAggregation;
   min_value: string | null;
   max_value: string | null;
   is_required: boolean;
@@ -185,7 +180,10 @@ export interface Machine {
 export interface MachineTypeQualification {
   id: ID;
   user: ID;
+  machine: ID | null;
+  machine_fleet_number: string | null;
   machine_type: ID;
+  machine_type_code: string;
   site: ID | null;
   active: boolean;
 }

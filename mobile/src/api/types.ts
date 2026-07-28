@@ -73,7 +73,10 @@ export interface Machine {
 export interface MachineTypeQualification {
   id: ID;
   user: ID;
+  machine: ID | null;
+  machine_fleet_number: string | null;
   machine_type: ID;
+  machine_type_code: string;
   site: ID | null;
   active: boolean;
 }
@@ -138,6 +141,105 @@ export interface DowntimeReasonCode {
   active: boolean;
 }
 
+export interface UOM {
+  id: ID;
+  name: string;
+  abbreviation: string;
+}
+
+export type ParameterAggregation = "sum" | "average";
+
+export interface Parameter {
+  id: ID;
+  name: string;
+  code: string;
+  uom: ID | null;
+  applicable_machine_types: ID[];
+  section: ID | null;
+  scope: ParameterScope;
+  data_type: ParameterDataType;
+  aggregation: ParameterAggregation;
+  min_value: string | null;
+  max_value: string | null;
+  is_required: boolean;
+  display_order: number;
+  active: boolean;
+}
+
+export interface CrusherUnit {
+  id: ID;
+  site: ID;
+  name: string;
+  code: string;
+  active: boolean;
+}
+
+export interface DeliveryDestination {
+  id: ID;
+  site: ID;
+  name: string;
+  code: string;
+  active: boolean;
+}
+
+export interface ShiftPattern {
+  id: ID;
+  name: string;
+  description: string;
+}
+
+export interface Team {
+  id: ID;
+  site: ID;
+  name: string;
+  section: ID | null;
+  shift_pattern: ID | null;
+  active: boolean;
+}
+
+export interface TeamMember {
+  id: ID;
+  team: ID;
+  user: ID;
+  role_on_team: "team_leader" | "operator";
+}
+
+export interface Shift {
+  id: ID;
+  site: ID;
+  name: string;
+  start_time: string;
+  end_time: string;
+  slot_length_minutes: number;
+}
+
+export type PlanTargetPeriodType = "shift" | "day" | "month";
+
+export interface PlanTarget {
+  id: ID;
+  parameter: ID;
+  site: ID;
+  section: ID | null;
+  machine: ID | null;
+  period_type: PlanTargetPeriodType;
+  shift_instance: ID | null;
+  period_date: string | null;
+  target_value: string;
+}
+
+export interface AuditLogEntry {
+  id: ID;
+  created_at: string;
+  actor: ID | null;
+  actor_label: string | null;
+  action: string;
+  content_type_label: string | null;
+  object_id: string | null;
+  site: ID | null;
+  changes: Record<string, unknown>;
+  reason: string;
+}
+
 export type EntryType = "hourly" | "shift_total";
 export type EntryStatus = "submitted" | "flagged" | "corrected" | "approved";
 
@@ -148,6 +250,41 @@ export interface UserSummary {
   last_name: string;
   employee_code: string | null;
   maintenance_technician: boolean;
+}
+
+export interface UserDetail extends UserSummary {
+  email: string;
+  is_active: boolean;
+  roles: Role[];
+  date_joined: string;
+  last_login: string | null;
+}
+
+// -- Dashboard (Admin/Supervisor) ---------------------------------------------
+
+export interface ActVsPlanRow {
+  section: ID;
+  section_name: string;
+  parameter: ID;
+  parameter_code: string;
+  parameter_name: string;
+  uom: string | null;
+  act: number;
+  plan: number | null;
+  var: number | null;
+  pct_var: number | null;
+}
+
+export interface MachineStatusRow {
+  machine: ID;
+  fleet_number: string;
+  machine_type: ID;
+  machine_type_name: string;
+  status: MachineStatus;
+  current_section: ID | null;
+  operator: ID | null;
+  operator_label: string | null;
+  assignment_started_at: string | null;
 }
 
 // -- Crushing & Breakdowns module ---------------------------------------------

@@ -1,3 +1,4 @@
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -59,7 +60,9 @@ class MachineViewSet(ModelViewSet):
 
         qualification_filter = Q(pk__in=[])
         for qual in MachineTypeQualification.objects.filter(user=user, active=True):
-            if qual.site_id is None:  # null site == qualified for this machine type at any site
+            if qual.machine_id is not None:  # assigned to this one specific unit, not the whole type
+                qualification_filter |= Q(pk=qual.machine_id)
+            elif qual.site_id is None:  # null site == qualified for this machine type at any site
                 qualification_filter |= Q(machine_type_id=qual.machine_type_id)
             else:
                 qualification_filter |= Q(machine_type_id=qual.machine_type_id, site_id=qual.site_id)
@@ -145,10 +148,24 @@ class MachineTypeQualificationViewSet(ModelViewSet):
     they need day to day.
     """
 
-    queryset = MachineTypeQualification.objects.select_related("user", "machine_type", "site").all()
+    queryset = MachineTypeQualification.objects.select_related("user", "machine_type", "site", "machine").all()
     serializer_class = MachineTypeQualificationSerializer
     permission_classes = (ReadOnlyOrSupervisorOrAbove,)
-    filterset_fields = ("user", "machine_type", "site", "active")
+    filterset_fields = ("user", "machine_type", "machine", "site", "active")
+
+    def perform_create(self, serializer):
+        try:
+            with transaction.atomic():
+                serializer.save()
+        except IntegrityError:
+            raise ValidationError({"detail": "This user is already assigned/qualified for that machine."})
+
+    def perform_update(self, serializer):
+        try:
+            with transaction.atomic():
+                serializer.save()
+        except IntegrityError:
+            raise ValidationError({"detail": "This user is already assigned/qualified for that machine."})
 
     def get_queryset(self):
         qs = super().get_queryset()

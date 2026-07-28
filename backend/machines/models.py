@@ -48,9 +48,25 @@ class Machine(TimeStampedModel):
 
 
 class MachineTypeQualification(TimeStampedModel):
-    """Which machine types (optionally scoped to a site) an operator is
-    certified/assigned to operate — drives the machine-select filter on the
-    mobile app's activation flow.
+    """Which machine(s) an operator is certified/assigned to operate —
+    drives the machine-select filter on the activation flow (both mobile
+    and the dashboard's Operate section).
+
+    `machine` is how this is actually granted from the admin/supervisor
+    "Assign Machines to Operators" UI: pick the operator and one specific
+    physical unit (e.g. "DUT-001 — South Pit") — no separate site step,
+    since the chosen machine's site comes along with it, and the operator
+    still picks which site they're working at for themselves when they
+    activate it (this only decides whether that specific unit shows up in
+    their picker once they get there). `machine_type`/`site` are then
+    auto-derived from `machine` (see MachineTypeQualificationSerializer),
+    not asked separately.
+
+    `machine` is nullable rather than required so the older, broader
+    "qualified for this whole machine_type (optionally at one site)" grant
+    remains representable for any other caller that still wants it (e.g.
+    seed scripts, direct API use) — see _check_qualified's and
+    MachineViewSet.get_queryset()'s handling of the two shapes.
     """
 
     history = HistoricalRecords()
@@ -58,17 +74,33 @@ class MachineTypeQualification(TimeStampedModel):
     user = models.ForeignKey("accounts.User", on_delete=models.CASCADE, related_name="qualifications")
     machine_type = models.ForeignKey(MachineType, on_delete=models.PROTECT, related_name="qualified_users")
     site = models.ForeignKey(Site, on_delete=models.PROTECT, null=True, blank=True, related_name="qualifications")
+    machine = models.ForeignKey(
+        "Machine", on_delete=models.PROTECT, null=True, blank=True, related_name="assigned_operators"
+    )
     active = models.BooleanField(default=True)
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["user", "machine_type", "site"], name="uniq_qualification_user_type_site"
+                fields=["user", "machine_type", "site", "machine"], name="uniq_qualification_user_type_site_machine"
             ),
         ]
 
     def __str__(self):
+        if self.machine_id:
+            return f"{self.user} assigned to {self.machine}"
         return f"{self.user} qualified on {self.machine_type}"
+
+    def save(self, *args, **kwargs):
+        # Model-level safety net (in addition to
+        # MachineTypeQualificationSerializer.validate() doing the same for
+        # the API path): machine_type/site are NOT NULL, so any direct-ORM
+        # creation with only `machine` set — seed scripts, shell, tests —
+        # needs this too, not just requests routed through the serializer.
+        if self.machine_id and not self.machine_type_id:
+            self.machine_type_id = self.machine.machine_type_id
+            self.site_id = self.machine.site_id
+        super().save(*args, **kwargs)
 
 
 class MachineAssignment(TimeStampedModel):

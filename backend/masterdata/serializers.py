@@ -64,6 +64,7 @@ class ParameterSerializer(serializers.ModelSerializer):
             "section",
             "scope",
             "data_type",
+            "aggregation",
             "min_value",
             "max_value",
             "is_required",

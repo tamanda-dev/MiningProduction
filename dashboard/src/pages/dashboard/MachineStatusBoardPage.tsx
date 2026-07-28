@@ -35,13 +35,17 @@ function AssignMachineModal({
 }) {
   const queryClient = useQueryClient();
   const { data: sections } = useLookup<Section>("sections", { site: siteId });
+  // Qualifications are now granted per specific machine (see
+  // QualificationsModal), not per machine_type+site — matching this
+  // machine's own id is what actually determines who's assignable here,
+  // mirroring MachineViewSet.services._check_qualified's primary check.
   const { data: qualifications } = useQuery({
-    queryKey: ["machine-qualifications", "for-assign", row.machine_type, siteId],
+    queryKey: ["machine-qualifications", "for-assign", row.machine, siteId],
     queryFn: async () => {
       const { data } = await api.get<Paginated<MachineTypeQualification>>("/machine-qualifications/", {
-        params: { machine_type: row.machine_type, active: "true", page_size: 500 },
+        params: { machine: row.machine, active: "true", page_size: 500 },
       });
-      return data.results.filter((q) => q.site === siteId || q.site === null);
+      return data.results;
     },
   });
   const { data: users } = useLookup<UserSummary>("users");

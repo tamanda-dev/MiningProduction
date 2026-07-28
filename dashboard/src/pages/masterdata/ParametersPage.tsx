@@ -23,6 +23,11 @@ const DATA_TYPE_OPTIONS = [
   { value: "boolean", label: "Boolean" },
 ];
 
+const AGGREGATION_OPTIONS = [
+  { value: "sum", label: "Sum (tonnes, counts, loads — additive across hourly entries)" },
+  { value: "average", label: "Average (rates/percentages — e.g. availability %)" },
+];
+
 function ChoicesManager({ parameter, onClose }: { parameter: Parameter; onClose: () => void }) {
   const queryClient = useQueryClient();
   const [value, setValue] = useState("");
@@ -152,6 +157,7 @@ export function ParametersPage() {
       { key: "code", label: "Code" },
       { key: "scope", label: "Scope" },
       { key: "data_type", label: "Data Type" },
+      { key: "aggregation", label: "Roll-up", render: (row) => (row.aggregation === "average" ? "Average" : "Sum") },
       { key: "uom", label: "UOM", render: (row) => uomName(row.uom) },
       { key: "section", label: "Section", render: (row) => sectionName(row.section) },
       { key: "is_required", label: "Required", render: (row) => (row.is_required ? "Yes" : "No") },
@@ -177,6 +183,16 @@ export function ParametersPage() {
       { key: "code", label: "Code", type: "text", required: true, helpText: "Stable key, e.g. tonnes-hauled" },
       { key: "scope", label: "Scope", type: "select", options: SCOPE_OPTIONS, required: true },
       { key: "data_type", label: "Data Type", type: "select", options: DATA_TYPE_OPTIONS, required: true },
+      {
+        key: "aggregation",
+        label: "Shift/Day/MTD Roll-up",
+        type: "select",
+        options: AGGREGATION_OPTIONS,
+        required: true,
+        helpText:
+          "How hourly entries combine into a total. Get this wrong for a rate/percentage parameter and three " +
+          "hourly readings of 99/99/100% roll up to \"298%\" instead of ~99.3%.",
+      },
       { key: "uom", label: "Unit of Measure", type: "select", options: uoms?.map((u) => ({ value: u.id, label: u.abbreviation })) ?? [] },
       {
         key: "section",
@@ -196,6 +212,7 @@ export function ParametersPage() {
       { key: "display_order", label: "Display Order", type: "number" },
       { key: "active", label: "Active", type: "boolean" },
     ],
+    defaultValues: { aggregation: "sum" },
   };
 
   return (

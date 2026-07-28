@@ -14,11 +14,18 @@ class MachineConflictError(APIException):
 
 
 def _check_qualified(operator, machine):
+    # Two distinct grant shapes (see MachineTypeQualification's docstring):
+    # a machine-specific row (machine set) qualifies for THAT unit only —
+    # it must not also broaden the operator to every other machine of the
+    # same type/site. A broader row (machine null) is the older
+    # type[+site] grant and keeps its original type[+site] matching.
     qualified = (
-        MachineTypeQualification.objects.filter(
-            user=operator, machine_type=machine.machine_type, active=True
+        MachineTypeQualification.objects.filter(user=operator, active=True)
+        .filter(
+            models.Q(machine=machine)
+            | models.Q(machine__isnull=True, machine_type=machine.machine_type, site=machine.site)
+            | models.Q(machine__isnull=True, machine_type=machine.machine_type, site__isnull=True)
         )
-        .filter(models.Q(site=machine.site) | models.Q(site__isnull=True))
         .exists()
     )
     if not qualified:

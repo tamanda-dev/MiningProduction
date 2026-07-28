@@ -112,6 +112,13 @@ class Parameter(TimeStampedModel):
         (DATA_TYPE_BOOLEAN, "Boolean"),
     ]
 
+    AGGREGATION_SUM = "sum"
+    AGGREGATION_AVERAGE = "average"
+    AGGREGATION_CHOICES = [
+        (AGGREGATION_SUM, "Sum"),
+        (AGGREGATION_AVERAGE, "Average"),
+    ]
+
     name = models.CharField(max_length=150)
     code = models.SlugField(max_length=60, unique=True)
     uom = models.ForeignKey(UOM, on_delete=models.PROTECT, null=True, blank=True, related_name="parameters")
@@ -121,6 +128,15 @@ class Parameter(TimeStampedModel):
     )
     scope = models.CharField(max_length=10, choices=SCOPE_CHOICES)
     data_type = models.CharField(max_length=10, choices=DATA_TYPE_CHOICES)
+    # How multiple hourly readings roll up into a shift/day/MTD "Act" total.
+    # A flow/count quantity (tonnes hauled, bucket loads) is genuinely
+    # additive across the shift — sum is right and was the only behavior
+    # before this field existed. A rate/percentage (machine availability,
+    # ground condition score) is not: three hourly readings of 99/99/100%
+    # summing to "298%" is meaningless — those need averaging instead.
+    # Defaults to "sum" so every parameter created before this field existed
+    # keeps its current (correct, for additive quantities) behavior.
+    aggregation = models.CharField(max_length=10, choices=AGGREGATION_CHOICES, default=AGGREGATION_SUM)
     min_value = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
     max_value = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
     is_required = models.BooleanField(default=True)
