@@ -1,15 +1,66 @@
 import io
 
 from openpyxl import Workbook
-from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 from .aggregation import act_vs_plan_for_date_range, act_vs_plan_for_shift_instance, daily_production_report_rows
 from .availability import availability_utilization
 
+# Shared styling — applied to every exported sheet so "download the report"
+# consistently produces something a Supervisor can hand off or print
+# directly, not a plain data dump: bold white-on-blue headers, thousands-
+# separated/1-decimal numbers, a real "%" suffix on variance/availability
+# figures (these values already arrive pre-multiplied by 100, e.g. 93.68
+# meaning "93.68%" — a true Excel percent format would divide by 100 again
+# and show "0.0%"), thin borders, frozen header row(s), and auto-sized
+# columns instead of a fixed guess.
+_HEADER_FILL = PatternFill("solid", fgColor="1F4E78")
+_HEADER_FONT = Font(bold=True, color="FFFFFF")
+_TITLE_FONT = Font(bold=True, size=14)
+_THIN = Side(style="thin", color="B7B7B7")
+_BORDER = Border(left=_THIN, right=_THIN, top=_THIN, bottom=_THIN)
+_CENTER = Alignment(horizontal="center")
+_NUM_FMT = "#,##0.0"
+_PCT_FMT = '0.0"%"'
+
+
+def _style_header_row(ws, row, num_cols, start_col=1):
+    for col in range(start_col, start_col + num_cols):
+        cell = ws.cell(row=row, column=col)
+        cell.font = _HEADER_FONT
+        cell.fill = _HEADER_FILL
+        cell.alignment = _CENTER
+        cell.border = _BORDER
+
+
+def _border_range(ws, min_row, max_row, min_col, max_col):
+    for r in range(min_row, max_row + 1):
+        for c in range(min_col, max_col + 1):
+            ws.cell(row=r, column=c).border = _BORDER
+
+
+def _autosize_columns(ws, min_width=9, max_width=42):
+    """openpyxl has no built-in auto-fit — approximate it from the widest
+    rendered value in each column, since every sheet here was previously
+    left at Excel's default ~8.4-character column width regardless of
+    content (headers/values got clipped or the column was needlessly wide).
+    """
+    widths = {}
+    for row in ws.iter_rows():
+        for cell in row:
+            if cell.value is None:
+                continue
+            widths[cell.column_letter] = max(widths.get(cell.column_letter, 0), len(str(cell.value)))
+    for col, length in widths.items():
+        ws.column_dimensions[col].width = min(max(length + 2, min_width), max_width)
+
 
 def _write_act_vs_plan_rows(ws, rows):
-    ws.append(["Section", "Parameter", "UOM", "Act", "Plan", "Var", "%Var"])
+    headers = ["Section", "Parameter", "UOM", "Act", "Plan", "Var", "%Var"]
+    ws.append(headers)
+    _style_header_row(ws, 1, len(headers))
+
     for row in rows:
         ws.append(
             [
@@ -22,6 +73,18 @@ def _write_act_vs_plan_rows(ws, rows):
                 row["pct_var"],
             ]
         )
+
+    last_row = ws.max_row
+    _border_range(ws, 1, last_row, 1, len(headers))
+    for r in range(2, last_row + 1):
+        for col_letter in ("D", "E", "F"):
+            ws[f"{col_letter}{r}"].number_format = _NUM_FMT
+        ws[f"G{r}"].number_format = _PCT_FMT
+
+    ws.freeze_panes = "A2"
+    if last_row > 1:
+        ws.auto_filter.ref = f"A1:{get_column_letter(len(headers))}{last_row}"
+    _autosize_columns(ws)
 
 
 def build_shift_report_xlsx(shift_instance):
@@ -66,7 +129,6 @@ _FILL_ORANGE = PatternFill("solid", fgColor="F4B183")
 _FILL_GREEN = PatternFill("solid", fgColor="A9D18E")
 _FILL_LIGHT_GREEN = PatternFill("solid", fgColor="C6E0B4")
 _BOLD = Font(bold=True)
-_CENTER = Alignment(horizontal="center")
 
 
 def _write_group_header(ws, row, start_col, span, label, fill):
@@ -76,6 +138,7 @@ def _write_group_header(ws, row, start_col, span, label, fill):
     cell.alignment = _CENTER
     for col in range(start_col, start_col + span):
         ws.cell(row=row, column=col).fill = fill
+        ws.cell(row=row, column=col).border = _BORDER
 
 
 def build_daily_production_report_xlsx(site, date):
@@ -100,7 +163,7 @@ def build_daily_production_report_xlsx(site, date):
     ws = wb.active
     ws.title = f"Daily {date}"
 
-    ws.cell(row=1, column=1, value=site.name).font = Font(bold=True, size=14)
+    ws.cell(row=1, column=1, value=site.name).font = _TITLE_FONT
     ws.cell(row=1, column=6, value="Day")
     ws.cell(row=1, column=7, value=date.day).font = Font(bold=True, color="FF0000")
     ws.cell(row=2, column=1, value="Daily Production Report").font = _BOLD
@@ -111,6 +174,8 @@ def build_daily_production_report_xlsx(site, date):
 
     ws.cell(row=header_row, column=1, value="Parameter").font = _BOLD
     ws.cell(row=header_row, column=2, value="UOM").font = _BOLD
+    ws.cell(row=subheader_row, column=1).border = _BORDER
+    ws.cell(row=subheader_row, column=2).border = _BORDER
 
     col = 3
     shift_col_start = {}
@@ -119,25 +184,44 @@ def build_daily_production_report_xlsx(site, date):
         fill = _FILL_ORANGE if col == 3 else _FILL_GREEN
         _write_group_header(ws, header_row, col, 3, f"{shift_name} Shift", fill)
         for i, label in enumerate(["Act", "Plan", "%Var"]):
-            ws.cell(row=subheader_row, column=col + i, value=label).font = _BOLD
+            cell = ws.cell(row=subheader_row, column=col + i, value=label)
+            cell.font = _BOLD
+            cell.alignment = _CENTER
+            cell.border = _BORDER
         col += 3
 
     daily_total_col = col
     _write_group_header(ws, header_row, col, 4, "Daily Total", _FILL_BLUE)
     for i, label in enumerate(["Act", "Plan", "Var", "%Var"]):
-        ws.cell(row=subheader_row, column=col + i, value=label).font = _BOLD
+        cell = ws.cell(row=subheader_row, column=col + i, value=label)
+        cell.font = _BOLD
+        cell.alignment = _CENTER
+        cell.border = _BORDER
     col += 4
 
     mtd_col = col
     _write_group_header(ws, header_row, col, 4, "Month to Date", _FILL_BLUE)
     for i, label in enumerate(["Act", "Plan", "Var", "%Var"]):
-        ws.cell(row=subheader_row, column=col + i, value=label).font = _BOLD
+        cell = ws.cell(row=subheader_row, column=col + i, value=label)
+        cell.font = _BOLD
+        cell.alignment = _CENTER
+        cell.border = _BORDER
     col += 4
 
     avail_col = col + 1  # one spacer column between the Act/Plan blocks and Availabilities
     _write_group_header(ws, header_row, avail_col, 4, "Availabilities", _FILL_LIGHT_GREEN)
     for i, label in enumerate(["Machine", "Day", "Night", "Average"]):
-        ws.cell(row=subheader_row, column=avail_col + i, value=label).font = _BOLD
+        cell = ws.cell(row=subheader_row, column=avail_col + i, value=label)
+        cell.font = _BOLD
+        cell.alignment = _CENTER
+        cell.border = _BORDER
+
+    pct_var_cols = set()
+    for shift_name, start in shift_col_start.items():
+        pct_var_cols.add(start + 2)
+    pct_var_cols.add(daily_total_col + 3)
+    pct_var_cols.add(mtd_col + 3)
+    avail_pct_cols = {avail_col + 1, avail_col + 2, avail_col + 3}
 
     for r, row in enumerate(rows):
         excel_row = data_start_row + r
@@ -169,8 +253,20 @@ def build_daily_production_report_xlsx(site, date):
         ws.cell(row=excel_row, column=avail_col + 2, value=night_pct)
         ws.cell(row=excel_row, column=avail_col + 3, value=machine_row["average"]["availability_pct"])
 
-    for col_idx in range(1, avail_col + 4):
-        ws.column_dimensions[get_column_letter(col_idx)].width = 12
+    last_row = data_start_row + max(len(rows), len(availability)) - 1
+    last_col = avail_col + 3
+    if last_row >= data_start_row:
+        _border_range(ws, data_start_row, last_row, 1, last_col)
+        for r in range(data_start_row, last_row + 1):
+            for c in range(1, last_col + 1):
+                cell = ws.cell(row=r, column=c)
+                if not isinstance(cell.value, (int, float)):
+                    continue
+                cell.number_format = _PCT_FMT if c in pct_var_cols or c in avail_pct_cols else _NUM_FMT
+
+    ws.freeze_panes = ws.cell(row=data_start_row, column=3).coordinate
+    _autosize_columns(ws, min_width=10)
+    ws.column_dimensions["A"].width = 24
 
     buffer = io.BytesIO()
     wb.save(buffer)
