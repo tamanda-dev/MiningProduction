@@ -10,6 +10,7 @@ interface SubNavItem {
 const BASE_ITEMS: SubNavItem[] = [
   { to: "/operate/entry", label: "Production Entry" },
   { to: "/operate/breakdown", label: "Breakdown" },
+  { to: "/operate/delivery", label: "Delivery" },
 ];
 
 const CRUSHER_ITEMS: SubNavItem[] = [

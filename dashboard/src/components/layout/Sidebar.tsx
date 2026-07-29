@@ -34,6 +34,7 @@ const DASHBOARD_ITEMS: NavItem[] = [
 const ENTRY_ITEMS: NavItem[] = [
   { to: "/entries/production", label: "Production Entries" },
   { to: "/entries/breakdowns", label: "Breakdown Logs" },
+  { to: "/entries/deliveries", label: "Delivery Entries" },
 ];
 
 const CRUSHER_PLANT_ITEMS: NavItem[] = [

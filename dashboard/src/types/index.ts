@@ -134,6 +134,25 @@ export interface DeliveryDestination {
   active: boolean;
 }
 
+export interface DeliveryEntry {
+  id: ID;
+  shift_instance: ID;
+  site: ID;
+  delivery_destination: ID;
+  section: ID | null;
+  slot_index: number | null;
+  slot_start_at: string | null;
+  slot_end_at: string | null;
+  tonnes: string;
+  trip_count: number;
+  operator: ID;
+  recorded_by: ID;
+  comments: string;
+  status: EntryStatus;
+  source: "mobile" | "web" | "import";
+  client_uuid: string | null;
+}
+
 export interface DowntimeReasonCode {
   id: ID;
   code: string;

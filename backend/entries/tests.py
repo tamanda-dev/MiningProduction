@@ -2,7 +2,7 @@ import pytest
 from rest_framework.exceptions import ValidationError
 
 from entries import services
-from masterdata.models import UOM, Parameter
+from masterdata.models import UOM, DeliveryDestination, Parameter
 
 
 @pytest.fixture
@@ -280,3 +280,31 @@ def test_shift_scoped_parameter_accepted_as_shift_total(
         format="json",
     )
     assert resp.status_code == 201, resp.data
+
+
+@pytest.mark.django_db
+def test_delivery_entry_without_slot_index_is_accepted(
+    api_client, two_sites, all_day_shifts, django_user_model
+):
+    """Regression test: DeliveryEntry's UniqueConstraint(fields=["shift_
+    instance","delivery_destination","slot_index"]) has no `condition=`, so
+    DRF's auto-generated UniqueTogetherValidator force-marked slot_index
+    required=True even though it's blank=True on the model precisely so a
+    delivery can be logged without picking one (most real deliveries aren't
+    tied to a specific hourly slot). Same footgun fixed elsewhere this
+    session; DeliveryEntrySerializer was the one place it was never applied,
+    unnoticed because nothing in either client submitted to this endpoint
+    until now.
+    """
+    site_a, _ = two_sites
+    destination = DeliveryDestination.objects.create(site=site_a, name="Stockpile A", code="stockpile-a")
+    operator = django_user_model.objects.create_user(username="op1", password="pass12345")
+
+    api_client.force_authenticate(user=operator)
+    resp = api_client.post(
+        "/api/delivery-entries/",
+        {"delivery_destination": destination.id, "tonnes": "33.5", "trip_count": 3},
+        format="json",
+    )
+    assert resp.status_code == 201, resp.data
+    assert resp.data["slot_index"] is None

@@ -314,6 +314,15 @@ class DeliveryEntrySerializer(serializers.ModelSerializer):
             "values_display",
         )
         read_only_fields = ("site", "shift_instance", "slot_start_at", "slot_end_at", "operator", "recorded_by")
+        # DRF auto-generates a UniqueTogetherValidator from the model's
+        # UniqueConstraint(fields=["shift_instance","delivery_destination","slot_index"])
+        # and, to support it, force-marks every field in that set as
+        # required=True — including slot_index, which is blank=True on the
+        # model precisely so a delivery can be logged without picking one.
+        # Same footgun fixed elsewhere this session (ProductionEntrySerializer
+        # et al.); disabled here too, relying on the IntegrityError -> clean
+        # 400 handling in create()/update() for a genuine duplicate.
+        validators = []
 
     def validate(self, attrs):
         request = self.context["request"]

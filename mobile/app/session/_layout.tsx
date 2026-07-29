@@ -42,6 +42,7 @@ export default function SessionLayout() {
         >
           <Tabs.Screen name="entry" options={{ title: "Production" }} />
           <Tabs.Screen name="breakdown" options={{ title: "Breakdown" }} />
+          <Tabs.Screen name="delivery" options={{ title: "Delivery" }} />
           <Tabs.Screen name="checklist" options={{ title: "Checklist", href: isCrusher ? undefined : null }} />
           <Tabs.Screen
             name="breakdown-matrix"

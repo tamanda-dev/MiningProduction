@@ -10,11 +10,13 @@ import { LiveShiftViewPage } from "@/pages/dashboard/LiveShiftViewPage";
 import { MachineStatusBoardPage } from "@/pages/dashboard/MachineStatusBoardPage";
 import { TrendsPage } from "@/pages/dashboard/TrendsPage";
 import { BreakdownLogsPage } from "@/pages/entries/BreakdownLogsPage";
+import { DeliveryEntriesPage } from "@/pages/entries/DeliveryEntriesPage";
 import { ProductionEntriesPage } from "@/pages/entries/ProductionEntriesPage";
 import { OperateLayout } from "@/components/operate/OperateLayout";
 import { OperateBreakdownMatrixPage } from "@/pages/operate/OperateBreakdownMatrixPage";
 import { OperateBreakdownPage } from "@/pages/operate/OperateBreakdownPage";
 import { OperateChecklistPage } from "@/pages/operate/OperateChecklistPage";
+import { OperateDeliveryPage } from "@/pages/operate/OperateDeliveryPage";
 import { OperateEntryPage } from "@/pages/operate/OperateEntryPage";
 import { OperateIncidentsPage } from "@/pages/operate/OperateIncidentsPage";
 import { OperateReleasePage } from "@/pages/operate/OperateReleasePage";
@@ -72,6 +74,7 @@ function App() {
 
           <Route path="/entries/production" element={<ProductionEntriesPage />} />
           <Route path="/entries/breakdowns" element={<BreakdownLogsPage />} />
+          <Route path="/entries/deliveries" element={<DeliveryEntriesPage />} />
 
           {/* Operating a machine is usually an Operator's job — Admin/
               Supervisor typically assign machines to operators instead of
@@ -88,6 +91,7 @@ function App() {
             <Route path="session" element={<OperateSessionPage />} />
             <Route path="entry" element={<OperateEntryPage />} />
             <Route path="breakdown" element={<OperateBreakdownPage />} />
+            <Route path="delivery" element={<OperateDeliveryPage />} />
             <Route path="checklist" element={<OperateChecklistPage />} />
             <Route path="breakdown-matrix" element={<OperateBreakdownMatrixPage />} />
             <Route path="incidents" element={<OperateIncidentsPage />} />
