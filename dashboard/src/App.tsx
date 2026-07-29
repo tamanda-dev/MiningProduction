@@ -73,20 +73,25 @@ function App() {
           <Route path="/entries/production" element={<ProductionEntriesPage />} />
           <Route path="/entries/breakdowns" element={<BreakdownLogsPage />} />
 
-          {/* Operating a machine is an Operator's job — Admin/Supervisor
-              assign machines to operators instead of running one
-              themselves (see the "Assign Machines" pages/actions). */}
-          <Route element={<ProtectedRoute requireRole="operator" />}>
-            <Route path="/operate" element={<OperateLayout />}>
-              <Route index element={<Navigate to="/operate/session" replace />} />
-              <Route path="session" element={<OperateSessionPage />} />
-              <Route path="entry" element={<OperateEntryPage />} />
-              <Route path="breakdown" element={<OperateBreakdownPage />} />
-              <Route path="checklist" element={<OperateChecklistPage />} />
-              <Route path="breakdown-matrix" element={<OperateBreakdownMatrixPage />} />
-              <Route path="incidents" element={<OperateIncidentsPage />} />
-              <Route path="release" element={<OperateReleasePage />} />
-            </Route>
+          {/* Operating a machine is usually an Operator's job — Admin/
+              Supervisor typically assign machines to operators instead of
+              running one themselves (see the "Assign Machines" pages/
+              actions). But every page under here already handles any
+              authenticated role gracefully (OperateSessionPage lets a
+              Supervisor self-activate too; OperateLayout's SessionStrip
+              shows a plain "no active machine" prompt otherwise) — so this
+              is only gated by the outer <ProtectedRoute/>'s auth check, not
+              a role restriction, letting a Supervisor stationed at a plant
+              themselves (e.g. the crusher) operate it directly. */}
+          <Route path="/operate" element={<OperateLayout />}>
+            <Route index element={<Navigate to="/operate/session" replace />} />
+            <Route path="session" element={<OperateSessionPage />} />
+            <Route path="entry" element={<OperateEntryPage />} />
+            <Route path="breakdown" element={<OperateBreakdownPage />} />
+            <Route path="checklist" element={<OperateChecklistPage />} />
+            <Route path="breakdown-matrix" element={<OperateBreakdownMatrixPage />} />
+            <Route path="incidents" element={<OperateIncidentsPage />} />
+            <Route path="release" element={<OperateReleasePage />} />
           </Route>
 
           <Route path="/crusher/summary" element={<CrusherPlantSummaryPage />} />

@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { useAuth } from "./useAuth";
 import type { Role } from "@/types";
+import { useAuth } from "./useAuth";
 
 export function ProtectedRoute({ requireRole }: { requireRole?: Role }) {
   const { isAuthenticated, isLoading, hasRole } = useAuth();

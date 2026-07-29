@@ -11,13 +11,13 @@ interface NavItem {
   requireRole?: Role;
 }
 
-// Operating a machine (activating it, logging breakdowns/production) is an
-// Operator's job — Admin/Supervisor instead assign a machine to an
-// operator (Master Data > Assign Machines / the Machine Status Board),
-// rather than running one themselves. hasRole("operator") is true only for
-// the Operator group specifically (Admin/Supervisor never hold it, per
-// core.scoping's group hierarchy), so this hides "My Shift" for both.
-const OPERATE_ITEMS: NavItem[] = [{ to: "/operate/session", label: "My Shift", requireRole: "operator" }];
+// Operating a machine is usually an Operator's job — Admin/Supervisor
+// typically assign a machine to an operator instead (Master Data > Assign
+// Machines / the Machine Status Board). But a Supervisor stationed at a
+// plant themselves (e.g. the crusher) can self-activate one directly from
+// this same screen too — visible to every authenticated role, matching
+// App.tsx's /operate/* route, which is auth-gated only, not role-gated.
+const OPERATE_ITEMS: NavItem[] = [{ to: "/operate/session", label: "My Shift" }];
 
 // Site-wide analytics — Supervisor+ territory. An Operator's job is
 // submitting data through the "Operate" forms, not reviewing aggregated
