@@ -16,6 +16,7 @@ from shiftmgmt.services import get_or_create_open_instance
 
 from . import services
 from .models import BreakdownCause, BreakdownIncident, HourlySlot, ShiftCrushingSummary
+from .reporting import mttr_mtbf_trend
 
 
 @pytest.fixture
@@ -409,3 +410,39 @@ def test_hourly_checklist_entry_completed_at_stamped_when_marked_done(
     )
     assert resp.status_code == 201, resp.data
     assert resp.data["completed_at"] is not None
+
+
+@pytest.mark.django_db
+def test_mttr_mtbf_trend_handles_incident_and_summary_on_different_days(
+    site, crusher_machine, all_day_shift, hourly_slot, operator
+):
+    """Regression test: mttr_rows keys come from truncating time_occurred (a
+    DateTimeField -> datetime), mtbf_rows keys come from truncating
+    shift_instance__date (already a DateField -> date). Even for the exact
+    same calendar day, a date and a datetime are neither equal nor
+    hashable-equal, so mixing the two key types in one sorted() blew up with
+    "'<' not supported between instances of 'datetime.date' and
+    'datetime.datetime'" the moment both an incident and a crushing summary
+    existed at all — unnoticed until real multi-day demo data surfaced it
+    live.
+    """
+    day1 = get_or_create_open_instance(site)
+    occurred = timezone.now() - timedelta(hours=1)
+    BreakdownIncident.objects.create(
+        site=site,
+        crusher=crusher_machine,
+        shift_instance=day1,
+        time_occurred=occurred,
+        time_reported=occurred,
+        time_attended=occurred + timedelta(minutes=5),
+        time_completed=occurred + timedelta(minutes=35),
+        status=BreakdownIncident.STATUS_RESOLVED,
+        reported_by=operator,
+        recorded_by=operator,
+    )
+    summary = services.refresh_summary_for(crusher_machine, day1, operator)
+    assert summary.crushing_time_minutes is not None
+
+    rows = mttr_mtbf_trend(site.id)  # must not raise
+    assert len(rows) == 1
+    assert rows[0]["incident_count"] == 1

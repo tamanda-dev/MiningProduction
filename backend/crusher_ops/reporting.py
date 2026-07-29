@@ -86,8 +86,16 @@ def mttr_mtbf_trend(site_id, crusher_id=None, date_from=None, date_to=None, grou
         incidents = incidents.filter(time_occurred__date__lte=date_to)
         summaries = summaries.filter(shift_instance__date__lte=date_to)
 
+    # trunc() on time_occurred (a DateTimeField) returns a datetime, but on
+    # shift_instance__date (already a DateField) it returns a plain date —
+    # two different, mutually-uncomparable types for what's meant to be the
+    # same period key. Normalize both to date so they line up in one sorted
+    # sequence below instead of raising when compared.
+    def _as_date(value):
+        return value.date() if hasattr(value, "date") and callable(value.date) else value
+
     mttr_rows = {
-        r["period"]: r
+        _as_date(r["period"]): r
         for r in incidents.annotate(period=trunc("time_occurred"))
         .values("period")
         .annotate(
@@ -97,7 +105,7 @@ def mttr_mtbf_trend(site_id, crusher_id=None, date_from=None, date_to=None, grou
         )
     }
     mtbf_rows = {
-        r["period"]: r
+        _as_date(r["period"]): r
         for r in summaries.annotate(period=trunc("shift_instance__date"))
         .values("period")
         .annotate(uptime_minutes=Sum("crushing_time_minutes"))
