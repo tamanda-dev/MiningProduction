@@ -4,13 +4,12 @@ import { Card } from "@/components/common/Card";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
-import { ShiftInstancePicker } from "@/components/common/ShiftInstancePicker";
+import { ShiftInstanceDatePicker } from "@/components/common/ShiftInstanceDatePicker";
 import { api } from "@/lib/api";
 import { STATUS } from "@/lib/chartTheme";
 import { useCrusherMachines } from "@/lib/useCrusherMachines";
 import { useSiteFilter } from "@/lib/SiteFilterContext";
-import { useLookup } from "@/lib/useLookup";
-import type { ChecklistComplianceStatus, ChecklistHeatmapRow, ShiftInstance } from "@/types";
+import type { ChecklistComplianceStatus, ChecklistHeatmapRow } from "@/types";
 
 // Categorical 3-color status palette (not a continuous scale) — compliance
 // is a state (done/missed/pending), not a magnitude.
@@ -30,22 +29,11 @@ export function ChecklistComplianceHeatmapPage() {
   const { data: crushers } = useCrusherMachines(siteId);
   const [crusherId, setCrusherId] = useState<number | null>(null);
 
-  const { data: shiftInstances } = useLookup<ShiftInstance>(
-    "shift-instances",
-    siteId ? { site: siteId, ordering: "-date" } : undefined,
-  );
   const [shiftInstanceId, setShiftInstanceId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!crusherId && crushers && crushers.length > 0) setCrusherId(crushers[0].id);
   }, [crushers, crusherId]);
-
-  useEffect(() => {
-    if (!shiftInstanceId && shiftInstances && shiftInstances.length > 0) {
-      const open = shiftInstances.find((si) => si.status === "open");
-      setShiftInstanceId((open ?? shiftInstances[0]).id);
-    }
-  }, [shiftInstances, shiftInstanceId]);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["crusher-ops", "checklist-heatmap", siteId, shiftInstanceId, crusherId],
@@ -82,7 +70,7 @@ export function ChecklistComplianceHeatmapPage() {
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-500">Shift Instance</label>
-            <ShiftInstancePicker shiftInstances={shiftInstances} value={shiftInstanceId} onChange={setShiftInstanceId} />
+            <ShiftInstanceDatePicker siteId={siteId} value={shiftInstanceId} onChange={setShiftInstanceId} />
           </div>
         </div>
       </div>

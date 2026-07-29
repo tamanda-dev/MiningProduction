@@ -1,17 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Card } from "@/components/common/Card";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { RoleGate } from "@/components/common/RoleGate";
-import { ShiftInstancePicker } from "@/components/common/ShiftInstancePicker";
+import { ShiftInstanceDatePicker } from "@/components/common/ShiftInstanceDatePicker";
 import { StatTile } from "@/components/common/StatTile";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { api } from "@/lib/api";
 import { useSiteFilter } from "@/lib/SiteFilterContext";
-import { useLookup } from "@/lib/useLookup";
-import type { ActVsPlanRow, ShiftInstance } from "@/types";
+import type { ActVsPlanRow } from "@/types";
 
 function pctVarTone(pctVar: number | null): "good" | "warning" | "critical" | "neutral" {
   if (pctVar === null) return "neutral";
@@ -23,18 +22,6 @@ function pctVarTone(pctVar: number | null): "good" | "warning" | "critical" | "n
 export function LiveShiftViewPage() {
   const { siteId } = useSiteFilter();
   const [shiftInstanceId, setShiftInstanceId] = useState<number | null>(null);
-
-  const { data: shiftInstances } = useLookup<ShiftInstance>(
-    "shift-instances",
-    siteId ? { site: siteId, ordering: "-date" } : undefined,
-  );
-
-  useEffect(() => {
-    if (!shiftInstanceId && shiftInstances && shiftInstances.length > 0) {
-      const open = shiftInstances.find((si) => si.status === "open");
-      setShiftInstanceId((open ?? shiftInstances[0]).id);
-    }
-  }, [shiftInstances, shiftInstanceId]);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["dashboard", "summary", shiftInstanceId],
@@ -61,19 +48,17 @@ export function LiveShiftViewPage() {
               <ExportButton shiftInstanceId={shiftInstanceId} />
             </RoleGate>
           )}
-          {shiftInstances && shiftInstances.length > 0 && (
-            <ShiftInstancePicker
-              shiftInstances={shiftInstances}
-              value={shiftInstanceId}
-              onChange={setShiftInstanceId}
-              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm"
-            />
-          )}
+          <ShiftInstanceDatePicker
+            siteId={siteId}
+            value={shiftInstanceId}
+            onChange={setShiftInstanceId}
+            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm"
+          />
         </div>
       </div>
 
-      {(!shiftInstances || shiftInstances.length === 0) && (
-        <ErrorMessage message="No shift instances found for this site yet." />
+      {!shiftInstanceId && (
+        <ErrorMessage message="No shift instance found for this site on the selected date." />
       )}
 
       {shiftInstanceId && (

@@ -3,14 +3,13 @@ import { useEffect, useState } from "react";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
-import { ShiftInstancePicker } from "@/components/common/ShiftInstancePicker";
+import { ShiftInstanceDatePicker } from "@/components/common/ShiftInstanceDatePicker";
 import { StatTile } from "@/components/common/StatTile";
 import { CrusherPlantExportButton } from "@/components/crusher/CrusherPlantExportButton";
 import { api } from "@/lib/api";
 import { useCrusherMachines } from "@/lib/useCrusherMachines";
 import { useSiteFilter } from "@/lib/SiteFilterContext";
-import { useLookup } from "@/lib/useLookup";
-import type { BreakdownIncident, Paginated, ShiftCrushingSummary, ShiftInstance } from "@/types";
+import type { BreakdownIncident, Paginated, ShiftCrushingSummary } from "@/types";
 
 function availabilityTone(pct: number | null): "good" | "warning" | "critical" | "neutral" {
   if (pct === null) return "neutral";
@@ -23,23 +22,11 @@ export function CrusherPlantSummaryPage() {
   const { siteId } = useSiteFilter();
   const { data: crushers } = useCrusherMachines(siteId);
   const [crusherId, setCrusherId] = useState<number | null>(null);
-
-  const { data: shiftInstances } = useLookup<ShiftInstance>(
-    "shift-instances",
-    siteId ? { site: siteId, ordering: "-date" } : undefined,
-  );
   const [shiftInstanceId, setShiftInstanceId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!crusherId && crushers && crushers.length > 0) setCrusherId(crushers[0].id);
   }, [crushers, crusherId]);
-
-  useEffect(() => {
-    if (!shiftInstanceId && shiftInstances && shiftInstances.length > 0) {
-      const open = shiftInstances.find((si) => si.status === "open");
-      setShiftInstanceId((open ?? shiftInstances[0]).id);
-    }
-  }, [shiftInstances, shiftInstanceId]);
 
   const summaryQuery = useQuery({
     queryKey: ["crusher-ops", "shift-crushing-summaries", siteId, crusherId, shiftInstanceId],
@@ -94,7 +81,7 @@ export function CrusherPlantSummaryPage() {
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-500">Shift Instance</label>
-            <ShiftInstancePicker shiftInstances={shiftInstances} value={shiftInstanceId} onChange={setShiftInstanceId} />
+            <ShiftInstanceDatePicker siteId={siteId} value={shiftInstanceId} onChange={setShiftInstanceId} />
           </div>
         </div>
       </div>

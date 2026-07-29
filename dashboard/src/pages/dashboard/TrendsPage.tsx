@@ -18,13 +18,13 @@ import { ErrorMessage } from "@/components/common/ErrorMessage";
 import { FilterBar } from "@/components/common/FilterBar";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { RoleGate } from "@/components/common/RoleGate";
-import { ShiftInstancePicker } from "@/components/common/ShiftInstancePicker";
+import { ShiftInstanceDatePicker } from "@/components/common/ShiftInstanceDatePicker";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { api } from "@/lib/api";
 import { CATEGORICAL, CHART_INK } from "@/lib/chartTheme";
 import { useSiteFilter } from "@/lib/SiteFilterContext";
 import { useLookup } from "@/lib/useLookup";
-import type { HourlyCurvePoint, Parameter, Section, ShiftInstance, TrendPoint } from "@/types";
+import type { HourlyCurvePoint, Parameter, Section, TrendPoint } from "@/types";
 
 const ACT_COLOR = CATEGORICAL[0];
 const PLAN_COLOR = CHART_INK.muted;
@@ -157,10 +157,6 @@ function DailyTrendTab() {
 function HourlyCurveTab() {
   const { siteId } = useSiteFilter();
   const { sections, parameters } = useSectionsAndParameters(siteId);
-  const { data: shiftInstances } = useLookup<ShiftInstance>(
-    "shift-instances",
-    siteId ? { site: siteId, ordering: "-date" } : undefined,
-  );
   const [shiftInstanceId, setShiftInstanceId] = useState<number | null>(null);
   const [sectionId, setSectionId] = useState<number | null>(null);
   const [parameterId, setParameterId] = useState<number | null>(null);
@@ -187,13 +183,7 @@ function HourlyCurveTab() {
     <div>
       <FilterBar>
         <Field label="Shift Instance">
-          <ShiftInstancePicker
-            shiftInstances={shiftInstances}
-            value={shiftInstanceId}
-            onChange={setShiftInstanceId}
-            placeholder="Select shift…"
-            showStatus={false}
-          />
+          <ShiftInstanceDatePicker siteId={siteId} value={shiftInstanceId} onChange={setShiftInstanceId} />
         </Field>
         <Field label="Section">
           <select
