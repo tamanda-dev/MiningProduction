@@ -7,7 +7,7 @@ from masterdata.models import UOM, Parameter
 
 @pytest.fixture
 def number_parameter(db, machine_type):
-    uom = UOM.objects.create(name="Tonnes", abbreviation="t")
+    uom, _ = UOM.objects.get_or_create(abbreviation="t", defaults={"name": "Tonnes"})
     param = Parameter.objects.create(
         name="Tonnes Hauled",
         code="tonnes-hauled",

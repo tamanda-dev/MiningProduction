@@ -14,7 +14,6 @@ from crusher_ops.models import (
 )
 from entries.models import (
     BreakdownLog,
-    CrusherEntry,
     DeliveryEntry,
     ParameterValue,
     ProductionEntry,
@@ -22,7 +21,6 @@ from entries.models import (
 from machines.models import Machine, MachineAssignment, MachineTypeQualification
 from masterdata.models import (
     UOM,
-    CrusherUnit,
     DeliveryDestination,
     DowntimeReasonCode,
     MachineType,
@@ -46,7 +44,6 @@ DELETE_ORDER = [
     ("Business/operational data", ShiftCrushingSummary),
     ("Business/operational data", ProductionEntry),
     ("Business/operational data", BreakdownLog),
-    ("Business/operational data", CrusherEntry),
     ("Business/operational data", DeliveryEntry),
     ("Business/operational data", PlanTarget),
     ("Business/operational data", MachineAssignment),
@@ -65,7 +62,6 @@ DELETE_ORDER = [
     ("Master/setup data", ParameterChoice),
     ("Master/setup data", Parameter),
     ("Master/setup data", DeliveryDestination),
-    ("Master/setup data", CrusherUnit),
     ("Master/setup data", UserSiteAccess),
     ("Master/setup data", UOM),
     ("Master/setup data", Section),

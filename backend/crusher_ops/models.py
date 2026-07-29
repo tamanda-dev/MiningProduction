@@ -102,6 +102,12 @@ class HourlyChecklistEntry(TimeStampedModel):
     slot_end_at = models.DateTimeField()
     checklist_item = models.ForeignKey(ChecklistItem, on_delete=models.PROTECT, related_name="entries")
     is_completed = models.BooleanField(default=False)
+    # Server-stamped the moment is_completed is first submitted True (see
+    # HourlyChecklistEntrySerializer.validate) — the actual wall-clock time
+    # the supervisor ticked the item off, distinct from slot_start_at/
+    # slot_end_at which describe the slot's configured window, not when the
+    # item was actually done within it.
+    completed_at = models.DateTimeField(null=True, blank=True)
     notes = models.TextField(blank=True)
     operator = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="+")
     recorded_by = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="+")
@@ -275,11 +281,11 @@ class BreakdownIncident(TimeStampedModel):
 
 
 class ShiftCrushingSummary(TimeStampedModel):
-    """Per-shift, per-crusher totals: crushing time (entered), down time /
-    stoppage instances (derived from BreakdownIncident/HourlyBreakdownEntry),
-    crushed tonnage (derived from the existing CrusherEntry throughput
-    data, site+shift-instance-wide — see crusher_ops.services for why),
-    and derived availability %.
+    """Per-shift, per-crusher totals — crushing time, down time / stoppage
+    instances (derived from BreakdownIncident/HourlyBreakdownEntry), crushed
+    tonnage (derived from Production Entries against the "Tonnes Crushed"
+    parameter — see crusher_ops.services.recompute_shift_crushing_summary),
+    and derived availability %. Nothing here is manually typed in.
     """
 
     history = HistoricalRecords()

@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import BreakdownLog, CrusherEntry, DeliveryEntry, ParameterValue, ProductionEntry
+from .models import BreakdownLog, DeliveryEntry, ParameterValue, ProductionEntry
 
 
 class ParameterValueInline(admin.TabularInline):
@@ -51,14 +51,6 @@ class BreakdownLogAdmin(admin.ModelAdmin):
         "operator",
         "recorded_by",
     )
-    inlines = [ParameterValueInline]
-
-
-@admin.register(CrusherEntry)
-class CrusherEntryAdmin(admin.ModelAdmin):
-    list_display = ("id", "crusher_unit", "entry_type", "slot_index", "throughput_tonnes", "status")
-    list_filter = ("site", "crusher_unit", "entry_type", "status")
-    autocomplete_fields = ("shift_instance", "site", "crusher_unit", "section", "operator", "recorded_by")
     inlines = [ParameterValueInline]
 
 

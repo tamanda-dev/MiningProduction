@@ -51,7 +51,6 @@ const MASTER_DATA_ITEMS: NavItem[] = [
   { to: "/admin/machines", label: "Machines", requireRole: "supervisor" },
   { to: "/admin/uoms", label: "Units of Measure", requireRole: "supervisor" },
   { to: "/admin/parameters", label: "Parameters", requireRole: "supervisor" },
-  { to: "/admin/crusher-units", label: "Crusher Units", requireRole: "supervisor" },
   { to: "/admin/delivery-destinations", label: "Delivery Destinations", requireRole: "supervisor" },
   { to: "/admin/downtime-reasons", label: "Downtime Reason Codes", requireRole: "supervisor" },
   // Backed by ReadOnlyOrSupervisorOrAbove viewsets — Supervisors can write

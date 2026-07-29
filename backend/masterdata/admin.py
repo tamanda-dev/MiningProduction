@@ -1,7 +1,6 @@
 from django.contrib import admin
 
 from .models import (
-    CrusherUnit,
     DeliveryDestination,
     DowntimeReasonCode,
     MachineType,
@@ -52,12 +51,6 @@ class ParameterAdmin(admin.ModelAdmin):
     filter_horizontal = ("applicable_machine_types",)
     inlines = [ParameterChoiceInline]
 
-
-@admin.register(CrusherUnit)
-class CrusherUnitAdmin(admin.ModelAdmin):
-    list_display = ("name", "code", "site", "active")
-    list_filter = ("site", "active")
-    search_fields = ("name", "code")
 
 
 @admin.register(DeliveryDestination)

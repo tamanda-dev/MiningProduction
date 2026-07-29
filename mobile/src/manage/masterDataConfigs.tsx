@@ -3,7 +3,6 @@ import { api } from "@/src/api/client";
 import type {
   BreakdownCause,
   ChecklistItem,
-  CrusherUnit,
   DeliveryDestination,
   DowntimeReasonCode,
   HourlySlot,
@@ -196,26 +195,6 @@ export function ParametersScreen() {
       { key: "min_value", label: "Min Value", type: "number" },
       { key: "max_value", label: "Max Value", type: "number" },
       { key: "is_required", label: "Required", type: "boolean" },
-      { key: "active", label: "Active", type: "boolean" },
-    ],
-  };
-  return <MasterDataScreen config={config} />;
-}
-
-export function CrusherUnitsScreen() {
-  const { hasRole } = useAuth();
-  const { data: sites } = useLookup<Site>("sites");
-  const siteName = (id: number) => sites?.find((s) => s.id === id)?.name ?? String(id);
-  const config: MasterDataConfig<CrusherUnit> = {
-    resource: "crusher-units",
-    title: "Crusher Units",
-    canWrite: hasRole("admin"),
-    primaryLabel: (row) => row.name,
-    secondaryLabel: (row) => siteName(row.site),
-    fields: [
-      { key: "name", label: "Name", type: "text", required: true },
-      { key: "code", label: "Code", type: "text", required: true },
-      { key: "site", label: "Site", type: "select", required: true, options: sites?.map((s) => ({ value: s.id, label: s.name })) ?? [] },
       { key: "active", label: "Active", type: "boolean" },
     ],
   };
@@ -477,7 +456,6 @@ export const MASTER_DATA_SCREENS: Record<string, { title: string; Component: Rea
   machines: { title: "Machines", Component: MachinesEditScreen, requireRole: "admin" },
   uoms: { title: "Units of Measure", Component: UOMsScreen, requireRole: "admin" },
   parameters: { title: "Parameters", Component: ParametersScreen, requireRole: "admin" },
-  "crusher-units": { title: "Crusher Units", Component: CrusherUnitsScreen, requireRole: "admin" },
   "delivery-destinations": { title: "Delivery Destinations", Component: DeliveryDestinationsScreen, requireRole: "admin" },
   "downtime-reasons": { title: "Downtime Reason Codes", Component: DowntimeReasonCodesScreen, requireRole: "admin" },
   "shift-patterns": { title: "Shift Patterns", Component: ShiftPatternsScreen, requireRole: "supervisor" },

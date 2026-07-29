@@ -4,11 +4,10 @@ from rest_framework.viewsets import ModelViewSet
 
 from core.mixins import SiteScopedOrOwnQuerySetMixin
 
-from .models import BreakdownLog, CrusherEntry, DeliveryEntry, ProductionEntry
+from .models import BreakdownLog, DeliveryEntry, ProductionEntry
 from .permissions import CanWriteEntry
 from .serializers import (
     BreakdownLogSerializer,
-    CrusherEntrySerializer,
     DeliveryEntrySerializer,
     ProductionEntrySerializer,
 )
@@ -66,16 +65,6 @@ class BreakdownLogViewSet(BulkSyncMixin, SiteScopedOrOwnQuerySetMixin, ModelView
     serializer_class = BreakdownLogSerializer
     permission_classes = (CanWriteEntry,)
     filterset_fields = ("site", "section", "machine", "shift_instance", "reason_code", "status")
-    site_lookup = "site_id"
-
-
-class CrusherEntryViewSet(BulkSyncMixin, SiteScopedOrOwnQuerySetMixin, ModelViewSet):
-    queryset = CrusherEntry.objects.select_related(
-        "site", "section", "crusher_unit", "shift_instance", "operator", "recorded_by"
-    ).prefetch_related("values", "values__parameter").all()
-    serializer_class = CrusherEntrySerializer
-    permission_classes = (CanWriteEntry,)
-    filterset_fields = ("site", "section", "crusher_unit", "shift_instance", "entry_type", "status")
     site_lookup = "site_id"
 
 

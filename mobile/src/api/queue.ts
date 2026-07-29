@@ -5,7 +5,6 @@ import { api } from "@/src/api/client";
 export type QueueEndpoint =
   | "production-entries"
   | "breakdown-logs"
-  | "crusher-entries"
   | "delivery-entries"
   | "hourly-checklist-entries"
   | "hourly-breakdown-entries"

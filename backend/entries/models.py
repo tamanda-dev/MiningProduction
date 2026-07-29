@@ -4,7 +4,6 @@ from simple_history.models import HistoricalRecords
 from core.models import TimeStampedModel
 from machines.models import Machine, MachineAssignment
 from masterdata.models import (
-    CrusherUnit,
     DeliveryDestination,
     DowntimeReasonCode,
     Parameter,
@@ -95,9 +94,6 @@ class ParameterValue(TimeStampedModel):
     production_entry = models.ForeignKey(
         ProductionEntry, on_delete=models.CASCADE, null=True, blank=True, related_name="values"
     )
-    crusher_entry = models.ForeignKey(
-        "CrusherEntry", on_delete=models.CASCADE, null=True, blank=True, related_name="values"
-    )
     delivery_entry = models.ForeignKey(
         "DeliveryEntry", on_delete=models.CASCADE, null=True, blank=True, related_name="values"
     )
@@ -115,25 +111,16 @@ class ParameterValue(TimeStampedModel):
                 condition=(
                     models.Q(
                         production_entry__isnull=False,
-                        crusher_entry__isnull=True,
                         delivery_entry__isnull=True,
                         breakdown_log__isnull=True,
                     )
                     | models.Q(
                         production_entry__isnull=True,
-                        crusher_entry__isnull=False,
-                        delivery_entry__isnull=True,
-                        breakdown_log__isnull=True,
-                    )
-                    | models.Q(
-                        production_entry__isnull=True,
-                        crusher_entry__isnull=True,
                         delivery_entry__isnull=False,
                         breakdown_log__isnull=True,
                     )
                     | models.Q(
                         production_entry__isnull=True,
-                        crusher_entry__isnull=True,
                         delivery_entry__isnull=True,
                         breakdown_log__isnull=False,
                     )
@@ -144,11 +131,6 @@ class ParameterValue(TimeStampedModel):
                 fields=["production_entry", "parameter"],
                 condition=models.Q(production_entry__isnull=False),
                 name="uniq_parametervalue_production_entry",
-            ),
-            models.UniqueConstraint(
-                fields=["crusher_entry", "parameter"],
-                condition=models.Q(crusher_entry__isnull=False),
-                name="uniq_parametervalue_crusher_entry",
             ),
             models.UniqueConstraint(
                 fields=["delivery_entry", "parameter"],
@@ -227,54 +209,6 @@ class BreakdownLog(TimeStampedModel):
         super().save(*args, **kwargs)
 
 
-class CrusherEntry(TimeStampedModel):
-    history = HistoricalRecords()
-
-    shift_instance = models.ForeignKey(ShiftInstance, on_delete=models.PROTECT, related_name="crusher_entries")
-    site = models.ForeignKey(Site, on_delete=models.PROTECT, related_name="crusher_entries")
-    crusher_unit = models.ForeignKey(CrusherUnit, on_delete=models.PROTECT, related_name="entries")
-    section = models.ForeignKey(
-        Section, on_delete=models.PROTECT, null=True, blank=True, related_name="crusher_entries"
-    )
-    entry_type = models.CharField(
-        max_length=15,
-        choices=[("hourly", "Hourly"), ("shift_total", "Shift Total")],
-        default="hourly",
-    )
-    slot_index = models.PositiveSmallIntegerField(null=True, blank=True)
-    slot_start_at = models.DateTimeField(null=True, blank=True)
-    slot_end_at = models.DateTimeField(null=True, blank=True)
-    throughput_tonnes = models.DecimalField(max_digits=14, decimal_places=3)
-    operator = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="+")
-    recorded_by = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="+")
-    comments = models.TextField(blank=True)
-    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default="submitted")
-    source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default="mobile")
-    client_uuid = models.UUIDField(null=True, blank=True, unique=True)
-
-    class Meta:
-        ordering = ["-slot_start_at", "-created_at"]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["shift_instance", "crusher_unit", "slot_index"],
-                condition=models.Q(entry_type="hourly"),
-                name="uniq_crusherentry_hourly_slot",
-            ),
-            models.UniqueConstraint(
-                fields=["shift_instance", "crusher_unit"],
-                condition=models.Q(entry_type="shift_total"),
-                name="uniq_crusherentry_shift_total",
-            ),
-        ]
-        indexes = [models.Index(fields=["site", "shift_instance"])]
-
-    def __str__(self):
-        return f"CrusherEntry#{self.pk} {self.crusher_unit}"
-
-    def get_site_id(self):
-        return self.site_id
-
-
 class DeliveryEntry(TimeStampedModel):
     history = HistoricalRecords()
 
@@ -299,9 +233,9 @@ class DeliveryEntry(TimeStampedModel):
     class Meta:
         ordering = ["-slot_start_at", "-created_at"]
         constraints = [
-            # DeliveryEntry has no entry_type (unlike ProductionEntry/
-            # CrusherEntry) — it's always slot-based, so this is the single
-            # matching "hourly" constraint those two models split in two.
+            # DeliveryEntry has no entry_type (unlike ProductionEntry) —
+            # it's always slot-based, so this is the single matching
+            # "hourly" constraint that model splits in two.
             # Without it, nothing stops the mobile app's offline-sync retry
             # path (or a plain double-submit) from creating two delivery
             # records for the same slot, silently inflating tonnes/trip_count

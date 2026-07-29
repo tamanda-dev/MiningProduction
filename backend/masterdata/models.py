@@ -186,24 +186,6 @@ class ParameterChoice(TimeStampedModel):
         return f"{self.parameter.code}:{self.value}"
 
 
-class CrusherUnit(TimeStampedModel):
-    history = HistoricalRecords()
-
-    site = models.ForeignKey(Site, on_delete=models.PROTECT, related_name="crusher_units")
-    name = models.CharField(max_length=100)
-    code = models.SlugField(max_length=20)
-    active = models.BooleanField(default=True)
-
-    class Meta:
-        ordering = ["site", "name"]
-        constraints = [
-            models.UniqueConstraint(fields=["site", "code"], name="uniq_crusherunit_site_code"),
-        ]
-
-    def __str__(self):
-        return self.name
-
-
 class DeliveryDestination(TimeStampedModel):
     history = HistoricalRecords()
 

@@ -101,6 +101,7 @@ class HourlyChecklistEntrySerializer(serializers.ModelSerializer):
             "slot_end_at",
             "checklist_item",
             "is_completed",
+            "completed_at",
             "notes",
             "operator",
             "recorded_by",
@@ -108,7 +109,7 @@ class HourlyChecklistEntrySerializer(serializers.ModelSerializer):
             "source",
             "client_uuid",
         )
-        read_only_fields = ("site", "slot_start_at", "slot_end_at", "operator", "recorded_by")
+        read_only_fields = ("site", "slot_start_at", "slot_end_at", "completed_at", "operator", "recorded_by")
         # See entries.serializers.ProductionEntrySerializer.Meta.validators
         # for why the auto UniqueTogetherValidator is disabled here too.
         validators = []
@@ -129,12 +130,31 @@ class HourlyChecklistEntrySerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"hourly_slot": "Required."})
         attrs["slot_start_at"], attrs["slot_end_at"] = services.resolve_slot_datetimes(hourly_slot, shift_instance)
 
+        # "Done" or "not done" is resubmitted in full on every save (see
+        # mobile ChecklistScreen) rather than PATCHed incrementally, so the
+        # actual completion time — not just the slot's window — is simply
+        # "now" whenever is_completed arrives True, and cleared if the
+        # supervisor unchecks it again.
+        attrs["completed_at"] = timezone.now() if attrs.get("is_completed") else None
+
         attrs["operator"] = attrs.get("operator") or request.user
         attrs["recorded_by"] = request.user
 
         entries_services.enforce_shift_window(shift_instance, request.user)
         entries_services.enforce_status_change_permission(self.instance, attrs.get("status"), request.user)
         return attrs
+
+    def create(self, validated_data):
+        entry = HourlyChecklistEntry.objects.create(**validated_data)
+        services.refresh_summary_for(entry.crusher, entry.shift_instance, entry.recorded_by)
+        return entry
+
+    def update(self, instance, validated_data):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        services.refresh_summary_for(instance.crusher, instance.shift_instance, instance.recorded_by)
+        return instance
 
     def create(self, validated_data):
         try:
@@ -212,6 +232,7 @@ class HourlyBreakdownEntrySerializer(serializers.ModelSerializer):
             _conflict("A breakdown-matrix entry already exists for this crusher/slot in this shift instance.")
         if causes:
             entry.causes.set(causes)
+        services.refresh_summary_for(entry.crusher, entry.shift_instance, entry.recorded_by)
         return entry
 
     def update(self, instance, validated_data):
@@ -221,6 +242,7 @@ class HourlyBreakdownEntrySerializer(serializers.ModelSerializer):
         instance.save()
         if causes is not None:
             instance.causes.set(causes)
+        services.refresh_summary_for(instance.crusher, instance.shift_instance, instance.recorded_by)
         return instance
 
 
@@ -341,6 +363,7 @@ class ShiftCrushingSummarySerializer(serializers.ModelSerializer):
         )
         read_only_fields = (
             "site",
+            "crushing_time_minutes",
             "down_time_minutes",
             "crushed_tonnage",
             "stoppage_instances",

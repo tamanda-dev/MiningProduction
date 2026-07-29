@@ -48,10 +48,9 @@ class Command(BaseCommand):
             HourlySlot,
             ShiftCrushingSummary,
         )
-        from entries.models import BreakdownLog, CrusherEntry, DeliveryEntry, ProductionEntry
+        from entries.models import BreakdownLog, DeliveryEntry, ProductionEntry
         from machines.models import Machine, MachineAssignment, MachineTypeQualification
         from masterdata.models import (
-            CrusherUnit,
             DeliveryDestination,
             DowntimeReasonCode,
             MachineType,
@@ -72,7 +71,6 @@ class Command(BaseCommand):
             ShiftCrushingSummary.objects.all().delete()
             ProductionEntry.objects.all().delete()  # cascades ParameterValue
             BreakdownLog.objects.all().delete()
-            CrusherEntry.objects.all().delete()
             DeliveryEntry.objects.all().delete()
 
             MachineAssignment.objects.all().delete()
@@ -89,7 +87,6 @@ class Command(BaseCommand):
 
             HourlySlot.objects.all().delete()
             Section.objects.all().delete()
-            CrusherUnit.objects.all().delete()
             DeliveryDestination.objects.all().delete()
             DowntimeReasonCode.objects.all().delete()
             BreakdownCause.objects.all().delete()

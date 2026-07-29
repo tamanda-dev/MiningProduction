@@ -154,14 +154,6 @@ export interface Parameter {
   active: boolean;
 }
 
-export interface CrusherUnit {
-  id: ID;
-  site: ID;
-  name: string;
-  code: string;
-  active: boolean;
-}
-
 export interface DeliveryDestination {
   id: ID;
   site: ID;

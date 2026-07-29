@@ -7,11 +7,25 @@ from shiftmgmt.models import ShiftInstance
 from shiftmgmt.services import get_or_create_open_instance
 
 from . import services
-from .models import BreakdownLog, CrusherEntry, DeliveryEntry, ParameterValue, ProductionEntry
+from .models import BreakdownLog, DeliveryEntry, ParameterValue, ProductionEntry
 
 
 def _conflict(detail):
     raise serializers.ValidationError({"detail": detail, "code": "slot_conflict"})
+
+
+def _refresh_crusher_summary_if_applicable(entry):
+    """A crusher Machine's "Tonnes Crushed" figure is submitted through the
+    ordinary Production Entry form like any other machine parameter — there
+    is no separate crusher throughput screen (see crusher_ops.services).
+    Local import: crusher_ops already imports from entries, so importing it
+    back here at module level would cycle; importing inside the function
+    (only reached for a crusher machine, i.e. rarely) does not.
+    """
+    if entry.machine_id and entry.machine.machine_type.code == "cru":
+        from crusher_ops import services as crusher_ops_services
+
+        crusher_ops_services.refresh_summary_for(entry.machine, entry.shift_instance, entry.recorded_by)
 
 
 class ParameterValueInSerializer(serializers.Serializer):
@@ -162,6 +176,7 @@ class ProductionEntrySerializer(serializers.ModelSerializer):
                 services.set_parameter_values("production_entry", entry, values)
         except IntegrityError:
             _conflict("An entry already exists for this machine/section/slot in this shift instance.")
+        _refresh_crusher_summary_if_applicable(entry)
         return entry
 
     def update(self, instance, validated_data):
@@ -176,6 +191,7 @@ class ProductionEntrySerializer(serializers.ModelSerializer):
                     services.set_parameter_values("production_entry", instance, values)
         except IntegrityError:
             _conflict("An entry already exists for this machine/section/slot in this shift instance.")
+        _refresh_crusher_summary_if_applicable(instance)
         return instance
 
 
@@ -266,92 +282,6 @@ class BreakdownLogSerializer(serializers.ModelSerializer):
             if values is not None:
                 services.set_parameter_values("breakdown_log", instance, values)
             services.apply_breakdown_side_effects(instance)
-        return instance
-
-
-class CrusherEntrySerializer(serializers.ModelSerializer):
-    values = ParameterValueInSerializer(many=True, write_only=True, required=False)
-    values_display = ParameterValueOutSerializer(source="values", many=True, read_only=True)
-    override_reason = serializers.CharField(required=False, allow_blank=True, write_only=True)
-
-    class Meta:
-        model = CrusherEntry
-        fields = (
-            "id",
-            "shift_instance",
-            "site",
-            "crusher_unit",
-            "section",
-            "entry_type",
-            "slot_index",
-            "slot_start_at",
-            "slot_end_at",
-            "throughput_tonnes",
-            "operator",
-            "recorded_by",
-            "comments",
-            "status",
-            "source",
-            "client_uuid",
-            "override_reason",
-            "values",
-            "values_display",
-        )
-        read_only_fields = ("site", "shift_instance", "slot_start_at", "slot_end_at", "operator", "recorded_by")
-        # See ProductionEntrySerializer.Meta.validators for why this is disabled.
-        validators = []
-
-    def validate(self, attrs):
-        request = self.context["request"]
-        crusher_unit = attrs.get("crusher_unit") or getattr(self.instance, "crusher_unit", None)
-        attrs["site"] = crusher_unit.site
-        shift_instance = get_or_create_open_instance(crusher_unit.site)
-        if shift_instance is None:
-            raise serializers.ValidationError({"detail": "No open shift covers the current time for this site."})
-        attrs["shift_instance"] = shift_instance
-        attrs["operator"] = request.user
-        attrs["recorded_by"] = request.user
-
-        entry_type = attrs.get("entry_type", getattr(self.instance, "entry_type", "hourly"))
-        slot_index = attrs.get("slot_index", getattr(self.instance, "slot_index", None))
-        if entry_type == "hourly":
-            if slot_index is None:
-                raise serializers.ValidationError({"slot_index": "Required for hourly entries."})
-            start, end = services.resolve_slot_datetimes(shift_instance, slot_index)
-            attrs["slot_start_at"], attrs["slot_end_at"] = start, end
-        else:
-            attrs["slot_index"] = None
-            attrs["slot_start_at"] = None
-            attrs["slot_end_at"] = None
-
-        services.enforce_shift_window(shift_instance, request.user, attrs.get("override_reason", ""))
-        services.enforce_status_change_permission(self.instance, attrs.get("status"), request.user)
-        return attrs
-
-    def create(self, validated_data):
-        values = validated_data.pop("values", [])
-        validated_data.pop("override_reason", None)
-        try:
-            with transaction.atomic():
-                entry = CrusherEntry.objects.create(**validated_data)
-                if values:
-                    services.set_parameter_values("crusher_entry", entry, values)
-        except IntegrityError:
-            _conflict("An entry already exists for this crusher unit/slot in this shift instance.")
-        return entry
-
-    def update(self, instance, validated_data):
-        values = validated_data.pop("values", None)
-        validated_data.pop("override_reason", None)
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        try:
-            with transaction.atomic():
-                instance.save()
-                if values is not None:
-                    services.set_parameter_values("crusher_entry", instance, values)
-        except IntegrityError:
-            _conflict("An entry already exists for this crusher unit/slot in this shift instance.")
         return instance
 
 

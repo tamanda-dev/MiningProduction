@@ -173,11 +173,11 @@ class BreakdownIncidentViewSet(BulkSyncMixin, ModelViewSet):
             update_fields=["root_cause_of_failure", "remedial_action_taken", "time_completed", "status", "updated_at"]
         )
 
-        summary = ShiftCrushingSummary.objects.filter(
-            crusher=incident.crusher, shift_instance=incident.shift_instance
-        ).first()
-        if summary is not None:
-            services.recompute_shift_crushing_summary(summary)
+        # shift_instance is nullable on BreakdownIncident (an incident may
+        # be reported with no shift technically "open" for the site) — no
+        # summary to attach to in that case.
+        if incident.shift_instance_id is not None:
+            services.refresh_summary_for(incident.crusher, incident.shift_instance, request.user)
 
         return Response(BreakdownIncidentSerializer(incident).data)
 

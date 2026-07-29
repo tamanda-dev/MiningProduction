@@ -27,7 +27,6 @@ import { OpenIncidentsPage } from "@/pages/crusher/OpenIncidentsPage";
 import { BreakdownCausesPage } from "@/pages/masterdata/BreakdownCausesPage";
 import { ChecklistItemsPage } from "@/pages/masterdata/ChecklistItemsPage";
 import { HourlySlotsPage } from "@/pages/masterdata/HourlySlotsPage";
-import { CrusherUnitsPage } from "@/pages/masterdata/CrusherUnitsPage";
 import { DeliveryDestinationsPage } from "@/pages/masterdata/DeliveryDestinationsPage";
 import { DowntimeReasonCodesPage } from "@/pages/masterdata/DowntimeReasonCodesPage";
 import { MachinesPage } from "@/pages/masterdata/MachinesPage";
@@ -107,7 +106,6 @@ function App() {
             <Route path="/admin/machines" element={<MachinesPage />} />
             <Route path="/admin/uoms" element={<UOMsPage />} />
             <Route path="/admin/parameters" element={<ParametersPage />} />
-            <Route path="/admin/crusher-units" element={<CrusherUnitsPage />} />
             <Route path="/admin/delivery-destinations" element={<DeliveryDestinationsPage />} />
             <Route path="/admin/downtime-reasons" element={<DowntimeReasonCodesPage />} />
             <Route path="/admin/plan-targets" element={<PlanTargetsPage />} />

@@ -1,7 +1,6 @@
 from rest_framework import serializers
 
 from .models import (
-    CrusherUnit,
     DeliveryDestination,
     DowntimeReasonCode,
     MachineType,
@@ -89,12 +88,6 @@ class ParameterSerializer(serializers.ModelSerializer):
                 {"choices": "Choices are only valid for data_type='select'."}
             )
         return attrs
-
-
-class CrusherUnitSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CrusherUnit
-        fields = ("id", "site", "name", "code", "active")
 
 
 class DeliveryDestinationSerializer(serializers.ModelSerializer):

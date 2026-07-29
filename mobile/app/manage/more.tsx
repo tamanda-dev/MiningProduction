@@ -21,7 +21,6 @@ const SECTIONS: { title: string; items: NavRow[] }[] = [
       { label: "Machines", href: "/manage/master-data/machines", requireRole: "admin" },
       { label: "Units of Measure", href: "/manage/master-data/uoms", requireRole: "admin" },
       { label: "Parameters", href: "/manage/master-data/parameters", requireRole: "admin" },
-      { label: "Crusher Units", href: "/manage/master-data/crusher-units", requireRole: "admin" },
       { label: "Delivery Destinations", href: "/manage/master-data/delivery-destinations", requireRole: "admin" },
       { label: "Downtime Reason Codes", href: "/manage/master-data/downtime-reasons", requireRole: "admin" },
       { label: "Shift Patterns", href: "/manage/master-data/shift-patterns", requireRole: "supervisor" },

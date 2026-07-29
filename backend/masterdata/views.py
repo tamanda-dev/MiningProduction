@@ -10,7 +10,6 @@ from rest_framework.viewsets import ModelViewSet
 from core.permissions import ReadOnlyOrAdmin
 
 from .models import (
-    CrusherUnit,
     DeliveryDestination,
     DowntimeReasonCode,
     MachineType,
@@ -22,7 +21,6 @@ from .models import (
 )
 from .signals import FORM_SCHEMA_VERSION_KEY
 from .serializers import (
-    CrusherUnitSerializer,
     DeliveryDestinationSerializer,
     DowntimeReasonCodeSerializer,
     MachineTypeSerializer,
@@ -146,13 +144,6 @@ class ParameterChoiceViewSet(ModelViewSet):
     serializer_class = ParameterChoiceSerializer
     permission_classes = (ReadOnlyOrAdmin,)
     filterset_fields = ("parameter",)
-
-
-class CrusherUnitViewSet(ModelViewSet):
-    queryset = CrusherUnit.objects.select_related("site").all()
-    serializer_class = CrusherUnitSerializer
-    permission_classes = (ReadOnlyOrAdmin,)
-    filterset_fields = ("site", "active")
 
 
 class DeliveryDestinationViewSet(ModelViewSet):

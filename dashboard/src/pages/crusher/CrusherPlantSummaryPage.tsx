@@ -5,6 +5,7 @@ import { ErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { ShiftInstancePicker } from "@/components/common/ShiftInstancePicker";
 import { StatTile } from "@/components/common/StatTile";
+import { CrusherPlantExportButton } from "@/components/crusher/CrusherPlantExportButton";
 import { api } from "@/lib/api";
 import { useCrusherMachines } from "@/lib/useCrusherMachines";
 import { useSiteFilter } from "@/lib/SiteFilterContext";
@@ -72,6 +73,10 @@ export function CrusherPlantSummaryPage() {
     <div>
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <h1 className="text-lg font-semibold text-slate-900">Crusher Plant Summary</h1>
+        <CrusherPlantExportButton siteId={siteId} />
+      </div>
+
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div className="flex items-end gap-3">
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-500">Crusher</label>

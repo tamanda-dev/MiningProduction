@@ -126,14 +126,6 @@ export interface TimeSlot {
   end_at: string;
 }
 
-export interface CrusherUnit {
-  id: ID;
-  site: ID;
-  name: string;
-  code: string;
-  active: boolean;
-}
-
 export interface DeliveryDestination {
   id: ID;
   site: ID;
@@ -440,6 +432,7 @@ export interface HourlyChecklistEntry {
   slot_end_at: string;
   checklist_item: ID;
   is_completed: boolean;
+  completed_at: string | null;
   notes: string;
   operator: ID;
   recorded_by: ID;

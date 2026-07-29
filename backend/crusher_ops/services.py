@@ -5,16 +5,20 @@ from django.db.models import Sum
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from entries.models import CrusherEntry
-
 from .models import BreakdownIncident, HourlyBreakdownEntry, HourlySlot, ShiftCrushingSummary
+
+# The Parameter that carries crushed tonnage for a crusher Machine's
+# hourly Production Entries — see recompute_shift_crushing_summary. A
+# stable code (not a name lookup) so renaming the Parameter in Master Data
+# doesn't silently break the crushing-summary computation.
+TONNES_CRUSHED_PARAMETER_CODE = "tonnes-crushed"
 
 
 def validate_crusher_machine(machine):
-    """A "crusher" is a machines.Machine of machine_type.code == 'cru' —
-    NOT masterdata.CrusherUnit (a separate model used only by
-    entries.CrusherEntry for throughput bookkeeping). See crusher_ops app
-    docstring / project plan for why these stay distinct.
+    """A "crusher" is a machines.Machine of machine_type.code == 'cru'.
+    There is deliberately only ever one such Machine in normal operation
+    (a single crushing plant) — Master Data > Machines is where it's
+    configured, same as any other machine.
     """
     if machine.machine_type.code != "cru":
         raise ValidationError({"crusher": "Machine must be of machine type 'Crusher'."})
@@ -51,23 +55,48 @@ def resolve_slot_datetimes(hourly_slot, shift_instance):
     return start_dt, end_dt
 
 
+def _site_daily_window_minutes(site):
+    """Total tracked minutes/day for `site`'s crushing plant, summed across
+    its active HourlySlot rows (overnight-aware, same rule as is_overnight
+    elsewhere). A site configured with one slot spanning the full day (e.g.
+    00:00-00:00) sums to 1440; this is what "crushing is done daily" means
+    operationally — one HourlySlot covering the day, not one per hour.
+    """
+    total = 0
+    for slot in HourlySlot.objects.filter(site=site, active=True):
+        start = datetime.combine(datetime.min, slot.start_time)
+        end = datetime.combine(datetime.min, slot.end_time)
+        if slot.is_overnight:
+            end += timedelta(days=1)
+        total += int((end - start).total_seconds() // 60)
+    return total
+
+
 def recompute_shift_crushing_summary(summary):
-    """Refreshes the derived fields on a ShiftCrushingSummary:
-    - crushed_tonnage: summed at site+shift_instance granularity from the
-      existing CrusherEntry throughput data (hourly rows only, to avoid
-      double-counting against shift_total rows) — there is no FK between
-      machines.Machine and masterdata.CrusherUnit, and the spec says not
-      to add one, so this is the same figure for every crusher Machine at
-      this site/shift rather than inventing a per-machine tonnage fact the
-      system doesn't otherwise record.
-    - down_time_minutes / stoppage_instances: genuinely per-crusher-machine,
-      derived from BreakdownIncident (resolved incidents overlapping this
-      shift) plus HourlyBreakdownEntry.downtime_minutes for the same shift.
+    """Refreshes every derived field on a ShiftCrushingSummary — nothing
+    here is manually typed in by a Supervisor:
+    - crushed_tonnage: summed from ParameterValue for the
+      TONNES_CRUSHED_PARAMETER_CODE Parameter, scoped to this crusher
+      Machine + shift instance (hourly rows only, avoiding double-counting
+      against a shift_total row — though Parameter.scope="machine" already
+      forbids submitting one that way, see ProductionEntrySerializer).
+      Submitted through the ordinary Production Entry form like any other
+      machine parameter — there is no separate "crusher throughput" screen.
+    - down_time_minutes / stoppage_instances: from BreakdownIncident
+      (resolved incidents overlapping this shift) plus
+      HourlyBreakdownEntry.downtime_minutes for the same shift.
+    - crushing_time_minutes: the site's configured daily window (see
+      _site_daily_window_minutes) minus down_time_minutes.
     - availability_pct: crushing_time / (crushing_time + down_time) * 100.
     """
-    tonnage = CrusherEntry.objects.filter(
-        site=summary.site, shift_instance=summary.shift_instance, entry_type="hourly"
-    ).aggregate(total=Sum("throughput_tonnes"))["total"] or Decimal("0")
+    from entries.models import ParameterValue  # local: avoids an entries<->crusher_ops import cycle
+
+    tonnage = ParameterValue.objects.filter(
+        parameter__code=TONNES_CRUSHED_PARAMETER_CODE,
+        production_entry__machine=summary.crusher,
+        production_entry__shift_instance=summary.shift_instance,
+        production_entry__entry_type="hourly",
+    ).aggregate(total=Sum("value_number"))["total"] or Decimal("0")
     summary.crushed_tonnage = tonnage
 
     incidents = BreakdownIncident.objects.filter(
@@ -83,21 +112,38 @@ def recompute_shift_crushing_summary(summary):
     summary.down_time_minutes = incident_minutes + matrix_minutes
     summary.stoppage_instances = incidents.count()
 
-    if summary.crushing_time_minutes:
-        denominator = summary.crushing_time_minutes + summary.down_time_minutes
-        summary.availability_pct = (
-            Decimal(summary.crushing_time_minutes) / Decimal(denominator) * 100 if denominator else None
-        )
-    else:
-        summary.availability_pct = None
+    window_minutes = _site_daily_window_minutes(summary.site)
+    summary.crushing_time_minutes = max(0, window_minutes - summary.down_time_minutes)
+
+    denominator = summary.crushing_time_minutes + summary.down_time_minutes
+    summary.availability_pct = (
+        Decimal(summary.crushing_time_minutes) / Decimal(denominator) * 100 if denominator else None
+    )
 
     summary.save(
         update_fields=[
             "crushed_tonnage",
             "down_time_minutes",
             "stoppage_instances",
+            "crushing_time_minutes",
             "availability_pct",
             "updated_at",
         ]
     )
     return summary
+
+
+def refresh_summary_for(crusher, shift_instance, user):
+    """Get-or-creates the ShiftCrushingSummary for this crusher/shift and
+    recomputes it — called from every crusher_ops write (checklist tick,
+    breakdown-matrix tick, resolved incident) and from ProductionEntry
+    writes carrying TONNES_CRUSHED_PARAMETER_CODE, so the Crusher Plant
+    Summary dashboard reflects activity in real time without a Supervisor
+    ever having to manually create the summary row first.
+    """
+    summary, _created = ShiftCrushingSummary.objects.get_or_create(
+        crusher=crusher,
+        shift_instance=shift_instance,
+        defaults={"site": crusher.site, "recorded_by": user},
+    )
+    return recompute_shift_crushing_summary(summary)
