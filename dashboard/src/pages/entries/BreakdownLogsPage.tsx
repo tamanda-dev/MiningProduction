@@ -1,16 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Card } from "@/components/common/Card";
+import { DownloadPdfButton } from "@/components/common/DownloadPdfButton";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { Modal } from "@/components/common/Modal";
+import { Pagination } from "@/components/common/Pagination";
 import { EntryHistoryPanel } from "@/components/entries/EntryHistoryPanel";
 import { api } from "@/lib/api";
 import { NEUTRAL, STATUS } from "@/lib/chartTheme";
 import { useSiteFilter } from "@/lib/SiteFilterContext";
 import { useLookup } from "@/lib/useLookup";
 import type { BreakdownLog, DowntimeReasonCode, Machine, Paginated } from "@/types";
+
+const PAGE_SIZE = 25;
 
 const SEVERITY_COLOR: Record<string, string> = {
   low: STATUS.good,
@@ -72,6 +76,10 @@ export function BreakdownLogsPage() {
   const { data: machines } = useLookup<Machine>("machines", siteId ? { site: siteId } : undefined);
   const { data: reasonCodes } = useLookup<DowntimeReasonCode>("downtime-reason-codes");
   const [machineId, setMachineId] = useState<number | null>(null);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<BreakdownLog | null>(null);
 
   const machineLabel = (id: number) => {
@@ -82,15 +90,39 @@ export function BreakdownLogsPage() {
     id ? reasonCodes?.find((r) => r.id === id)?.description ?? id : "—";
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["breakdown-logs", siteId, machineId],
+    queryKey: ["breakdown-logs", siteId, machineId, dateFrom, dateTo],
     queryFn: async () => {
       const { data } = await api.get<Paginated<BreakdownLog>>("/breakdown-logs/", {
-        params: { site: siteId, machine: machineId ?? undefined, page_size: 100, ordering: "-start_at" },
+        params: {
+          site: siteId,
+          machine: machineId ?? undefined,
+          date_from: dateFrom || undefined,
+          date_to: dateTo || undefined,
+          page_size: 500,
+          ordering: "-start_at",
+        },
       });
       return data.results;
     },
     enabled: siteId !== null,
   });
+
+  const filtered = useMemo(() => {
+    if (!data) return undefined;
+    if (!search.trim()) return data;
+    const needle = search.trim().toLowerCase();
+    return data.filter((log) =>
+      [machineLabel(log.machine), reasonLabel(log.reason_code), log.description, log.severity, log.status]
+        .join(" ")
+        .toLowerCase()
+        .includes(needle),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, search, machines, reasonCodes]);
+
+  const pageCount = filtered ? Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)) : 1;
+  const currentPage = Math.min(page, pageCount);
+  const pageRows = filtered?.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
     <div>
@@ -109,12 +141,57 @@ export function BreakdownLogsPage() {
             </option>
           ))}
         </select>
+        <input
+          type="date"
+          value={dateFrom}
+          onChange={(e) => {
+            setDateFrom(e.target.value);
+            setPage(1);
+          }}
+          className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+        />
+        <input
+          type="date"
+          value={dateTo}
+          onChange={(e) => {
+            setDateTo(e.target.value);
+            setPage(1);
+          }}
+          className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+        />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+          placeholder="Search…"
+          className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+        />
+        <DownloadPdfButton
+          title="Breakdown Logs"
+          columns={[
+            { key: "start", label: "Start" },
+            { key: "machine", label: "Machine" },
+            { key: "reason", label: "Reason" },
+            { key: "duration", label: "Duration" },
+            { key: "severity", label: "Severity" },
+          ]}
+          rows={(filtered ?? []).map((log) => ({
+            start: new Date(log.start_at).toLocaleString(),
+            machine: String(machineLabel(log.machine)),
+            reason: String(reasonLabel(log.reason_code) || log.description),
+            duration: log.duration_minutes !== null ? `${log.duration_minutes} min` : "Ongoing",
+            severity: log.severity,
+          }))}
+        />
       </div>
 
       {isLoading && <LoadingSpinner />}
       {isError && <ErrorMessage message="Failed to load breakdown logs." />}
 
-      {data && (
+      {pageRows && (
         <Card padded={false} className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
@@ -127,14 +204,14 @@ export function BreakdownLogsPage() {
               </tr>
             </thead>
             <tbody>
-              {data.length === 0 && (
+              {pageRows.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-4 py-2">
                     <EmptyState message="No breakdown logs match these filters." />
                   </td>
                 </tr>
               )}
-              {data.map((log) => (
+              {pageRows.map((log) => (
                 <tr
                   key={log.id}
                   onClick={() => setSelected(log)}
@@ -159,6 +236,10 @@ export function BreakdownLogsPage() {
             </tbody>
           </table>
         </Card>
+      )}
+
+      {filtered && (
+        <Pagination page={currentPage} pageCount={pageCount} totalCount={filtered.length} onChange={setPage} />
       )}
 
       {selected && <BreakdownDetailModal log={selected} onClose={() => setSelected(null)} />}

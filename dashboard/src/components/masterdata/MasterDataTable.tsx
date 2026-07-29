@@ -1,12 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Button } from "@/components/common/Button";
+import { DownloadPdfButton } from "@/components/common/DownloadPdfButton";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorMessage, extractErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { Modal } from "@/components/common/Modal";
+import { Pagination } from "@/components/common/Pagination";
 import { api } from "@/lib/api";
 import type { Paginated } from "@/types";
+
+const PAGE_SIZE = 25;
 
 export interface FieldOption {
   value: string | number;
@@ -39,6 +43,17 @@ export interface MasterDataResourceConfig<T extends { id: number }> {
   canWrite: boolean;
   defaultValues?: Record<string, unknown>;
   extraParams?: Record<string, string | number>;
+  /** Raw field name (not necessarily a rendered column) to expose a From/To
+   * date range filter for — sent to the server as `{field}__gte`/`__lte`
+   * so it narrows the actual query instead of just hiding already-fetched
+   * rows client-side. Opt-in: most master data (Sites, Parameters, ...) has
+   * no meaningful date to filter by; operational/log-like resources
+   * (Plan Targets, Shift Instances) do.
+   */
+  dateField?: keyof T & string;
+  /** Which raw field values the search box matches against (case-
+   * insensitive substring). Defaults to every configured column's key. */
+  searchKeys?: (keyof T & string)[];
 }
 
 type FormValues = Record<string, unknown>;
@@ -73,19 +88,53 @@ function fieldDefault(field: FieldConfig): unknown {
 }
 
 export function MasterDataTable<T extends { id: number }>({ config }: { config: MasterDataResourceConfig<T> }) {
-  const { resource, title, columns, fields, canWrite, defaultValues, extraParams } = config;
+  const { resource, title, columns, fields, canWrite, defaultValues, extraParams, dateField, searchKeys } = config;
   const queryClient = useQueryClient();
-  const queryKey = [resource, extraParams ?? {}];
+
+  const [search, setSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [page, setPage] = useState(1);
+
+  const dateParams = dateField
+    ? { [`${dateField}__gte`]: dateFrom || undefined, [`${dateField}__lte`]: dateTo || undefined }
+    : {};
+  const queryKey = [resource, extraParams ?? {}, dateParams];
 
   const { data, isLoading, isError } = useQuery({
     queryKey,
     queryFn: async () => {
       const { data } = await api.get<Paginated<T>>(`/${resource}/`, {
-        params: { page_size: 500, ...extraParams },
+        params: { page_size: 500, ...extraParams, ...dateParams },
       });
       return data.results;
     },
   });
+
+  const effectiveSearchKeys = searchKeys ?? columns.map((c) => c.key as keyof T & string);
+  const filtered = useMemo(() => {
+    if (!data) return undefined;
+    if (!search.trim()) return data;
+    const needle = search.trim().toLowerCase();
+    return data.filter((row) =>
+      effectiveSearchKeys.some((key) =>
+        String((row as Record<string, unknown>)[key] ?? "").toLowerCase().includes(needle),
+      ),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, search]);
+
+  const pageCount = filtered ? Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)) : 1;
+  const currentPage = Math.min(page, pageCount);
+  const pageRows = filtered?.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  function cellText(row: T, col: ColumnConfig<T>): string {
+    if (col.render) {
+      const rendered = col.render(row);
+      return typeof rendered === "string" || typeof rendered === "number" ? String(rendered) : "";
+    }
+    return String((row as Record<string, unknown>)[col.key] ?? "");
+  }
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<T | null>(null);
@@ -164,17 +213,68 @@ export function MasterDataTable<T extends { id: number }>({ config }: { config: 
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-lg font-semibold text-slate-900">{title}</h1>
         {canWrite && (
           <Button onClick={openCreate}>+ Add</Button>
         )}
       </div>
 
+      <div className="mb-4 flex flex-wrap items-end gap-3">
+        <div>
+          <label className="mb-1 block text-xs font-medium text-slate-500">Search</label>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Search…"
+            className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+          />
+        </div>
+        {dateField && (
+          <>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-500">From</label>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => {
+                  setDateFrom(e.target.value);
+                  setPage(1);
+                }}
+                className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-500">To</label>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => {
+                  setDateTo(e.target.value);
+                  setPage(1);
+                }}
+                className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              />
+            </div>
+          </>
+        )}
+        <DownloadPdfButton
+          title={title}
+          columns={columns.map((c) => ({ key: c.key, label: c.label }))}
+          rows={(filtered ?? []).map((row) =>
+            Object.fromEntries(columns.map((c) => [c.key, cellText(row, c)])),
+          )}
+        />
+      </div>
+
       {isLoading && <LoadingSpinner />}
       {isError && <ErrorMessage message="Failed to load data." />}
 
-      {data && (
+      {pageRows && (
         <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
@@ -188,14 +288,14 @@ export function MasterDataTable<T extends { id: number }>({ config }: { config: 
               </tr>
             </thead>
             <tbody>
-              {data.length === 0 && (
+              {pageRows.length === 0 && (
                 <tr>
                   <td colSpan={columns.length + 1} className="px-4 py-2">
-                    <EmptyState message="No records yet." />
+                    <EmptyState message={search || dateFrom || dateTo ? "No records match these filters." : "No records yet."} />
                   </td>
                 </tr>
               )}
-              {data.map((row) => (
+              {pageRows.map((row) => (
                 <tr key={row.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                   {columns.map((col) => (
                     <td key={col.key} className="px-4 py-3 text-slate-700">
@@ -227,6 +327,15 @@ export function MasterDataTable<T extends { id: number }>({ config }: { config: 
             </tbody>
           </table>
         </div>
+      )}
+
+      {filtered && (
+        <Pagination
+          page={currentPage}
+          pageCount={pageCount}
+          totalCount={filtered.length}
+          onChange={setPage}
+        />
       )}
 
       <Modal

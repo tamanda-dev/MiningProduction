@@ -308,3 +308,39 @@ def test_delivery_entry_without_slot_index_is_accepted(
     )
     assert resp.status_code == 201, resp.data
     assert resp.data["slot_index"] is None
+
+
+@pytest.mark.django_db
+def test_production_entry_date_to_includes_the_whole_day(
+    api_client, machines, sections, all_day_shifts, django_user_model
+):
+    """Regression test: date_to must match the *date part* of slot_start_at,
+    not compare the raw datetime against midnight of that date — a plain
+    slot_start_at__lte=2026-07-29 would silently exclude an entry logged at
+    2026-07-29 14:00 (everything past midnight on the "to" day), which is
+    not what a Supervisor means by "show me entries through the 29th."
+    """
+    from datetime import datetime, timezone as dt_timezone
+
+    from entries.models import ProductionEntry
+    from machines.models import MachineAssignment
+    from shiftmgmt.services import get_or_create_open_instance
+
+    m_a, _ = machines
+    sec_a, _ = sections
+    operator = django_user_model.objects.create_user(username="op1", password="pass12345")
+    instance = get_or_create_open_instance(m_a.site)
+    assignment = MachineAssignment.objects.create(
+        machine=m_a, operator=operator, shift_instance=instance, section=sec_a, status=MachineAssignment.STATUS_ACTIVE
+    )
+    entry = ProductionEntry.objects.create(
+        shift_instance=instance, site=m_a.site, section=sec_a, machine=m_a, machine_assignment=assignment,
+        entry_type=ProductionEntry.ENTRY_TYPE_HOURLY, slot_index=0, operator=operator, recorded_by=operator,
+        slot_start_at=datetime(2026, 7, 29, 14, 0, tzinfo=dt_timezone.utc),
+        slot_end_at=datetime(2026, 7, 29, 15, 0, tzinfo=dt_timezone.utc),
+    )
+
+    api_client.force_authenticate(user=operator)
+    resp = api_client.get("/api/production-entries/", {"date_from": "2026-07-29", "date_to": "2026-07-29"})
+    assert resp.status_code == 200
+    assert entry.id in [row["id"] for row in resp.data["results"]]

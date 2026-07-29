@@ -44,7 +44,14 @@ class ShiftInstanceViewSet(ModelViewSet):
     queryset = ShiftInstance.objects.select_related("shift", "site", "closed_by", "approved_by").all()
     serializer_class = ShiftInstanceSerializer
     permission_classes = (ReadOnlyOrSupervisorOrAbove,)
-    filterset_fields = ("site", "shift", "status", "date")
+    filterset_fields = {
+        "site": ["exact"],
+        "shift": ["exact"],
+        "status": ["exact"],
+        # gte/lte power a From/To date range filter — exact stays for
+        # ShiftInstanceDatePicker's "just this one date" lookup.
+        "date": ["exact", "gte", "lte"],
+    }
 
     def get_queryset(self):
         qs = super().get_queryset()

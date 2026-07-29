@@ -1,13 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useAuth } from "@/auth/useAuth";
 import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
+import { DownloadPdfButton } from "@/components/common/DownloadPdfButton";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorMessage, extractErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { Modal } from "@/components/common/Modal";
+import { Pagination } from "@/components/common/Pagination";
 import { ShiftInstancePicker } from "@/components/common/ShiftInstancePicker";
 import { EntryHistoryPanel } from "@/components/entries/EntryHistoryPanel";
 import { api } from "@/lib/api";
@@ -15,6 +17,8 @@ import { ENTRY_STATUS_COLOR } from "@/lib/chartTheme";
 import { useSiteFilter } from "@/lib/SiteFilterContext";
 import { useLookup } from "@/lib/useLookup";
 import type { EntryStatus, Machine, Paginated, ProductionEntry, Section, ShiftInstance } from "@/types";
+
+const PAGE_SIZE = 25;
 
 const STATUS_OPTIONS: EntryStatus[] = ["submitted", "flagged", "corrected", "approved"];
 
@@ -124,6 +128,10 @@ export function ProductionEntriesPage() {
   const [machineId, setMachineId] = useState<number | null>(null);
   const [shiftInstanceId, setShiftInstanceId] = useState<number | null>(null);
   const [status, setStatus] = useState<string>("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<ProductionEntry | null>(null);
 
   const sectionName = (id: number) => sections?.find((s) => s.id === id)?.name ?? id;
@@ -134,7 +142,7 @@ export function ProductionEntriesPage() {
   };
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["production-entries", siteId, sectionId, machineId, shiftInstanceId, status],
+    queryKey: ["production-entries", siteId, sectionId, machineId, shiftInstanceId, status, dateFrom, dateTo],
     queryFn: async () => {
       const { data } = await api.get<Paginated<ProductionEntry>>("/production-entries/", {
         params: {
@@ -143,7 +151,9 @@ export function ProductionEntriesPage() {
           machine: machineId ?? undefined,
           shift_instance: shiftInstanceId ?? undefined,
           status: status || undefined,
-          page_size: 100,
+          date_from: dateFrom || undefined,
+          date_to: dateTo || undefined,
+          page_size: 500,
           ordering: "-slot_start_at",
         },
       });
@@ -151,6 +161,23 @@ export function ProductionEntriesPage() {
     },
     enabled: siteId !== null,
   });
+
+  const filtered = useMemo(() => {
+    if (!data) return undefined;
+    if (!search.trim()) return data;
+    const needle = search.trim().toLowerCase();
+    return data.filter((entry) =>
+      [sectionName(entry.section), machineLabel(entry.machine), entry.entry_type, entry.status, entry.comments]
+        .join(" ")
+        .toLowerCase()
+        .includes(needle),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, search, sections, machines]);
+
+  const pageCount = filtered ? Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)) : 1;
+  const currentPage = Math.min(page, pageCount);
+  const pageRows = filtered?.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
     <div>
@@ -200,12 +227,57 @@ export function ProductionEntriesPage() {
             </option>
           ))}
         </select>
+        <input
+          type="date"
+          value={dateFrom}
+          onChange={(e) => {
+            setDateFrom(e.target.value);
+            setPage(1);
+          }}
+          className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+        />
+        <input
+          type="date"
+          value={dateTo}
+          onChange={(e) => {
+            setDateTo(e.target.value);
+            setPage(1);
+          }}
+          className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+        />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+          placeholder="Search…"
+          className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+        />
+        <DownloadPdfButton
+          title="Production Entries"
+          columns={[
+            { key: "slot", label: "Slot Start" },
+            { key: "section", label: "Section" },
+            { key: "machine", label: "Machine" },
+            { key: "type", label: "Type" },
+            { key: "status", label: "Status" },
+          ]}
+          rows={(filtered ?? []).map((entry) => ({
+            slot: entry.slot_start_at ? new Date(entry.slot_start_at).toLocaleString() : "(shift total)",
+            section: String(sectionName(entry.section)),
+            machine: String(machineLabel(entry.machine)),
+            type: entry.entry_type,
+            status: entry.status,
+          }))}
+        />
       </div>
 
       {isLoading && <LoadingSpinner />}
       {isError && <ErrorMessage message="Failed to load entries." />}
 
-      {data && (
+      {pageRows && (
         <Card padded={false} className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
@@ -218,14 +290,14 @@ export function ProductionEntriesPage() {
               </tr>
             </thead>
             <tbody>
-              {data.length === 0 && (
+              {pageRows.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-4 py-2">
                     <EmptyState message="No entries match these filters." />
                   </td>
                 </tr>
               )}
-              {data.map((entry) => (
+              {pageRows.map((entry) => (
                 <tr
                   key={entry.id}
                   onClick={() => setSelected(entry)}
@@ -245,6 +317,10 @@ export function ProductionEntriesPage() {
             </tbody>
           </table>
         </Card>
+      )}
+
+      {filtered && (
+        <Pagination page={currentPage} pageCount={pageCount} totalCount={filtered.length} onChange={setPage} />
       )}
 
       {selected && <EntryDetailModal entry={selected} onClose={() => setSelected(null)} />}

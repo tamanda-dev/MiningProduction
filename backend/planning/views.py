@@ -20,7 +20,17 @@ class PlanTargetViewSet(SiteScopedQuerySetMixin, ModelViewSet):
     ).all()
     serializer_class = PlanTargetSerializer
     permission_classes = (ReadOnlyOrSupervisorOrAbove,)
-    filterset_fields = ("site", "section", "machine", "parameter", "period_type", "period_date", "shift_instance")
+    filterset_fields = {
+        "site": ["exact"],
+        "section": ["exact"],
+        "machine": ["exact"],
+        "parameter": ["exact"],
+        "period_type": ["exact"],
+        # gte/lte power the Plan Targets page's From/To date range filter —
+        # exact stays for existing direct callers matching one specific date.
+        "period_date": ["exact", "gte", "lte"],
+        "shift_instance": ["exact"],
+    }
     site_lookup = "site_id"
 
     # PlanTarget.target_key is a computed uniqueness guard collapsing every

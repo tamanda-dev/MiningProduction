@@ -4,6 +4,7 @@ from rest_framework.viewsets import ModelViewSet
 
 from core.mixins import SiteScopedOrOwnQuerySetMixin
 
+from .filters import BreakdownLogFilterSet, DeliveryEntryFilterSet, ProductionEntryFilterSet
 from .models import BreakdownLog, DeliveryEntry, ProductionEntry
 from .permissions import CanWriteEntry
 from .serializers import (
@@ -54,7 +55,7 @@ class ProductionEntryViewSet(BulkSyncMixin, SiteScopedOrOwnQuerySetMixin, ModelV
     ).prefetch_related("values", "values__parameter").all()
     serializer_class = ProductionEntrySerializer
     permission_classes = (CanWriteEntry,)
-    filterset_fields = ("site", "section", "machine", "shift_instance", "entry_type", "status")
+    filterset_class = ProductionEntryFilterSet
     site_lookup = "site_id"
 
 
@@ -64,7 +65,7 @@ class BreakdownLogViewSet(BulkSyncMixin, SiteScopedOrOwnQuerySetMixin, ModelView
     ).prefetch_related("values", "values__parameter").all()
     serializer_class = BreakdownLogSerializer
     permission_classes = (CanWriteEntry,)
-    filterset_fields = ("site", "section", "machine", "shift_instance", "reason_code", "status")
+    filterset_class = BreakdownLogFilterSet
     site_lookup = "site_id"
 
 
@@ -74,5 +75,5 @@ class DeliveryEntryViewSet(BulkSyncMixin, SiteScopedOrOwnQuerySetMixin, ModelVie
     ).prefetch_related("values", "values__parameter").all()
     serializer_class = DeliveryEntrySerializer
     permission_classes = (CanWriteEntry,)
-    filterset_fields = ("site", "section", "delivery_destination", "shift_instance", "status")
+    filterset_class = DeliveryEntryFilterSet
     site_lookup = "site_id"

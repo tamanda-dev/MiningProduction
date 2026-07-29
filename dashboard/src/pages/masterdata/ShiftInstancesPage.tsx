@@ -1,15 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import { useAuth } from "@/auth/useAuth";
 import { Badge } from "@/components/common/Badge";
 import { Card } from "@/components/common/Card";
+import { DownloadPdfButton } from "@/components/common/DownloadPdfButton";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorMessage, extractErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
+import { Pagination } from "@/components/common/Pagination";
 import { api } from "@/lib/api";
 import { MACHINE_STATUS_COLOR, STATUS } from "@/lib/chartTheme";
 import { useSiteFilter } from "@/lib/SiteFilterContext";
 import type { Paginated, ShiftInstance } from "@/types";
-import { useState } from "react";
+
+const PAGE_SIZE = 25;
 
 const STATUS_COLOR: Record<string, string> = {
   open: STATUS.good,
@@ -22,17 +26,38 @@ export function ShiftInstancesPage() {
   const { siteId } = useSiteFilter();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["shift-instances", siteId],
+    queryKey: ["shift-instances", siteId, dateFrom, dateTo],
     queryFn: async () => {
       const { data } = await api.get<Paginated<ShiftInstance>>("/shift-instances/", {
-        params: { site: siteId ?? undefined, page_size: 100, ordering: "-date" },
+        params: {
+          site: siteId ?? undefined,
+          date__gte: dateFrom || undefined,
+          date__lte: dateTo || undefined,
+          page_size: 500,
+          ordering: "-date",
+        },
       });
       return data.results;
     },
     enabled: siteId !== null,
   });
+
+  const filtered = useMemo(() => {
+    if (!data) return undefined;
+    if (!search.trim()) return data;
+    const needle = search.trim().toLowerCase();
+    return data.filter((row) => [row.shift_name, row.status].join(" ").toLowerCase().includes(needle));
+  }, [data, search]);
+
+  const pageCount = filtered ? Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)) : 1;
+  const currentPage = Math.min(page, pageCount);
+  const pageRows = filtered?.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const closeMutation = useMutation({
     mutationFn: async (id: number) => api.post(`/shift-instances/${id}/close/`),
@@ -54,14 +79,71 @@ export function ShiftInstancesPage() {
           <ErrorMessage message={error} />
         </div>
       )}
+      <div className="mb-4 flex flex-wrap items-end gap-3">
+        <div>
+          <label className="mb-1 block text-xs font-medium text-slate-500">From</label>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => {
+              setDateFrom(e.target.value);
+              setPage(1);
+            }}
+            className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-slate-500">To</label>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => {
+              setDateTo(e.target.value);
+              setPage(1);
+            }}
+            className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-slate-500">Search</label>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Search…"
+            className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+          />
+        </div>
+        <DownloadPdfButton
+          title="Shift Instances"
+          columns={[
+            { key: "date", label: "Date" },
+            { key: "shift", label: "Shift" },
+            { key: "status", label: "Status" },
+            { key: "closed_at", label: "Closed At" },
+            { key: "approved_at", label: "Approved At" },
+          ]}
+          rows={(filtered ?? []).map((row) => ({
+            date: row.date,
+            shift: row.shift_name,
+            status: row.status,
+            closed_at: row.closed_at ? new Date(row.closed_at).toLocaleString() : "—",
+            approved_at: row.approved_at ? new Date(row.approved_at).toLocaleString() : "—",
+          }))}
+        />
+      </div>
+
       {isLoading && <LoadingSpinner />}
       {isError && <ErrorMessage message="Failed to load shift instances." />}
 
-      {data && data.length === 0 && (
-        <EmptyState message="No shift instances yet — they're created automatically as shifts start." />
+      {filtered && filtered.length === 0 && (
+        <EmptyState message="No shift instances match these filters." />
       )}
 
-      {data && data.length > 0 && (
+      {pageRows && pageRows.length > 0 && (
         <Card padded={false} className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
@@ -75,7 +157,7 @@ export function ShiftInstancesPage() {
               </tr>
             </thead>
             <tbody>
-              {data.map((row) => {
+              {pageRows.map((row) => {
                 const closing = closeMutation.isPending && closeMutation.variables === row.id;
                 const approving = approveMutation.isPending && approveMutation.variables === row.id;
                 return (
@@ -125,6 +207,10 @@ export function ShiftInstancesPage() {
             </tbody>
           </table>
         </Card>
+      )}
+
+      {filtered && (
+        <Pagination page={currentPage} pageCount={pageCount} totalCount={filtered.length} onChange={setPage} />
       )}
     </div>
   );

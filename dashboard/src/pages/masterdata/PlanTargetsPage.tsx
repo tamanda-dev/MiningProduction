@@ -40,6 +40,11 @@ export function PlanTargetsPage() {
     title: "Plan Targets",
     canWrite: hasRole("supervisor"),
     extraParams: siteId ? { site: siteId } : undefined,
+    // Only meaningfully populated for period_type="day"/"month" rows (a
+    // "shift" row's date lives on its shift_instance instead) — filtering
+    // by it naturally excludes shift-level targets from a date-ranged
+    // search, which matches what the Date column already shows for them ("—").
+    dateField: "period_date",
     columns: [
       { key: "parameter", label: "Parameter", render: (row) => paramName(row.parameter) },
       { key: "site", label: "Site", render: (row) => siteName(row.site) },
