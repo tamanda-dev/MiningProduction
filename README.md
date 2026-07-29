@@ -52,7 +52,13 @@ docker compose up --build
   genuinely empty; configure sites/sections/machine types/machines/
   parameters/teams/shifts from scratch as `demo_admin` via the Master Data
   screens (or the Django Admin) before there's anything to log entries
-  against.
+  against. To skip manual setup and get a fully populated demo instead
+  (South Pit crusher, machines, parameters, and a rolling ~15-day window of
+  shift instances with production/breakdown/delivery entries, plan targets,
+  and crushing-plant checklist/incident data), run
+  `python manage.py seed_demo_operational_data` instead — it's idempotent
+  and depends on `seed_demo_data`, which it calls automatically. See
+  `backend/seed/management/commands/seed_demo_operational_data.py`.
 - No Django superuser is auto-created; if you need raw Django Admin access
   beyond `demo_admin`, run:
   ```bash
@@ -77,6 +83,7 @@ python manage.py migrate
 python manage.py seed_groups
 python manage.py createsuperuser
 python manage.py seed_demo_data   # optional: creates the demo login accounts only, no master data
+python manage.py seed_demo_operational_data   # optional: also populates a full South Pit demo dataset
 python manage.py runserver
 ```
 
