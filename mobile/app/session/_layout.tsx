@@ -26,7 +26,7 @@ export default function SessionLayout() {
     <SyncEngineProvider>
       <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.header}>
-          <Text style={styles.machineLabel}>
+          <Text style={styles.machineLabel} numberOfLines={1}>
             {activeMachine.machine_type_code.toUpperCase()} {activeMachine.fleet_number}
           </Text>
           <SyncStatusBar />
@@ -80,5 +80,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.button,
     fontWeight: "800",
     color: colors.text,
+    flexShrink: 1,
   },
 });

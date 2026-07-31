@@ -166,7 +166,7 @@ export default function ManageMachinesScreen() {
             </Text>
           ) : (
             <View style={styles.idleRow}>
-              <Text style={styles.muted}>Idle — no active operator</Text>
+              <Text style={[styles.muted, styles.idleText]}>Idle — no active operator</Text>
               {row.status === "active" && siteId !== null && (
                 <Pressable onPress={() => setAssigningRow(row)}>
                   <Text style={styles.assignLink}>Assign to Operator</Text>
@@ -214,11 +214,13 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: spacing.xs,
+    gap: spacing.sm,
   },
   machineName: {
     fontSize: fontSize.button,
     fontWeight: "700",
     color: colors.text,
+    flexShrink: 1,
   },
   operator: {
     fontSize: fontSize.label,
@@ -230,13 +232,19 @@ const styles = StyleSheet.create({
   },
   idleRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: spacing.xs,
+  },
+  idleText: {
+    flexShrink: 1,
   },
   assignLink: {
     fontSize: fontSize.label,
     fontWeight: "700",
     color: colors.primary,
+    flexShrink: 1,
   },
   modalLabel: {
     fontSize: fontSize.label,

@@ -57,7 +57,9 @@ export default function ManageMoreScreen() {
               {visibleItems.map((item, i) => (
                 <Link key={item.href} href={item.href as never} asChild>
                   <Pressable style={[styles.row, i < visibleItems.length - 1 && styles.rowBorder]}>
-                    <Text style={styles.rowLabel}>{item.label}</Text>
+                    <Text style={styles.rowLabel} numberOfLines={2}>
+                      {item.label}
+                    </Text>
                     <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
                   </Pressable>
                 </Link>
@@ -100,6 +102,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
+    gap: spacing.sm,
   },
   rowBorder: {
     borderBottomWidth: 1,
@@ -109,5 +112,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.body,
     color: colors.text,
     fontWeight: "600",
+    flex: 1,
+    flexShrink: 1,
   },
 });

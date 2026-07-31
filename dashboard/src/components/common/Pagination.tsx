@@ -12,7 +12,7 @@ export function Pagination({
   if (pageCount <= 1) return null;
 
   return (
-    <div className="mt-3 flex items-center justify-between text-sm text-slate-500">
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-500">
       <span>{totalCount.toLocaleString()} total</span>
       <div className="flex items-center gap-2">
         <button

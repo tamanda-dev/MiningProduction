@@ -95,17 +95,17 @@ export default function ManageDashboardScreen() {
           </View>
           <Text style={styles.paramName}>{row.parameter_name}</Text>
           <View style={styles.figures}>
-            <View>
+            <View style={styles.figureCol}>
               <Text style={styles.figureLabel}>Act</Text>
               <Text style={styles.figureValue}>
                 {row.act.toLocaleString()} {row.uom}
               </Text>
             </View>
-            <View>
+            <View style={styles.figureCol}>
               <Text style={styles.figureLabel}>Plan</Text>
               <Text style={styles.figureValueMuted}>{row.plan !== null ? `${row.plan.toLocaleString()} ${row.uom}` : "—"}</Text>
             </View>
-            <View>
+            <View style={styles.figureCol}>
               <Text style={styles.figureLabel}>Var</Text>
               <Text style={styles.figureValueMuted}>{row.var !== null ? row.var.toLocaleString() : "—"}</Text>
             </View>
@@ -145,12 +145,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: spacing.sm,
   },
   sectionName: {
     fontSize: fontSize.label,
     fontWeight: "700",
     color: colors.textMuted,
     textTransform: "uppercase",
+    flexShrink: 1,
   },
   pctVar: {
     fontSize: fontSize.body,
@@ -165,7 +167,15 @@ const styles = StyleSheet.create({
   },
   figures: {
     flexDirection: "row",
-    gap: spacing.lg,
+    flexWrap: "wrap",
+    gap: spacing.md,
+  },
+  // Each Act/Plan/Var column gets to wrap onto its own row once three
+  // columns no longer fit side by side on a narrow screen — flexGrow lets
+  // them share leftover width, flexBasis is the point at which they wrap.
+  figureCol: {
+    flexGrow: 1,
+    flexBasis: 80,
   },
   figureLabel: {
     fontSize: 12,

@@ -66,10 +66,18 @@ const styles = StyleSheet.create({
   content: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    // Bounds this row to the button's own (always-stretched, see
+    // `fullWidth`) width instead of shrink-to-fit — without this, a long
+    // label has nothing constraining its width and can render past the
+    // button's edges (and the screen's) on narrow devices.
+    alignSelf: "stretch",
   },
   label: {
     fontSize: fontSize.button,
     fontWeight: "700",
+    flexShrink: 1,
+    textAlign: "center",
   },
   pressed: {
     opacity: 0.75,

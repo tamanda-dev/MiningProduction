@@ -143,6 +143,8 @@ const styles = StyleSheet.create({
     fontSize: fontSize.body,
     color: colors.text,
     fontWeight: "600",
+    flex: 1,
+    flexShrink: 1,
   },
   sectionLabel: {
     fontSize: fontSize.label,

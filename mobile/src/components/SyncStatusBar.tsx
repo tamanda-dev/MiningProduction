@@ -39,6 +39,11 @@ const styles = StyleSheet.create({
     borderColor: colors.borderLight,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+    // session/_layout.tsx renders this next to a machine-label Text in a
+    // row — without flexShrink here, this whole bar keeps its natural
+    // (long-status-text) width and pushes/overflows past the screen edge
+    // instead of letting the inner label's own flexShrink take effect.
+    flexShrink: 1,
   },
   dot: {
     width: 10,

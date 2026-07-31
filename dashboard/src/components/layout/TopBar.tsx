@@ -130,19 +130,20 @@ export function TopBar() {
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 md:px-6">
+    <header className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-slate-200 bg-white px-4 py-2 md:px-6">
       <div className="flex flex-wrap items-center gap-1.5">
         {user?.roles.map((r) => (
           <Badge key={r} label={r[0].toUpperCase() + r.slice(1)} color={ROLE_COLOR[r]} variant="soft" />
         ))}
       </div>
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-4">
         <SiteSwitcher />
-        <div className="text-sm font-medium text-slate-700">
+        <div className="max-w-[10rem] truncate text-sm font-medium text-slate-700 sm:max-w-none">
           {displayName(user)}
         </div>
         <Button variant="secondary" size="sm" onClick={() => setChangePasswordOpen(true)}>
-          Change Password
+          <span className="sm:hidden">Password</span>
+          <span className="hidden sm:inline">Change Password</span>
         </Button>
         <Button
           variant="secondary"

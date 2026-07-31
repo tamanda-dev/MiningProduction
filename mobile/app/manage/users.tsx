@@ -195,11 +195,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: spacing.sm,
   },
   username: {
     fontSize: fontSize.button,
     fontWeight: "700",
     color: colors.text,
+    flexShrink: 1,
   },
   fullName: {
     fontSize: fontSize.label,

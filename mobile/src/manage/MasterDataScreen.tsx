@@ -225,8 +225,14 @@ export function MasterDataScreen<T extends { id: number }>({ config }: { config:
   return (
     <Screen onRefresh={() => refetch()} refreshing={isRefetching}>
       <View style={styles.header}>
-        <Text style={styles.title}>{title}</Text>
-        {canWrite && <Pressable onPress={openCreate}><Text style={styles.addLink}>+ Add</Text></Pressable>}
+        <Text style={styles.title} numberOfLines={2}>
+          {title}
+        </Text>
+        {canWrite && (
+          <Pressable onPress={openCreate}>
+            <Text style={styles.addLink}>+ Add</Text>
+          </Pressable>
+        )}
       </View>
 
       {isLoading && <Text style={styles.muted}>Loading…</Text>}
@@ -303,11 +309,16 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: spacing.md,
+    gap: spacing.sm,
   },
   title: {
     fontSize: fontSize.title,
     fontWeight: "800",
     color: colors.text,
+    // Some resource titles ("Delivery Destinations", "Downtime Reason
+    // Codes") are long enough at fontSize.title to crowd the "+ Add" link
+    // on a 360dp-wide screen — shrink/wrap rather than push it off-screen.
+    flexShrink: 1,
   },
   addLink: {
     fontSize: fontSize.body,

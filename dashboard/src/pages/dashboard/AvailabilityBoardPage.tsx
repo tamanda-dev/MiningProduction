@@ -45,7 +45,7 @@ export function AvailabilityBoardPage() {
     <div>
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <h1 className="text-lg font-semibold text-slate-900">Availability & Utilization</h1>
-        <div className="flex items-end gap-3">
+        <div className="flex flex-wrap items-end gap-3">
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-500">Date</label>
             <input

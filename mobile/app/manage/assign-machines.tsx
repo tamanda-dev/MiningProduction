@@ -197,6 +197,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     marginBottom: spacing.sm,
+    gap: spacing.sm,
   },
   grantLabel: {
     fontSize: fontSize.label,
@@ -207,5 +208,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.label,
     fontWeight: "700",
     color: colors.critical,
+    flexShrink: 0,
   },
 });
