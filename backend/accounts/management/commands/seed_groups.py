@@ -12,7 +12,6 @@ from core import scoping
 DOMAIN_APPS = [
     "masterdata",
     "machines",
-    "teams",
     "shiftmgmt",
     "planning",
     "entries",
@@ -23,8 +22,8 @@ DOMAIN_APPS = [
 
 GROUP_ACCESS = {
     # Supervisor absorbed the (now-removed) Manager role's full DOMAIN_APPS
-    # access — previously Supervisor only got entries/machines/shiftmgmt/
-    # teams, with Manager getting everything else on top.
+    # access — previously Supervisor only got entries/machines/shiftmgmt,
+    # with Manager getting everything else on top.
     scoping.SUPERVISOR_GROUP: {"apps": DOMAIN_APPS, "actions": ["view", "add", "change"]},
     scoping.OPERATOR_GROUP: {"apps": [], "actions": []},
 }

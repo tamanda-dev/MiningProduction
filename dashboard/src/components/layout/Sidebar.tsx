@@ -56,9 +56,6 @@ const MASTER_DATA_ITEMS: NavItem[] = [
   { to: "/admin/downtime-reasons", label: "Downtime Reason Codes", requireRole: "supervisor" },
   // Backed by ReadOnlyOrSupervisorOrAbove viewsets — Supervisors can write
   // here too, not just read, so the nav floor matches the route guard.
-  { to: "/admin/shift-patterns", label: "Shift Patterns", requireRole: "supervisor" },
-  { to: "/admin/teams", label: "Teams", requireRole: "supervisor" },
-  { to: "/admin/team-members", label: "Team Members", requireRole: "supervisor" },
   { to: "/admin/shifts", label: "Shifts", requireRole: "supervisor" },
   { to: "/admin/shift-instances", label: "Shift Instances", requireRole: "supervisor" },
   // /api/machine-qualifications/ write access is Supervisor+ too (a

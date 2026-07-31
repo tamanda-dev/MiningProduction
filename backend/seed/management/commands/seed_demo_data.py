@@ -7,8 +7,8 @@ from core import scoping
 
 User = get_user_model()
 
-# Deliberately accounts-only: no sites/sections/machines/parameters/teams/
-# etc. get seeded, so a fresh deploy has working demo logins for every role
+# Deliberately accounts-only: no sites/sections/machines/parameters/etc.
+# get seeded, so a fresh deploy has working demo logins for every role
 # but an otherwise empty system, ready to be configured from scratch
 # through the UI (see README's Master Data section) rather than shipped
 # with a canned dataset.

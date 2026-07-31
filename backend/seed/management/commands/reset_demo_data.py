@@ -5,8 +5,8 @@ from django.db import transaction
 
 class Command(BaseCommand):
     """Deletes every business/operational record — sites, sections, machines,
-    entries, breakdowns, teams, shifts, plan targets, crusher-ops data, and
-    the audit trail — so the app starts from a genuinely empty state instead
+    entries, breakdowns, shifts, plan targets, crusher-ops data, and the
+    audit trail — so the app starts from a genuinely empty state instead
     of the seeded demo dataset. User accounts (and their group/role
     membership) are deliberately left untouched, so the existing
     demo_admin/demo_supervisor/etc. logins keep working afterward; only their
@@ -61,7 +61,6 @@ class Command(BaseCommand):
         )
         from planning.models import PlanTarget
         from shiftmgmt.models import Shift, ShiftInstance
-        from teams.models import ShiftPattern, Team, TeamMember
 
         with transaction.atomic():
             # Deepest first: rows that reference entries/machines/shifts.
@@ -76,8 +75,6 @@ class Command(BaseCommand):
             MachineAssignment.objects.all().delete()
             PlanTarget.objects.all().delete()
             Parameter.objects.all().delete()  # cascades ParameterChoice; must precede Section (Parameter.section is PROTECT)
-            TeamMember.objects.all().delete()
-            Team.objects.all().delete()
             ShiftInstance.objects.all().delete()
             Shift.objects.all().delete()
 
@@ -93,7 +90,6 @@ class Command(BaseCommand):
             ChecklistItem.objects.all().delete()
             MachineType.objects.all().delete()
             UOM.objects.all().delete()
-            ShiftPattern.objects.all().delete()
             Site.objects.all().delete()
 
             # The bulk deletes above generate a fresh wave of "deleted"

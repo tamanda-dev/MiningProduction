@@ -14,10 +14,7 @@ import type {
   Section,
   Shift,
   ShiftInstance,
-  ShiftPattern,
   Site,
-  Team,
-  TeamMember,
   UOM,
   UserSummary,
 } from "@/src/api/types";
@@ -239,74 +236,6 @@ export function DowntimeReasonCodesScreen() {
   return <MasterDataScreen config={config} />;
 }
 
-export function ShiftPatternsScreen() {
-  const { hasRole } = useAuth();
-  const config: MasterDataConfig<ShiftPattern> = {
-    resource: "shift-patterns",
-    title: "Shift Patterns",
-    canWrite: hasRole("supervisor"),
-    primaryLabel: (row) => row.name,
-    secondaryLabel: (row) => row.description || null,
-    fields: [
-      { key: "name", label: "Name", type: "text", required: true },
-      { key: "description", label: "Description", type: "text" },
-    ],
-  };
-  return <MasterDataScreen config={config} />;
-}
-
-export function TeamsScreen() {
-  const { hasRole } = useAuth();
-  const { data: sites } = useLookup<Site>("sites");
-  const { data: sections } = useLookup<Section>("sections");
-  const { data: patterns } = useLookup<ShiftPattern>("shift-patterns");
-  const siteName = (id: number) => sites?.find((s) => s.id === id)?.name ?? String(id);
-  const config: MasterDataConfig<Team> = {
-    resource: "teams",
-    title: "Teams",
-    canWrite: hasRole("supervisor"),
-    primaryLabel: (row) => row.name,
-    secondaryLabel: (row) => siteName(row.site),
-    fields: [
-      { key: "name", label: "Name", type: "text", required: true },
-      { key: "site", label: "Site", type: "select", required: true, options: sites?.map((s) => ({ value: s.id, label: s.name })) ?? [] },
-      {
-        key: "section",
-        label: "Section",
-        type: "select",
-        options: (values) => sections?.filter((s) => String(s.site) === String(values.site)).map((s) => ({ value: s.id, label: s.name })) ?? [],
-      },
-      { key: "shift_pattern", label: "Shift Pattern", type: "select", options: patterns?.map((p) => ({ value: p.id, label: p.name })) ?? [] },
-      { key: "active", label: "Active", type: "boolean" },
-    ],
-  };
-  return <MasterDataScreen config={config} />;
-}
-
-export function TeamMembersScreen() {
-  const { hasRole } = useAuth();
-  const { data: teams } = useLookup<Team>("teams");
-  const { data: users } = useLookup<UserSummary>("users");
-  const teamName = (id: number) => teams?.find((t) => t.id === id)?.name ?? String(id);
-  const userName = (id: number) => {
-    const u = users?.find((uu) => uu.id === id);
-    return u ? [u.first_name, u.last_name].filter(Boolean).join(" ") || u.username : String(id);
-  };
-  const config: MasterDataConfig<TeamMember> = {
-    resource: "team-members",
-    title: "Team Members",
-    canWrite: hasRole("supervisor"),
-    primaryLabel: (row) => userName(row.user),
-    secondaryLabel: (row) => `${teamName(row.team)} · ${row.role_on_team === "team_leader" ? "Team Leader" : "Operator"}`,
-    fields: [
-      { key: "team", label: "Team", type: "select", required: true, options: teams?.map((t) => ({ value: t.id, label: t.name })) ?? [] },
-      { key: "user", label: "User", type: "select", required: true, options: users?.map((u) => ({ value: u.id, label: [u.first_name, u.last_name].filter(Boolean).join(" ") || u.username })) ?? [] },
-      { key: "role_on_team", label: "Role on Team", type: "select", required: true, options: [{ value: "team_leader", label: "Team Leader" }, { value: "operator", label: "Operator" }] },
-    ],
-  };
-  return <MasterDataScreen config={config} />;
-}
-
 export function ShiftsScreen() {
   const { hasRole } = useAuth();
   const { data: sites } = useLookup<Site>("sites");
@@ -458,9 +387,6 @@ export const MASTER_DATA_SCREENS: Record<string, { title: string; Component: Rea
   parameters: { title: "Parameters", Component: ParametersScreen, requireRole: "admin" },
   "delivery-destinations": { title: "Delivery Destinations", Component: DeliveryDestinationsScreen, requireRole: "admin" },
   "downtime-reasons": { title: "Downtime Reason Codes", Component: DowntimeReasonCodesScreen, requireRole: "admin" },
-  "shift-patterns": { title: "Shift Patterns", Component: ShiftPatternsScreen, requireRole: "supervisor" },
-  teams: { title: "Teams", Component: TeamsScreen, requireRole: "supervisor" },
-  "team-members": { title: "Team Members", Component: TeamMembersScreen, requireRole: "supervisor" },
   shifts: { title: "Shifts", Component: ShiftsScreen, requireRole: "supervisor" },
   "breakdown-causes": { title: "Breakdown Causes", Component: BreakdownCausesScreen, requireRole: "admin" },
   "checklist-items": { title: "Checklist Items", Component: ChecklistItemsScreen, requireRole: "admin" },

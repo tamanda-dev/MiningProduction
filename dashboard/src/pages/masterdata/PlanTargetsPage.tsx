@@ -20,7 +20,7 @@ export function PlanTargetsPage() {
   // inside the create/edit modal left Section/Machine/Shift Instance still
   // scoped to whatever the page-level filter was, or unfiltered-but-wrong
   // if it was "All Sites". Filtering is now done per-field below, driven
-  // by the form's own site value (same pattern as Machines/Teams pages).
+  // by the form's own site value (same pattern as the Machines page).
   const { data: sections } = useLookup<Section>("sections");
   const { data: machines } = useLookup<Machine>("machines");
   const { data: parameters } = useLookup<Parameter>("parameters");

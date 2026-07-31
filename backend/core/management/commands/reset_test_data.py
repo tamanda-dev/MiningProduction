@@ -31,7 +31,6 @@ from masterdata.models import (
 )
 from planning.models import PlanTarget
 from shiftmgmt.models import Shift, ShiftInstance
-from teams.models import ShiftPattern, Team, TeamMember
 
 User = get_user_model()
 
@@ -48,11 +47,8 @@ DELETE_ORDER = [
     ("Business/operational data", PlanTarget),
     ("Business/operational data", MachineAssignment),
     ("Business/operational data", ShiftInstance),
-    ("Master/setup data", TeamMember),
     ("Master/setup data", MachineTypeQualification),
-    ("Master/setup data", Team),
     ("Master/setup data", Shift),
-    ("Master/setup data", ShiftPattern),
     ("Master/setup data", Machine),
     ("Master/setup data", HourlySlot),
     ("Master/setup data", ChecklistItem),

@@ -33,7 +33,6 @@ INSTALLED_APPS = [
     "accounts",
     "masterdata",
     "machines",
-    "teams",
     "shiftmgmt",
     "planning",
     "entries",

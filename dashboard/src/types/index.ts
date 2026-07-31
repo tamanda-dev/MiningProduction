@@ -204,32 +204,7 @@ export interface MachineAssignment {
   release_reason: string;
 }
 
-// -- Teams / shifts -------------------------------------------------------------
-
-export interface ShiftPattern {
-  id: ID;
-  name: string;
-  description: string;
-  active: boolean;
-}
-
-export interface TeamMember {
-  id: ID;
-  team: ID;
-  user: ID;
-  role_on_team: "operator" | "team_leader";
-  active: boolean;
-}
-
-export interface Team {
-  id: ID;
-  name: string;
-  site: ID;
-  section: ID | null;
-  shift_pattern: ID | null;
-  active: boolean;
-  members: TeamMember[];
-}
+// -- Shifts -----------------------------------------------------------------
 
 export interface Shift {
   id: ID;

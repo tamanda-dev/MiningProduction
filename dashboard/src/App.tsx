@@ -38,11 +38,8 @@ import { ParametersPage } from "@/pages/masterdata/ParametersPage";
 import { PlanTargetsPage } from "@/pages/masterdata/PlanTargetsPage";
 import { SectionsPage } from "@/pages/masterdata/SectionsPage";
 import { ShiftInstancesPage } from "@/pages/masterdata/ShiftInstancesPage";
-import { ShiftPatternsPage } from "@/pages/masterdata/ShiftPatternsPage";
 import { ShiftsPage } from "@/pages/masterdata/ShiftsPage";
 import { SitesPage } from "@/pages/masterdata/SitesPage";
-import { TeamMembersPage } from "@/pages/masterdata/TeamMembersPage";
-import { TeamsPage } from "@/pages/masterdata/TeamsPage";
 import { UOMsPage } from "@/pages/masterdata/UOMsPage";
 import { UsersPage } from "@/pages/masterdata/UsersPage";
 
@@ -121,9 +118,6 @@ function App() {
             <Route path="/admin/breakdown-causes" element={<BreakdownCausesPage />} />
             <Route path="/admin/checklist-items" element={<ChecklistItemsPage />} />
             <Route path="/admin/hourly-slots" element={<HourlySlotsPage />} />
-            <Route path="/admin/shift-patterns" element={<ShiftPatternsPage />} />
-            <Route path="/admin/teams" element={<TeamsPage />} />
-            <Route path="/admin/team-members" element={<TeamMembersPage />} />
             <Route path="/admin/shifts" element={<ShiftsPage />} />
             <Route path="/admin/shift-instances" element={<ShiftInstancesPage />} />
             <Route path="/admin/machine-qualifications" element={<MachineQualificationsPage />} />

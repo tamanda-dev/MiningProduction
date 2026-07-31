@@ -181,28 +181,6 @@ export interface DeliveryEntry {
   client_uuid: string | null;
 }
 
-export interface ShiftPattern {
-  id: ID;
-  name: string;
-  description: string;
-}
-
-export interface Team {
-  id: ID;
-  site: ID;
-  name: string;
-  section: ID | null;
-  shift_pattern: ID | null;
-  active: boolean;
-}
-
-export interface TeamMember {
-  id: ID;
-  team: ID;
-  user: ID;
-  role_on_team: "team_leader" | "operator";
-}
-
 export interface Shift {
   id: ID;
   site: ID;
