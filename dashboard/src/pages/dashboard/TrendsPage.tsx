@@ -31,7 +31,11 @@ const PLAN_COLOR = CHART_INK.muted;
 
 function useSectionsAndParameters(siteId: number | null) {
   const { data: sections } = useLookup<Section>("sections", siteId ? { site: siteId } : undefined);
-  const { data: parameters } = useLookup<Parameter>("parameters");
+  const { data: allParameters } = useLookup<Parameter>("parameters");
+  // Fuel Consumption is excluded from these trend charts — operators can't
+  // measure it reliably shift-to-shift (no per-machine metering), so a
+  // fuel trend line is just noise, not a signal worth charting.
+  const parameters = allParameters?.filter((p) => !p.name.toLowerCase().includes("fuel"));
   return { sections, parameters };
 }
 
@@ -174,7 +178,7 @@ function HourlyCurveTab() {
   });
 
   const chartData = (data ?? []).map((p) => ({
-    slot: `S${p.slot_index}`,
+    slot: format(new Date(p.start_at), "HH:mm"),
     cumulative_act: p.cumulative_act,
     cumulative_target: p.cumulative_target,
   }));
