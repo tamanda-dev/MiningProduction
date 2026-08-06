@@ -15,7 +15,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://productiondashboard.srv1639896.hstgr.cloud/api"
+        "EXPO_PUBLIC_API_BASE_URL": "https://www.ilanga247.com/api"
       }
     },
     "production": {
@@ -24,7 +24,7 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://productiondashboard.srv1639896.hstgr.cloud/api"
+        "EXPO_PUBLIC_API_BASE_URL": "https://www.ilanga247.com/api"
       }
     }
   },
