@@ -131,10 +131,17 @@ export function TopBar() {
 
   return (
     <header className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-slate-200 bg-white px-4 py-2 md:px-6">
-      <div className="flex flex-wrap items-center gap-1.5">
-        {user?.roles.map((r) => (
-          <Badge key={r} label={r[0].toUpperCase() + r.slice(1)} color={ROLE_COLOR[r]} variant="soft" />
-        ))}
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Sidebar carries this same mark, but it's hidden behind the
+            hamburger drawer below the md breakpoint — this keeps the brand
+            visible on phones without duplicating it on desktop, where it
+            sits right next to the sidebar's own copy. */}
+        <img src="/logo-mark.png" alt="Ilanga 24/7" className="h-5 w-auto md:hidden" />
+        <div className="flex flex-wrap items-center gap-1.5">
+          {user?.roles.map((r) => (
+            <Badge key={r} label={r[0].toUpperCase() + r.slice(1)} color={ROLE_COLOR[r]} variant="soft" />
+          ))}
+        </div>
       </div>
       <div className="flex flex-wrap items-center gap-2 sm:gap-4">
         <SiteSwitcher />

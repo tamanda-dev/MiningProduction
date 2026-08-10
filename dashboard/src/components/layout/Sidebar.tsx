@@ -123,6 +123,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col overflow-y-auto py-4">
       <div className="mb-4 border-b border-slate-100 px-3 pb-4">
+        <img src="/logo-mark.png" alt="Ilanga 24/7" className="mb-2 h-6 w-auto" />
         <div className="text-sm font-bold text-slate-900">Mining Production</div>
         <div className="text-xs text-slate-500">{subtitle}</div>
       </div>

@@ -1,7 +1,7 @@
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
 import { BigButton } from "@/src/components/BigButton";
 import { Screen } from "@/src/components/Screen";
 import { TextField } from "@/src/components/TextField";
@@ -48,6 +48,12 @@ export default function LoginScreen() {
   return (
     <Screen>
       <View style={styles.header}>
+        <Image
+          source={require("@/assets/images/logo.png")}
+          style={styles.logo}
+          resizeMode="contain"
+          accessibilityLabel="Ilanga 24/7"
+        />
         <Text style={styles.title}>Mining Production</Text>
         <Text style={styles.subtitle}>Operator Sign In</Text>
       </View>
@@ -84,6 +90,11 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
     marginBottom: spacing.xl,
     alignItems: "center",
+  },
+  logo: {
+    width: 220,
+    height: 110,
+    marginBottom: spacing.sm,
   },
   title: {
     fontSize: fontSize.hero,

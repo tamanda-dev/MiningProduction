@@ -38,7 +38,8 @@ export function LoginPage() {
         <div className="h-1.5 bg-brand-600" />
         <div className="p-8">
           <div className="mb-6 text-center">
-            <div className="text-lg font-bold text-slate-900">Mining Production Tracking</div>
+            <img src="/logo.png" alt="Ilanga 24/7" className="mx-auto mb-4 h-16 w-auto" />
+            <div className="text-lg font-bold text-slate-900">Production Insights</div>
             <div className="text-sm text-slate-500">Manager Dashboard</div>
           </div>
 
