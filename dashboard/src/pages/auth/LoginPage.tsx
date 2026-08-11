@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
 import { Button } from "@/components/common/Button";
 import { ErrorMessage, extractErrorMessage } from "@/components/common/ErrorMessage";
@@ -38,9 +38,8 @@ export function LoginPage() {
         <div className="h-1.5 bg-brand-600" />
         <div className="p-8">
           <div className="mb-6 text-center">
-            <img src="/logo.png" alt="Ilanga 24/7" className="mx-auto mb-4 h-16 w-auto" />
+            <img src="/logo.png" alt="Ilanga 24/7" className="mx-auto mb-4 h-24 w-auto" />
             <div className="text-lg font-bold text-slate-900">Production Insights</div>
-            <div className="text-sm text-slate-500">Manager Dashboard</div>
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -59,9 +58,14 @@ export function LoginPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="password">
-                Password
-              </label>
+              <div className="mb-1 flex items-center justify-between">
+                <label className="block text-sm font-medium text-slate-700" htmlFor="password">
+                  Password
+                </label>
+                <Link to="/forgot-password" className="text-xs text-brand-600 hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
               <input
                 id="password"
                 type="password"

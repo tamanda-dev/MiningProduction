@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils import timezone
 from simple_history.models import HistoricalRecords
 
 from core.models import TimeStampedModel
@@ -48,3 +49,25 @@ class UserSiteAccess(TimeStampedModel):
 
     def __str__(self):
         return f"{self.user} -> {self.site}" + (f"/{self.section}" if self.section_id else "")
+
+
+class PasswordResetOTP(TimeStampedModel):
+    """A one-time code emailed to a user for the "forgot password" flow.
+    No HistoricalRecords here (unlike most models in this app) — this is
+    transient security data, not an auditable business record, and the
+    audit/signals.py bridge that mirrors HistoricalRecords-tracked models
+    into /api/audit-log/ has no business surfacing OTP hashes there (same
+    reasoning as excluding User.password above).
+    """
+
+    MAX_ATTEMPTS = 5
+    TTL_MINUTES = 10
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="password_reset_otps")
+    code_hash = models.CharField(max_length=128)
+    expires_at = models.DateTimeField()
+    consumed_at = models.DateTimeField(null=True, blank=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+
+    def is_usable(self) -> bool:
+        return self.consumed_at is None and self.attempts < self.MAX_ATTEMPTS and self.expires_at > timezone.now()

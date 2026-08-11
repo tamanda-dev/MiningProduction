@@ -1,10 +1,13 @@
+from django.contrib.auth.hashers import check_password
 from django.contrib.auth.models import Group
 from django.contrib.auth.password_validation import validate_password
+from django.db.models import F
+from django.utils import timezone
 from rest_framework import serializers
 
 from core import scoping
 
-from .models import User, UserSiteAccess
+from .models import PasswordResetOTP, User, UserSiteAccess
 
 # Maps the API's lowercase role names to the Django Group names scoping.py
 # checks against — one place both role-assignment and role-display use, so
@@ -147,6 +150,64 @@ class ChangeOwnPasswordSerializer(serializers.Serializer):
         if not user.check_password(value):
             raise serializers.ValidationError("Current password is incorrect.")
         return value
+
+
+class ForgotPasswordRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class ResetPasswordWithOtpSerializer(serializers.Serializer):
+    """Verifies the OTP and resets the password in one step. Deliberately
+    reports the same generic "invalid or expired code" error for every
+    failure mode (unknown email, wrong code, expired code, exhausted
+    attempts) — distinguishing them would let an attacker enumerate which
+    emails have accounts/pending resets.
+    """
+
+    email = serializers.EmailField()
+    otp = serializers.CharField(max_length=6, min_length=6)
+    new_password = serializers.CharField(write_only=True, validators=[validate_password])
+
+    generic_error = "Invalid or expired code."
+
+    def validate(self, attrs):
+        # Email isn't unique on User (see accounts/models.py) — if more
+        # than one active account shares it, there's no way to know which
+        # one the requester meant, so treat it the same as "no such user"
+        # rather than guessing.
+        users = list(User.objects.filter(email__iexact=attrs["email"], is_active=True))
+        otp_obj = None
+        if len(users) == 1:
+            otp_obj = (
+                PasswordResetOTP.objects.filter(user=users[0], consumed_at__isnull=True)
+                .order_by("-created_at")
+                .first()
+            )
+
+        if not otp_obj or not otp_obj.is_usable():
+            raise serializers.ValidationError({"otp": self.generic_error})
+
+        if not check_password(attrs["otp"], otp_obj.code_hash):
+            PasswordResetOTP.objects.filter(pk=otp_obj.pk).update(attempts=F("attempts") + 1)
+            raise serializers.ValidationError({"otp": self.generic_error})
+
+        attrs["user"] = users[0]
+        attrs["otp_obj"] = otp_obj
+        return attrs
+
+    def save(self):
+        user = self.validated_data["user"]
+        otp_obj = self.validated_data["otp_obj"]
+
+        user.set_password(self.validated_data["new_password"])
+        user.save(update_fields=["password"])
+
+        now = timezone.now()
+        # Consume this OTP and invalidate any other outstanding ones for
+        # the same user so an old, still-valid code can't be replayed
+        # after the password has already changed.
+        PasswordResetOTP.objects.filter(user=user, consumed_at__isnull=True).update(consumed_at=now)
+        return user
 
 
 class AssignRoleSerializer(serializers.Serializer):

@@ -3,6 +3,7 @@ import { useAuth } from "@/auth/useAuth";
 import { ProtectedRoute } from "@/auth/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { AuditLogPage } from "@/pages/audit/AuditLogPage";
+import { ForgotPasswordPage } from "@/pages/auth/ForgotPasswordPage";
 import { LoginPage } from "@/pages/auth/LoginPage";
 import { AvailabilityBoardPage } from "@/pages/dashboard/AvailabilityBoardPage";
 import { DowntimeParetoPage } from "@/pages/dashboard/DowntimeParetoPage";
@@ -56,6 +57,7 @@ function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>

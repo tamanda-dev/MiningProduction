@@ -3,24 +3,77 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import RetrieveAPIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
 from core.permissions import IsAdmin, IsSupervisorOrAbove
 
+from .emails import generate_and_send_otp
 from .models import User, UserSiteAccess
 from .serializers import (
     AssignRoleSerializer,
     ChangeOwnPasswordSerializer,
+    ForgotPasswordRequestSerializer,
     MeSerializer,
+    ResetPasswordWithOtpSerializer,
     ROLE_GROUP_MAP,
     SetPasswordSerializer,
     UserCreateSerializer,
     UserDetailSerializer,
     UserSiteAccessSerializer,
 )
+
+
+class ForgotPasswordThrottle(AnonRateThrottle):
+    scope = "forgot_password"
+
+
+class ResetPasswordThrottle(AnonRateThrottle):
+    scope = "reset_password"
+
+
+class ForgotPasswordView(APIView):
+    """Unauthenticated: request an OTP be emailed to an account's address.
+    Always returns the same generic response regardless of whether the
+    email matches an account, so this endpoint can't be used to enumerate
+    registered users.
+    """
+
+    permission_classes = (AllowAny,)
+    throttle_classes = (ForgotPasswordThrottle,)
+
+    generic_response = {"detail": "If that email is registered, a reset code has been sent."}
+
+    def post(self, request):
+        serializer = ForgotPasswordRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # Email isn't unique on User — only send when exactly one active
+        # account matches, same reasoning as ResetPasswordWithOtpSerializer.
+        users = list(User.objects.filter(email__iexact=serializer.validated_data["email"], is_active=True))
+        if len(users) == 1:
+            generate_and_send_otp(users[0])
+
+        return Response(self.generic_response)
+
+
+class ResetPasswordWithOtpView(APIView):
+    """Unauthenticated: verify the emailed OTP and set a new password in
+    one step. Distinct from ChangeOwnPasswordView (authenticated, current-
+    password-verified) and UserViewSet.reset_password (Admin-only).
+    """
+
+    permission_classes = (AllowAny,)
+    throttle_classes = (ResetPasswordThrottle,)
+
+    def post(self, request):
+        serializer = ResetPasswordWithOtpSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"detail": "Password has been reset."})
 
 
 class MeView(RetrieveAPIView):
