@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { format } from "date-fns";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/auth/useAuth";
 import { Badge } from "@/components/common/Badge";
+import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
 import { DownloadPdfButton } from "@/components/common/DownloadPdfButton";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -11,7 +13,8 @@ import { Pagination } from "@/components/common/Pagination";
 import { api } from "@/lib/api";
 import { MACHINE_STATUS_COLOR, STATUS } from "@/lib/chartTheme";
 import { useSiteFilter } from "@/lib/SiteFilterContext";
-import type { Paginated, ShiftInstance } from "@/types";
+import { useLookup } from "@/lib/useLookup";
+import type { Paginated, Shift, ShiftInstance } from "@/types";
 
 const PAGE_SIZE = 25;
 
@@ -30,6 +33,10 @@ export function ShiftInstancesPage() {
   const [dateTo, setDateTo] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+
+  const { data: shifts } = useLookup<Shift>("shifts", siteId ? { site: siteId } : undefined);
+  const [newShiftId, setNewShiftId] = useState("");
+  const [newDate, setNewDate] = useState(() => format(new Date(), "yyyy-MM-dd"));
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["shift-instances", siteId, dateFrom, dateTo],
@@ -71,6 +78,30 @@ export function ShiftInstancesPage() {
     onError: (err) => setError(extractErrorMessage(err)),
   });
 
+  // Shift instances are otherwise only ever created lazily, the moment a
+  // production entry is submitted during that shift's live window — so a
+  // brand-new site (or one planning ahead) has none to pick from yet on
+  // pages like Plan Targets. This lets a Supervisor+ create one directly.
+  const createMutation = useMutation({
+    mutationFn: async () =>
+      api.post("/shift-instances/", { shift: Number(newShiftId), date: newDate }),
+    onSuccess: () => {
+      setError(null);
+      queryClient.invalidateQueries({ queryKey: ["shift-instances"] });
+    },
+    onError: (err) => setError(extractErrorMessage(err)),
+  });
+
+  useEffect(() => {
+    if (shifts && shifts.length > 0 && !shifts.some((s) => String(s.id) === newShiftId)) {
+      setNewShiftId(String(shifts[0].id));
+    }
+    if (shifts && shifts.length === 0) {
+      setNewShiftId("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shifts]);
+
   return (
     <div>
       <h1 className="mb-4 text-lg font-semibold text-slate-900">Shift Instances</h1>
@@ -79,6 +110,50 @@ export function ShiftInstancesPage() {
           <ErrorMessage message={error} />
         </div>
       )}
+
+      {hasRole("supervisor") && (
+        <Card className="mb-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-500">Shift</label>
+              <select
+                value={newShiftId}
+                onChange={(e) => setNewShiftId(e.target.value)}
+                disabled={!shifts || shifts.length === 0}
+                className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              >
+                {(!shifts || shifts.length === 0) && <option value="">No shifts for this site</option>}
+                {shifts?.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-500">Date</label>
+              <input
+                type="date"
+                value={newDate}
+                onChange={(e) => setNewDate(e.target.value)}
+                className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              />
+            </div>
+            <Button
+              disabled={!newShiftId || !newDate || createMutation.isPending}
+              onClick={() => createMutation.mutate()}
+            >
+              {createMutation.isPending ? "Creating…" : "Create Shift Instance"}
+            </Button>
+            <p className="text-xs text-slate-400">
+              Instances are otherwise only created automatically once a production entry is
+              logged for that shift — create one ahead of time here if you need it for Plan
+              Targets before then.
+            </p>
+          </div>
+        </Card>
+      )}
+
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-500">From</label>
