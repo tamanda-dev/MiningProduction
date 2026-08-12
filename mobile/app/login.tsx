@@ -54,8 +54,7 @@ export default function LoginScreen() {
           resizeMode="contain"
           accessibilityLabel="Ilanga 24/7"
         />
-        <Text style={styles.title}>Mining Production</Text>
-        <Text style={styles.subtitle}>Operator Sign In</Text>
+        <Text style={styles.title}>Production Insights</Text>
       </View>
 
       <View style={styles.form}>
@@ -68,7 +67,12 @@ export default function LoginScreen() {
           placeholder="e.g. demo_operator1"
         />
 
-        <Text style={styles.label}>Password</Text>
+        <View style={styles.passwordLabelRow}>
+          <Text style={styles.label}>Password</Text>
+          <Text style={styles.forgotLink} onPress={() => router.push("/forgot-password")}>
+            Forgot password?
+          </Text>
+        </View>
         <TextField value={password} onChangeText={setPassword} secureToggle />
 
         {error && <Text style={styles.error}>{error}</Text>}
@@ -101,11 +105,6 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: colors.text,
   },
-  subtitle: {
-    fontSize: fontSize.body,
-    color: colors.textMuted,
-    marginTop: spacing.xs,
-  },
   form: {
     gap: spacing.xs,
   },
@@ -115,6 +114,17 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginTop: spacing.md,
     marginBottom: spacing.xs,
+  },
+  passwordLabelRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  forgotLink: {
+    fontSize: fontSize.label,
+    fontWeight: "700",
+    color: colors.primary,
   },
   error: {
     color: colors.critical,

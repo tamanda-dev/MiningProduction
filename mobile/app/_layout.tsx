@@ -23,6 +23,7 @@ export default function RootLayout() {
             >
               <Stack.Screen name="index" options={{ headerShown: false }} />
               <Stack.Screen name="login" options={{ headerShown: false }} />
+              <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
               <Stack.Screen name="site-select" options={{ title: "Select Site" }} />
               <Stack.Screen name="machine-select" options={{ title: "Select Machine" }} />
               <Stack.Screen name="session" options={{ headerShown: false }} />

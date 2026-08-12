@@ -1,20 +1,26 @@
 @import "tailwindcss";
 
+/* Teal scale keyed to the Ilanga 24/7 logo's bar color (#09bdcc, sampled
+   from dashboard/public/logo.jpeg) — 500 sits closest to that source color,
+   50-400 stay bright/true to it for tints and badges, and 600+ is shifted a
+   step darker than a naive proportional scale so bg-brand-600/text-white
+   (Button.tsx's primary variant) clears WCAG AA (~5.4:1) instead of landing
+   in the ~3.7:1 range a straight cyan-600 would give white button text. */
 @theme {
-  --color-brand-50: #eff6ff;
-  --color-brand-100: #dbeafe;
-  --color-brand-200: #bfdbfe;
-  --color-brand-300: #93c5fd;
-  --color-brand-400: #60a5fa;
-  --color-brand-500: #3b82f6;
-  --color-brand-600: #2563eb;
-  --color-brand-700: #1d4ed8;
-  --color-brand-800: #1e40af;
-  --color-brand-900: #1e3a8a;
+  --color-brand-50: #ecfeff;
+  --color-brand-100: #cffafe;
+  --color-brand-200: #a5f3fc;
+  --color-brand-300: #67e8f9;
+  --color-brand-400: #22d3ee;
+  --color-brand-500: #06b6d4;
+  --color-brand-600: #0e7490;
+  --color-brand-700: #155e75;
+  --color-brand-800: #164e63;
+  --color-brand-900: #0b3540;
 }
 
 :focus-visible {
-  outline: 2px solid #2a78d6;
+  outline: 2px solid #0e7490;
   outline-offset: 2px;
 }
 

@@ -18,7 +18,11 @@ export const colors = {
   textMuted: "#52514E",
   border: "#33322F",
   borderLight: "#C3C2B7",
-  primary: "#1D4ED8",
+  // Same teal as the dashboard's --color-brand-600 (see dashboard/src/
+  // index.css) — sampled from the Ilanga 24/7 logo, shifted a step darker
+  // than the raw sample so white button text clears WCAG AA (~5.4:1)
+  // instead of the ~2.3:1 the literal logo teal gives against white.
+  primary: "#0E7490",
   primaryText: "#FFFFFF",
   good: "#0CA30C",
   warning: "#FAB219",
