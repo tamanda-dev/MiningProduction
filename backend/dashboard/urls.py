@@ -6,6 +6,7 @@ from .views import (
     DashboardExportStatusView,
     DashboardExportView,
     DashboardHourlyCurveView,
+    DashboardHourlyMachineStatusView,
     DashboardMachineStatusView,
     DashboardSummaryView,
     DashboardTrendsView,
@@ -18,6 +19,11 @@ urlpatterns = [
     path("availability/", DashboardAvailabilityView.as_view(), name="dashboard-availability"),
     path("downtime-pareto/", DashboardDowntimeParetoView.as_view(), name="dashboard-downtime-pareto"),
     path("machine-status/", DashboardMachineStatusView.as_view(), name="dashboard-machine-status"),
+    path(
+        "hourly-machine-status/",
+        DashboardHourlyMachineStatusView.as_view(),
+        name="dashboard-hourly-machine-status",
+    ),
     path("export/", DashboardExportView.as_view(), name="dashboard-export"),
     path("export/<str:task_id>/", DashboardExportStatusView.as_view(), name="dashboard-export-status"),
 ]

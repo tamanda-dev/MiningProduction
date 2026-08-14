@@ -23,6 +23,7 @@ from .serializers import (
 )
 from .services.aggregation import act_vs_plan_for_shift_instance, daily_trend, hourly_curve
 from .services.availability import availability_utilization
+from .services.hourly_machine_status import hourly_machine_status
 from .services.machine_status import machine_status_board
 from .services.pareto import downtime_pareto
 from .tasks import (
@@ -181,6 +182,27 @@ class DashboardMachineStatusView(APIView):
         site_id = _require_site_access(request, request.query_params.get("site"))
         machine_type_id = request.query_params.get("machine_type")
         return Response(machine_status_board(site_id, machine_type_id))
+
+
+class DashboardHourlyMachineStatusView(APIView):
+    """Per-machine, per-hour-slot ok/breakdown-reason grid for one shift,
+    grouped by machine type — the general-fleet (LHD/DUT/DRR/water bowser/
+    etc.) Availability & Breakdown Report. Crushers are excluded; see
+    hourly_machine_status()'s docstring for why.
+    """
+
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        shift_instance_id = request.query_params.get("shift_instance")
+        if not shift_instance_id:
+            raise ValidationError({"shift_instance": "Required query parameter."})
+        shift_instance = ShiftInstance.objects.filter(pk=shift_instance_id).first()
+        if shift_instance is None:
+            raise ValidationError({"shift_instance": "Unknown shift instance."})
+        _require_site_access(request, shift_instance.site_id)
+        machine_type_id = request.query_params.get("machine_type")
+        return Response(hourly_machine_status(shift_instance, machine_type_id))
 
 
 @extend_schema(request=ExportTriggerRequestSerializer, responses=ExportStatusSerializer)

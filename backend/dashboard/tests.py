@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 import pytest
 from openpyxl import load_workbook
 
@@ -8,9 +10,11 @@ from dashboard.services.export import (
     build_mtd_report_xlsx,
     build_shift_report_xlsx,
 )
-from entries.models import ParameterValue, ProductionEntry
+from dashboard.services.hourly_machine_status import hourly_machine_status
+from entries.models import BreakdownLog, ParameterValue, ProductionEntry
+from machines.models import Machine
 from masterdata.models import UOM, Parameter
-from shiftmgmt.services import get_or_create_open_instance
+from shiftmgmt.services import get_or_create_open_instance, time_slots_for_instance
 
 
 @pytest.mark.django_db
@@ -86,6 +90,61 @@ def test_sum_aggregation_parameter_still_sums(machines, sections, all_day_shifts
     results = act_vs_plan_for_shift_instance(instance)
     row = next(r for r in results if r["parameter"] == parameter.id)
     assert row["act"] == 135
+
+
+@pytest.mark.django_db
+def test_hourly_machine_status_marks_only_the_slots_a_breakdown_overlaps(
+    machines, sections, all_day_shifts, django_user_model
+):
+    """Regression test for the Availability & Breakdown Report grid: a
+    BreakdownLog spanning the middle of one hour slot must mark that slot
+    (and only that slot) as down, with the reason surfaced and the
+    running-count for that slot dropping to reflect it."""
+    m_a, _ = machines
+    sec_a, _ = sections
+    operator = django_user_model.objects.create_user(username="op3", password="pass12345")
+    instance = get_or_create_open_instance(m_a.site)
+
+    slots = time_slots_for_instance(instance)
+    _, slot1_start, slot1_end = slots[1]
+    BreakdownLog.objects.create(
+        shift_instance=instance,
+        site=m_a.site,
+        section=sec_a,
+        machine=m_a,
+        start_at=slot1_start + timedelta(minutes=5),
+        end_at=slot1_end - timedelta(minutes=5),
+        description="Hydraulic hose burst",
+        operator=operator,
+        recorded_by=operator,
+    )
+
+    results = hourly_machine_status(instance)
+    group = next(g for g in results if g["machine_type"] == m_a.machine_type_id)
+    row = next(m for m in group["machines"] if m["machine"] == m_a.id)
+
+    down_slots = {c["slot_index"] for c in row["cells"] if not c["ok"]}
+    assert down_slots == {1}
+    assert row["cells"][1]["reason"] == "Hydraulic hose burst"
+    assert group["running_by_slot"][0] == 1
+    assert group["running_by_slot"][1] == 0
+
+
+@pytest.mark.django_db
+def test_hourly_machine_status_excludes_crushers(machines, sections, all_day_shifts, django_user_model):
+    """Crusher breakdowns are tracked through the Crushing & Breakdowns
+    module's own hourly checklist/matrix, not BreakdownLog — a Crusher-type
+    Machine must never show up on this general-fleet grid."""
+    m_a, _ = machines
+    from masterdata.models import MachineType
+
+    crusher_type = MachineType.objects.create(name="Crusher", code="cru")
+    Machine.objects.create(site=m_a.site, machine_type=crusher_type, fleet_number="CRU-1")
+
+    instance = get_or_create_open_instance(m_a.site)
+    results = hourly_machine_status(instance)
+
+    assert all(g["machine_type_name"] != "Crusher" for g in results)
 
 
 @pytest.fixture

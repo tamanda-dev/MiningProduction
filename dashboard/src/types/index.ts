@@ -376,6 +376,35 @@ export interface MachineStatusRow {
   assignment_started_at: string | null;
 }
 
+export interface HourlyMachineStatusCell {
+  slot_index: number;
+  ok: boolean;
+  reason: string | null;
+}
+
+export interface HourlyMachineStatusSlot {
+  slot_index: number;
+  start_at: string;
+  end_at: string;
+}
+
+export interface HourlyMachineStatusMachineRow {
+  machine: ID;
+  fleet_number: string;
+  name: string;
+  section: ID | null;
+  section_name: string | null;
+  cells: HourlyMachineStatusCell[];
+}
+
+export interface HourlyMachineStatusGroup {
+  machine_type: ID;
+  machine_type_name: string;
+  slots: HourlyMachineStatusSlot[];
+  machines: HourlyMachineStatusMachineRow[];
+  running_by_slot: number[];
+}
+
 export interface AuditLogEntry {
   id: ID;
   created_at: string;

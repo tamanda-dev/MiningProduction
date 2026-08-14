@@ -7,6 +7,7 @@ import { ForgotPasswordPage } from "@/pages/auth/ForgotPasswordPage";
 import { LoginPage } from "@/pages/auth/LoginPage";
 import { AvailabilityBoardPage } from "@/pages/dashboard/AvailabilityBoardPage";
 import { DowntimeParetoPage } from "@/pages/dashboard/DowntimeParetoPage";
+import { HourlyMachineStatusPage } from "@/pages/dashboard/HourlyMachineStatusPage";
 import { LiveShiftViewPage } from "@/pages/dashboard/LiveShiftViewPage";
 import { MachineStatusBoardPage } from "@/pages/dashboard/MachineStatusBoardPage";
 import { TrendsPage } from "@/pages/dashboard/TrendsPage";
@@ -67,6 +68,7 @@ function App() {
             <Route path="/dashboard/summary" element={<LiveShiftViewPage />} />
             <Route path="/dashboard/trends" element={<TrendsPage />} />
             <Route path="/dashboard/availability" element={<AvailabilityBoardPage />} />
+            <Route path="/dashboard/hourly-machine-status" element={<HourlyMachineStatusPage />} />
             <Route path="/dashboard/downtime" element={<DowntimeParetoPage />} />
             <Route path="/dashboard/machines" element={<MachineStatusBoardPage />} />
           </Route>

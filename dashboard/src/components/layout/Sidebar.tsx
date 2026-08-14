@@ -27,6 +27,7 @@ const DASHBOARD_ITEMS: NavItem[] = [
   { to: "/dashboard/summary", label: "Live Shift View", requireRole: "supervisor" },
   { to: "/dashboard/trends", label: "Trends", requireRole: "supervisor" },
   { to: "/dashboard/availability", label: "Availability & Utilization", requireRole: "supervisor" },
+  { to: "/dashboard/hourly-machine-status", label: "Availability & Breakdown", requireRole: "supervisor" },
   { to: "/dashboard/downtime", label: "Downtime Pareto", requireRole: "supervisor" },
   { to: "/dashboard/machines", label: "Machine Status", requireRole: "supervisor" },
 ];
