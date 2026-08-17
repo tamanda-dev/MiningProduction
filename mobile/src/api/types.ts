@@ -9,7 +9,7 @@ export interface Paginated<T> {
 
 // Manager was removed as a distinct role — Supervisor absorbed everything
 // it used to do (mirrors dashboard/src/types/index.ts).
-export type Role = "admin" | "supervisor" | "operator";
+export type Role = "admin" | "supervisor" | "operator" | "artisan";
 
 export interface Me {
   id: ID;

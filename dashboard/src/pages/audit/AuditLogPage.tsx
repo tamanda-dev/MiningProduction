@@ -46,7 +46,7 @@ export function AuditLogPage() {
                 <th className="px-4 py-3 font-medium">When</th>
                 <th className="px-4 py-3 font-medium">Action</th>
                 <th className="px-4 py-3 font-medium">Object</th>
-                <th className="px-4 py-3 font-medium">Actor</th>
+                <th className="px-4 py-3 font-medium">User</th>
                 <th className="px-4 py-3 font-medium">Reason</th>
               </tr>
             </thead>

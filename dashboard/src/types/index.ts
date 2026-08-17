@@ -9,7 +9,7 @@ export interface Paginated<T> {
 
 // Manager was removed as a distinct role — Supervisor absorbed everything
 // it used to do.
-export type Role = "admin" | "supervisor" | "operator";
+export type Role = "admin" | "supervisor" | "operator" | "artisan";
 
 export interface Me {
   id: ID;
@@ -284,6 +284,8 @@ export interface ProductionEntry {
   values_display: ParameterValueOut[];
 }
 
+export type BreakdownRepairStatus = "reported" | "acknowledged" | "fixed" | "confirmed";
+
 export interface BreakdownLog {
   id: ID;
   shift_instance: ID;
@@ -302,6 +304,16 @@ export interface BreakdownLog {
   severity: "low" | "medium" | "high" | "";
   operator: ID;
   recorded_by: ID;
+  // The general-fleet breakdown-repair workflow: reported (default, on
+  // report) -> acknowledged (an Artisan claims it) -> fixed (that Artisan
+  // completes the repair — this is what stamps end_at/duration_minutes)
+  // -> confirmed (the reporting Operator confirms the machine works
+  // again). Only moves via POST /breakdown-logs/{id}/acknowledge|complete|
+  // confirm/ — never a plain PATCH.
+  artisan: ID | null;
+  repair_status: BreakdownRepairStatus;
+  acknowledged_at: string | null;
+  confirmed_at: string | null;
   comments: string;
   status: EntryStatus;
   source: "mobile" | "web" | "import";
