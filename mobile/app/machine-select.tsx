@@ -32,7 +32,7 @@ export default function MachineSelectScreen() {
     queryKey: ["machines", selectedSiteId],
     queryFn: async () => {
       const { data } = await api.get<Paginated<Machine>>("/machines/", {
-        params: { site: selectedSiteId, status: "active", page_size: 200 },
+        params: { site: selectedSiteId, status: "operating", page_size: 200 },
       });
       return data.results;
     },

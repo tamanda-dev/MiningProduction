@@ -37,9 +37,7 @@ def availability_utilization(site_id, date, machine_type_id=None):
     """
     instances = list(ShiftInstance.objects.filter(site_id=site_id, date=date).select_related("shift"))
 
-    machines_qs = Machine.objects.filter(
-        site_id=site_id, status__in=[Machine.STATUS_ACTIVE, Machine.STATUS_BREAKDOWN]
-    )
+    machines_qs = Machine.objects.filter(site_id=site_id).exclude(status=Machine.STATUS_RETIRED)
     if machine_type_id:
         machines_qs = machines_qs.filter(machine_type_id=machine_type_id)
     type_counts = {

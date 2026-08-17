@@ -8,17 +8,16 @@ import { ErrorMessage, extractErrorMessage } from "@/components/common/ErrorMess
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { Modal } from "@/components/common/Modal";
 import { api } from "@/lib/api";
-import { MACHINE_STATUS_COLOR } from "@/lib/chartTheme";
+import { MACHINE_STATUS_COLOR, MACHINE_STATUS_LABEL } from "@/lib/chartTheme";
 import { useSiteFilter } from "@/lib/SiteFilterContext";
 import { useLookup } from "@/lib/useLookup";
 import type { MachineStatusRow, MachineType, MachineTypeQualification, Paginated, Section, UserSummary } from "@/types";
 
-const STATUS_LABEL: Record<string, string> = {
-  active: "Active",
-  breakdown: "Breakdown",
-  maintenance: "Maintenance",
-  retired: "Retired",
-};
+const STATUS_LABEL = MACHINE_STATUS_LABEL;
+const ALL_STATUSES = Object.keys(MACHINE_STATUS_LABEL);
+// Mirrors Machine.CLAIMABLE_STATUSES on the backend — the states from
+// which a machine can be assigned/self-claimed for a new shift.
+const ASSIGNABLE_STATUSES = new Set(["operating", "standby"]);
 
 // Supervisor+ pushes an idle machine to a specific operator (rather than
 // the operator having to self-activate it) — the assignment then shows up
@@ -152,10 +151,10 @@ export function MachineStatusBoardPage() {
   });
 
   const rows = data ?? [];
-  const summary = ["active", "breakdown", "maintenance", "retired"].map((status) => ({
+  const summary = ALL_STATUSES.map((status) => ({
     status,
     count: rows.filter((r) => r.status === status).length,
-  }));
+  })).filter((s) => s.count > 0);
 
   return (
     <div>
@@ -217,7 +216,7 @@ export function MachineStatusBoardPage() {
               ) : (
                 <>
                   <div className="mb-2">Idle — no active operator</div>
-                  {row.status === "active" && (
+                  {ASSIGNABLE_STATUSES.has(row.status) && (
                     <button
                       type="button"
                       onClick={() => setAssigningRow(row)}

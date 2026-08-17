@@ -92,9 +92,18 @@ export function MachineTypesScreen() {
 }
 
 const MACHINE_STATUS_OPTIONS = [
-  { value: "active", label: "Active" },
+  { value: "operating", label: "Operating" },
+  { value: "standby", label: "Standby" },
+  { value: "operational_delay", label: "Operational Delay" },
+  { value: "planned_maintenance", label: "Planned Maintenance" },
+  { value: "unplanned_maintenance", label: "Unplanned Maintenance" },
   { value: "breakdown", label: "Breakdown" },
-  { value: "maintenance", label: "Maintenance" },
+  { value: "refuelling", label: "Refuelling" },
+  { value: "no_operator", label: "No Operator" },
+  { value: "weather_delay", label: "Weather Delay" },
+  { value: "blast_clearance", label: "Blast Clearance" },
+  { value: "communications_loss", label: "Communications Loss" },
+  { value: "unknown", label: "Unknown" },
   { value: "retired", label: "Retired" },
 ];
 

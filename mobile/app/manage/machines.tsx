@@ -18,17 +18,37 @@ import { useManageSite } from "@/src/manage/useManageSite";
 import { colors, fontSize, radius, shadow, spacing } from "@/src/theme/theme";
 
 const STATUS_LABEL: Record<string, string> = {
-  active: "Active",
+  operating: "Operating",
+  standby: "Standby",
+  operational_delay: "Operational Delay",
+  planned_maintenance: "Planned Maintenance",
+  unplanned_maintenance: "Unplanned Maintenance",
   breakdown: "Breakdown",
-  maintenance: "Maintenance",
+  refuelling: "Refuelling",
+  no_operator: "No Operator",
+  weather_delay: "Weather Delay",
+  blast_clearance: "Blast Clearance",
+  communications_loss: "Communications Loss",
+  unknown: "Unknown",
   retired: "Retired",
 };
 const STATUS_COLOR: Record<string, string> = {
-  active: colors.good,
+  operating: colors.good,
+  standby: colors.primary,
+  operational_delay: colors.warning,
+  planned_maintenance: colors.warning,
+  unplanned_maintenance: colors.critical,
   breakdown: colors.critical,
-  maintenance: colors.warning,
+  refuelling: colors.warning,
+  no_operator: colors.warning,
+  weather_delay: colors.warning,
+  blast_clearance: colors.warning,
+  communications_loss: colors.critical,
+  unknown: colors.textMuted,
   retired: colors.textMuted,
 };
+// Mirrors Machine.CLAIMABLE_STATUSES on the backend.
+const ASSIGNABLE_STATUSES = new Set(["operating", "standby"]);
 
 function AssignModal({ row, siteId, onClose }: { row: MachineStatusRow; siteId: number; onClose: () => void }) {
   const queryClient = useQueryClient();
@@ -167,7 +187,7 @@ export default function ManageMachinesScreen() {
           ) : (
             <View style={styles.idleRow}>
               <Text style={[styles.muted, styles.idleText]}>Idle — no active operator</Text>
-              {row.status === "active" && siteId !== null && (
+              {ASSIGNABLE_STATUSES.has(row.status) && siteId !== null && (
                 <Pressable onPress={() => setAssigningRow(row)}>
                   <Text style={styles.assignLink}>Assign to Operator</Text>
                 </Pressable>

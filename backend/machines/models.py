@@ -8,22 +8,56 @@ from masterdata.models import MachineType, Section, Site
 class Machine(TimeStampedModel):
     history = HistoricalRecords()
 
-    STATUS_ACTIVE = "active"
+    # Kept as STATUS_ACTIVE for backward compatibility with existing call
+    # sites (claim_machine, apply_breakdown_side_effects, availability
+    # aggregation, seed data) — only the *stored value/label* changed to
+    # "Operating" to match the Shift KPI Dashboard spec's terminology.
+    STATUS_ACTIVE = "operating"
+    STATUS_STANDBY = "standby"
+    STATUS_OPERATIONAL_DELAY = "operational_delay"
+    STATUS_PLANNED_MAINTENANCE = "planned_maintenance"
+    STATUS_UNPLANNED_MAINTENANCE = "unplanned_maintenance"
     STATUS_BREAKDOWN = "breakdown"
-    STATUS_MAINTENANCE = "maintenance"
+    STATUS_REFUELLING = "refuelling"
+    STATUS_NO_OPERATOR = "no_operator"
+    STATUS_WEATHER_DELAY = "weather_delay"
+    STATUS_BLAST_CLEARANCE = "blast_clearance"
+    STATUS_COMMS_LOSS = "communications_loss"
+    STATUS_UNKNOWN = "unknown"
+    # Not part of the 12-state operational model — a separate, permanent
+    # fleet-lifecycle state (decommissioned), kept from the original model.
     STATUS_RETIRED = "retired"
     STATUS_CHOICES = [
-        (STATUS_ACTIVE, "Active"),
+        (STATUS_ACTIVE, "Operating"),
+        (STATUS_STANDBY, "Standby"),
+        (STATUS_OPERATIONAL_DELAY, "Operational Delay"),
+        (STATUS_PLANNED_MAINTENANCE, "Planned Maintenance"),
+        (STATUS_UNPLANNED_MAINTENANCE, "Unplanned Maintenance"),
         (STATUS_BREAKDOWN, "Breakdown"),
-        (STATUS_MAINTENANCE, "Maintenance"),
+        (STATUS_REFUELLING, "Refuelling"),
+        (STATUS_NO_OPERATOR, "No Operator"),
+        (STATUS_WEATHER_DELAY, "Weather Delay"),
+        (STATUS_BLAST_CLEARANCE, "Blast Clearance"),
+        (STATUS_COMMS_LOSS, "Communications Loss"),
+        (STATUS_UNKNOWN, "Unknown"),
         (STATUS_RETIRED, "Retired"),
     ]
+    # Statuses an operator can self-claim a machine into for a new shift.
+    # A machine parked in any other state (down for repair, admin-flagged,
+    # decommissioned...) must first be resolved through the relevant
+    # workflow (breakdown repair, master data) before it can be claimed.
+    CLAIMABLE_STATUSES = {STATUS_ACTIVE, STATUS_STANDBY}
+    # Statuses apply_breakdown_side_effects() is allowed to move a machine
+    # between automatically. Any other status was set deliberately (by an
+    # admin, or by a workflow this function doesn't own) and must never be
+    # silently overwritten just because a breakdown log opened or closed.
+    AUTO_MANAGED_STATUSES = {STATUS_ACTIVE, STATUS_STANDBY, STATUS_BREAKDOWN}
 
     machine_type = models.ForeignKey(MachineType, on_delete=models.PROTECT, related_name="machines")
     site = models.ForeignKey(Site, on_delete=models.PROTECT, related_name="machines")
     fleet_number = models.CharField(max_length=30)
     name = models.CharField(max_length=100, blank=True)
-    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
+    status = models.CharField(max_length=25, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
     current_section = models.ForeignKey(
         Section, on_delete=models.SET_NULL, null=True, blank=True, related_name="machines"
     )

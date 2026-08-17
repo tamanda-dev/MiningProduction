@@ -38,7 +38,7 @@ def claim_machine(machine, operator, section):
     race-proof source of truth; select_for_update() here just turns a lost
     race into a clean 409 instead of a raw IntegrityError bubbling up.
     """
-    if machine.status != Machine.STATUS_ACTIVE:
+    if machine.status not in Machine.CLAIMABLE_STATUSES:
         raise ValidationError({"detail": f"Machine is not available (status={machine.status})."})
 
     _check_qualified(operator, machine)

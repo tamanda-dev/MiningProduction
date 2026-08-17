@@ -44,10 +44,35 @@ export const STATUS = {
 export const NEUTRAL = "#898781";
 
 export const MACHINE_STATUS_COLOR: Record<string, string> = {
-  active: STATUS.good,
+  operating: STATUS.good,
+  standby: CATEGORICAL[0],
+  operational_delay: STATUS.warning,
+  planned_maintenance: STATUS.warning,
+  unplanned_maintenance: STATUS.serious,
   breakdown: STATUS.critical,
-  maintenance: STATUS.warning,
+  refuelling: STATUS.warning,
+  no_operator: STATUS.warning,
+  weather_delay: STATUS.warning,
+  blast_clearance: STATUS.warning,
+  communications_loss: STATUS.serious,
+  unknown: NEUTRAL,
   retired: NEUTRAL,
+};
+
+export const MACHINE_STATUS_LABEL: Record<string, string> = {
+  operating: "Operating",
+  standby: "Standby",
+  operational_delay: "Operational Delay",
+  planned_maintenance: "Planned Maintenance",
+  unplanned_maintenance: "Unplanned Maintenance",
+  breakdown: "Breakdown",
+  refuelling: "Refuelling",
+  no_operator: "No Operator",
+  weather_delay: "Weather Delay",
+  blast_clearance: "Blast Clearance",
+  communications_loss: "Communications Loss",
+  unknown: "Unknown",
+  retired: "Retired",
 };
 
 export const ENTRY_STATUS_COLOR: Record<string, string> = {

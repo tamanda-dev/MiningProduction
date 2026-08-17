@@ -162,12 +162,14 @@ def enforce_status_change_permission(instance, new_status, user):
 def apply_breakdown_side_effects(breakdown_log):
     """Flips Machine.status to/from 'breakdown' based on whether the
     machine currently has any open (end_at is null) breakdown log. Never
-    overrides an admin-set 'maintenance'/'retired' status.
+    overrides a status set deliberately elsewhere (admin-set maintenance,
+    refuelling, weather delay, retired, ...) — see
+    Machine.AUTO_MANAGED_STATUSES.
     """
     machine = breakdown_log.machine
     has_open_breakdown = machine.breakdown_logs.filter(end_at__isnull=True).exists()
     target_status = Machine.STATUS_BREAKDOWN if has_open_breakdown else Machine.STATUS_ACTIVE
-    if machine.status in (Machine.STATUS_ACTIVE, Machine.STATUS_BREAKDOWN) and machine.status != target_status:
+    if machine.status in Machine.AUTO_MANAGED_STATUSES and machine.status != target_status:
         machine.status = target_status
         machine.save(update_fields=["status", "updated_at"])
 

@@ -48,7 +48,20 @@ export interface MachineType {
   active: boolean;
 }
 
-export type MachineStatus = "active" | "breakdown" | "maintenance" | "retired";
+export type MachineStatus =
+  | "operating"
+  | "standby"
+  | "operational_delay"
+  | "planned_maintenance"
+  | "unplanned_maintenance"
+  | "breakdown"
+  | "refuelling"
+  | "no_operator"
+  | "weather_delay"
+  | "blast_clearance"
+  | "communications_loss"
+  | "unknown"
+  | "retired";
 
 export interface Machine {
   id: ID;

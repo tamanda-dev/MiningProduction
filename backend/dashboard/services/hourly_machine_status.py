@@ -27,7 +27,8 @@ def hourly_machine_status(shift_instance, machine_type_id=None):
     shift_end = slots[-1][2] if slots else None
 
     machines_qs = (
-        Machine.objects.filter(site=shift_instance.site, status__in=[Machine.STATUS_ACTIVE, Machine.STATUS_BREAKDOWN])
+        Machine.objects.filter(site=shift_instance.site)
+        .exclude(status=Machine.STATUS_RETIRED)
         .exclude(machine_type__code__iexact="cru")
         .select_related("machine_type", "current_section")
     )
