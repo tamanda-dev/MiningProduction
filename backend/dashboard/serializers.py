@@ -26,6 +26,8 @@ class HourlyCurvePointSerializer(serializers.Serializer):
     slot_index = serializers.IntegerField()
     start_at = serializers.DateTimeField()
     end_at = serializers.DateTimeField()
+    act = serializers.DecimalField(max_digits=14, decimal_places=3)
+    target = serializers.DecimalField(max_digits=14, decimal_places=2, allow_null=True)
     cumulative_act = serializers.DecimalField(max_digits=14, decimal_places=3)
     cumulative_target = serializers.DecimalField(max_digits=14, decimal_places=2, allow_null=True)
 

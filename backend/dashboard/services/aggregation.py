@@ -362,11 +362,14 @@ def daily_trend(site_id, section_id, parameter_id, date_from, date_to):
 
 
 def hourly_curve(shift_instance, section_id, parameter_id):
-    """Cumulative Act tonnes vs cumulative target per time slot — the
-    "Cumulative Tonnes vs Cumulative Target" chart from the source haulage
-    report. The shift's PlanTarget (period_type='shift') is spread evenly
-    across the shift's time slots for the cumulative-target line, since the
-    source reports don't define per-slot targets independently.
+    """Cumulative Act vs cumulative target, plus the raw per-hour Act and
+    per-hour target, per time slot — the "Hourly Tonnes / Hourly Target"
+    bars alongside the "Cumulative Tonnes / Cumulative Target" lines from
+    the source haulage report. The shift's PlanTarget (period_type='shift')
+    is spread evenly across the shift's time slots for both the per-hour
+    and cumulative-target figures — e.g. a 500-tonne shift target over an
+    8-hour shift is 62.5 tonnes/hour, flat, since the source reports don't
+    define per-slot targets independently.
 
     Deliberately always Sum, unlike the other functions in this module: a
     running cumulative total only makes sense for an additive quantity in
@@ -405,7 +408,8 @@ def hourly_curve(shift_instance, section_id, parameter_id):
     cumulative_target = Decimal("0")
     curve = []
     for slot_index, start, end in slots:
-        cumulative_act += act_by_slot.get(slot_index, Decimal("0"))
+        hourly_act = act_by_slot.get(slot_index, Decimal("0"))
+        cumulative_act += hourly_act
         if target_per_slot is not None:
             cumulative_target += target_per_slot
         curve.append(
@@ -413,6 +417,8 @@ def hourly_curve(shift_instance, section_id, parameter_id):
                 "slot_index": slot_index,
                 "start_at": start,
                 "end_at": end,
+                "act": hourly_act,
+                "target": target_per_slot,
                 "cumulative_act": cumulative_act,
                 "cumulative_target": cumulative_target if target_per_slot is not None else None,
             }

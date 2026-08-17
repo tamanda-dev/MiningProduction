@@ -224,3 +224,34 @@ def test_daily_production_report_xlsx_is_formatted(act_vs_plan_data):
     assert ws["C4"].fill.fgColor.rgb in {"00F4B183", "00A9D18E"}  # Day/Night shift band color
     assert ws["C6"].number_format == "#,##0.0"  # first shift's Act column
     assert ws.freeze_panes == "C6"
+
+
+@pytest.mark.django_db
+def test_hourly_curve_includes_flat_per_hour_act_and_target(act_vs_plan_data):
+    """Regression test: the Hourly Curve chart needs the raw per-hour Act
+    and a flat per-hour target (shift target evenly split across slots —
+    e.g. a 500-tonne/8-hour shift target is 62.5 tonnes/hour, not a ramp),
+    not just the running cumulative totals — the bars half of the source
+    report's "Hourly Tonnes / Hourly Target" bars-plus-lines combo chart,
+    which the API previously had no field for at all."""
+    from dashboard.services.aggregation import hourly_curve
+    from shiftmgmt.services import time_slots_for_instance
+
+    instance, site = act_vs_plan_data
+    sec_a = instance.production_entries.first().section
+    parameter = instance.production_entries.first().values.first().parameter
+
+    slots = time_slots_for_instance(instance)
+    curve = hourly_curve(instance, sec_a.id, parameter.id)
+
+    assert len(curve) == len(slots)
+    slot0 = next(p for p in curve if p["slot_index"] == 0)
+    assert slot0["act"] == 55
+    assert float(slot0["target"]) == pytest.approx(100 / len(slots))
+    assert slot0["cumulative_act"] == 55
+    assert float(slot0["cumulative_target"]) == pytest.approx(100 / len(slots))
+
+    slot1 = next(p for p in curve if p["slot_index"] == 1)
+    assert slot1["act"] == 0
+    assert float(slot1["target"]) == pytest.approx(100 / len(slots))
+    assert float(slot1["cumulative_target"]) == pytest.approx(2 * 100 / len(slots))

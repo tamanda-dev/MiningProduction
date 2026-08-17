@@ -336,6 +336,8 @@ export interface HourlyCurvePoint {
   slot_index: number;
   start_at: string;
   end_at: string;
+  act: number;
+  target: number | null;
   cumulative_act: number;
   cumulative_target: number | null;
 }

@@ -27,6 +27,7 @@ import { useLookup } from "@/lib/useLookup";
 import type { HourlyCurvePoint, Parameter, Section, TrendPoint } from "@/types";
 
 const ACT_COLOR = CATEGORICAL[0];
+const HOURLY_ACT_COLOR = CATEGORICAL[1];
 const PLAN_COLOR = CHART_INK.muted;
 
 function useSectionsAndParameters(siteId: number | null) {
@@ -179,6 +180,8 @@ function HourlyCurveTab() {
 
   const chartData = (data ?? []).map((p) => ({
     slot: format(new Date(p.start_at), "HH:mm"),
+    act: p.act,
+    target: p.target,
     cumulative_act: p.cumulative_act,
     cumulative_target: p.cumulative_target,
   }));
@@ -231,10 +234,26 @@ function HourlyCurveTab() {
             <ComposedChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
               <CartesianGrid stroke={CHART_INK.gridline} vertical={false} />
               <XAxis dataKey="slot" tick={{ fontSize: 12, fill: CHART_INK.muted }} />
-              <YAxis tick={{ fontSize: 12, fill: CHART_INK.muted }} />
+              {/* Left axis: cumulative totals, which grow across the whole
+                  shift and so live on a much larger scale than any single
+                  hour's figures — right axis: the per-hour bars/target,
+                  same dual-axis split as the source report's chart. */}
+              <YAxis yAxisId="cumulative" tick={{ fontSize: 12, fill: CHART_INK.muted }} />
+              <YAxis yAxisId="hourly" orientation="right" tick={{ fontSize: 12, fill: CHART_INK.muted }} />
               <Tooltip />
               <Legend />
+              <Bar yAxisId="hourly" dataKey="act" name="Hourly Act" fill={HOURLY_ACT_COLOR} radius={[3, 3, 0, 0]} maxBarSize={28} />
               <Line
+                yAxisId="hourly"
+                dataKey="target"
+                name="Hourly Target"
+                stroke={PLAN_COLOR}
+                strokeDasharray="5 4"
+                strokeWidth={2}
+                dot={false}
+              />
+              <Line
+                yAxisId="cumulative"
                 dataKey="cumulative_act"
                 name="Cumulative Act"
                 stroke={ACT_COLOR}
@@ -242,6 +261,7 @@ function HourlyCurveTab() {
                 dot={{ r: 3 }}
               />
               <Line
+                yAxisId="cumulative"
                 dataKey="cumulative_target"
                 name="Cumulative Target"
                 stroke={PLAN_COLOR}
