@@ -31,15 +31,25 @@ export default function Index() {
   }
 
   // Operating a machine (site-select -> machine-select -> session/*) is an
-  // Operator's job; Admin/Supervisor land in the management dashboard
-  // instead, mirroring the web dashboard's requireRole="operator" restriction on Operate.
-  if (!hasRole("operator")) {
-    return <Redirect href="/manage/dashboard" />;
+  // Operator's job, mirroring the web dashboard's requireRole="operator"
+  // restriction on Operate.
+  if (hasRole("operator")) {
+    if (!selectedSiteId) {
+      return <Redirect href="/site-select" />;
+    }
+    return <Redirect href="/machine-select" />;
   }
 
-  if (!selectedSiteId) {
-    return <Redirect href="/site-select" />;
+  // Artisan gets its own claim/repair queue — neither session/* (Operator-
+  // only, see above) nor manage/* (Admin/Supervisor-only, see manage/
+  // _layout.tsx's own redirect back to "/") fit a plain Artisan account,
+  // so without this branch it would land on manage/dashboard and bounce
+  // straight back here, looping.
+  if (hasRole("artisan")) {
+    return <Redirect href="/artisan/unclaimed" />;
   }
 
-  return <Redirect href="/machine-select" />;
+  // Admin/Supervisor (or, as a fallback, any account with no recognized
+  // role) land in the management dashboard.
+  return <Redirect href="/manage/dashboard" />;
 }

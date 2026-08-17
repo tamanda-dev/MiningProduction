@@ -9,15 +9,21 @@ interface NavItem {
   to: string;
   label: string;
   requireRole?: Role;
+  // Unlike requireRole (an allow-list — must have this role to see the
+  // item), this is a deny-list: Admin is purely back-office/management
+  // and was never expected to physically operate a machine, unlike a
+  // Supervisor who might be stationed at a plant themselves.
+  hideForAdmin?: boolean;
 }
 
 // Operating a machine is usually an Operator's job — Admin/Supervisor
 // typically assign a machine to an operator instead (Master Data > Assign
 // Machines / the Machine Status Board). But a Supervisor stationed at a
 // plant themselves (e.g. the crusher) can self-activate one directly from
-// this same screen too — visible to every authenticated role, matching
-// App.tsx's /operate/* route, which is auth-gated only, not role-gated.
-const OPERATE_ITEMS: NavItem[] = [{ to: "/operate/session", label: "My Shift" }];
+// this same screen too — visible to every authenticated non-Admin role,
+// matching App.tsx's /operate/* route (auth-gated, and now also
+// Admin-excluded to match this nav item).
+const OPERATE_ITEMS: NavItem[] = [{ to: "/operate/session", label: "My Shift", hideForAdmin: true }];
 
 // Site-wide analytics — Supervisor+ territory. An Operator's job is
 // submitting data through the "Operate" forms, not reviewing aggregated
@@ -30,6 +36,8 @@ const DASHBOARD_ITEMS: NavItem[] = [
   { to: "/dashboard/hourly-machine-status", label: "Availability & Breakdown", requireRole: "supervisor" },
   { to: "/dashboard/downtime", label: "Downtime Pareto", requireRole: "supervisor" },
   { to: "/dashboard/machines", label: "Machine Status", requireRole: "supervisor" },
+  { to: "/dashboard/mttr", label: "MTTR Report", requireRole: "supervisor" },
+  { to: "/dashboard/production-summary", label: "Production Summary", requireRole: "supervisor" },
 ];
 
 const ENTRY_ITEMS: NavItem[] = [
@@ -37,6 +45,12 @@ const ENTRY_ITEMS: NavItem[] = [
   { to: "/entries/breakdowns", label: "Breakdown Logs" },
   { to: "/entries/deliveries", label: "Delivery Entries" },
 ];
+
+// An Artisan's own work queue — acknowledging/fixing general-fleet
+// breakdowns. Distinct from "Entries" (which is about recording production
+// data) and "Crusher Plant" (which has its own, separate artisan workflow
+// for crusher incidents specifically).
+const ARTISAN_ITEMS: NavItem[] = [{ to: "/artisan/my-breakdowns", label: "My Breakdowns", requireRole: "artisan" }];
 
 const CRUSHER_PLANT_ITEMS: NavItem[] = [
   { to: "/crusher/summary", label: "Summary" },
@@ -82,7 +96,9 @@ function NavSection({
   onNavigate?: () => void;
 }) {
   const { hasRole } = useAuth();
-  const visibleItems = items.filter((item) => !item.requireRole || hasRole(item.requireRole));
+  const visibleItems = items.filter(
+    (item) => (!item.requireRole || hasRole(item.requireRole)) && !(item.hideForAdmin && hasRole("admin")),
+  );
   if (visibleItems.length === 0) return null;
 
   return (
@@ -131,6 +147,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       <NavSection title="Operate" items={OPERATE_ITEMS} onNavigate={onNavigate} />
       <NavSection title="Dashboard" items={DASHBOARD_ITEMS} onNavigate={onNavigate} />
       <NavSection title="Entries" items={ENTRY_ITEMS} onNavigate={onNavigate} />
+      <NavSection title="Artisan" items={ARTISAN_ITEMS} onNavigate={onNavigate} />
       <NavSection title="Crusher Plant" items={CRUSHER_PLANT_ITEMS} onNavigate={onNavigate} />
       <NavSection title="Master Data" items={MASTER_DATA_ITEMS} onNavigate={onNavigate} />
       <NavSection title="Administration" items={ADMINISTRATION_ITEMS} onNavigate={onNavigate} />

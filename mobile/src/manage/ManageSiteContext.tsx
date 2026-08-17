@@ -23,6 +23,11 @@ export const ManageSiteContext = createContext<ManageSiteContextValue | undefine
  * context (and its own AsyncStorage key) rather than reusing SessionContext,
  * since that one's semantics and screens are operator-specific. Mirrors
  * dashboard/src/lib/SiteFilterContext.tsx.
+ *
+ * Also reused as-is by the Artisan flow (app/artisan/_layout.tsx) — an
+ * Artisan's site scoping works exactly like a Supervisor's (UserSiteAccess
+ * grants, filtered here via the same accessibleSiteIds), and "which site's
+ * breakdown queue am I viewing" is the same shape of question.
  */
 export function ManageSiteProvider({ children }: { children: ReactNode }) {
   const { accessibleSiteIds } = useAuth();

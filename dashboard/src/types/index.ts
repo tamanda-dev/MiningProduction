@@ -419,6 +419,24 @@ export interface HourlyMachineStatusGroup {
   running_by_slot: number[];
 }
 
+export interface GeneralFleetMttr {
+  site: ID;
+  section: ID | null;
+  date_from: string;
+  date_to: string;
+  actual_mttr_minutes: number | null;
+  target_mttr_minutes: number | null;
+  breakdown_count: number;
+}
+
+export type ProductionSummaryGroupBy = "machine" | "operator" | "supervisor" | "shift";
+
+export interface ProductionSummaryRow {
+  group: ID | string;
+  label: string;
+  act: number;
+}
+
 export interface AuditLogEntry {
   id: ID;
   created_at: string;

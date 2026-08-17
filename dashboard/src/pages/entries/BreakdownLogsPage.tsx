@@ -1,18 +1,22 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { useAuth } from "@/auth/useAuth";
+import { Badge } from "@/components/common/Badge";
+import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
 import { DownloadPdfButton } from "@/components/common/DownloadPdfButton";
 import { EmptyState } from "@/components/common/EmptyState";
-import { ErrorMessage } from "@/components/common/ErrorMessage";
+import { ErrorMessage, extractErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { Modal } from "@/components/common/Modal";
 import { Pagination } from "@/components/common/Pagination";
 import { EntryHistoryPanel } from "@/components/entries/EntryHistoryPanel";
+import { userLabel } from "@/components/users/QualificationsModal";
 import { api } from "@/lib/api";
-import { NEUTRAL, STATUS } from "@/lib/chartTheme";
+import { NEUTRAL, REPAIR_STATUS_COLOR, STATUS } from "@/lib/chartTheme";
 import { useSiteFilter } from "@/lib/SiteFilterContext";
 import { useLookup } from "@/lib/useLookup";
-import type { BreakdownLog, DowntimeReasonCode, Machine, Paginated } from "@/types";
+import type { BreakdownLog, DowntimeReasonCode, Machine, Paginated, UserSummary } from "@/types";
 
 const PAGE_SIZE = 25;
 
@@ -23,7 +27,43 @@ const SEVERITY_COLOR: Record<string, string> = {
   "": NEUTRAL,
 };
 
+const REPAIR_STATUS_LABEL: Record<string, string> = {
+  reported: "Reported",
+  acknowledged: "Acknowledged",
+  fixed: "Fixed",
+  confirmed: "Confirmed",
+};
+
 function BreakdownDetailModal({ log, onClose }: { log: BreakdownLog; onClose: () => void }) {
+  const { hasRole, user } = useAuth();
+  const queryClient = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
+  // Supervisor+ can read /users/ for the assigned-artisan name; an Operator
+  // opening this same modal for their own reported breakdown can't (403),
+  // so this simply comes back empty for them and the id-only fallback
+  // below is used instead — never a hard failure.
+  const { data: users } = useLookup<UserSummary>("users");
+  const artisanLabel = (id: number | null) => {
+    if (!id) return "—";
+    const u = users?.find((u) => u.id === id);
+    return u ? userLabel(u) : `User #${id}`;
+  };
+
+  const confirmMutation = useMutation({
+    mutationFn: async () => api.post(`/breakdown-logs/${log.id}/confirm/`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["breakdown-logs"] });
+      onClose();
+    },
+    onError: (err) => setError(extractErrorMessage(err)),
+  });
+
+  // Confirming is the reporting Operator's call (or a Supervisor/Admin
+  // override) — mirrors services.confirm_breakdown_repair's own check
+  // server-side, just so the button doesn't show up for someone the API
+  // would reject anyway.
+  const canConfirm = log.repair_status === "fixed" && (hasRole("supervisor") || user?.id === log.operator);
+
   return (
     <Modal open onClose={onClose} title={`Breakdown #${log.id}`} wide>
       <div className="flex flex-col gap-4">
@@ -49,6 +89,53 @@ function BreakdownDetailModal({ log, onClose }: { log: BreakdownLog; onClose: ()
           <Detail label="Status" value={log.status} />
           <Detail label="Comments" value={log.comments || "—"} />
         </div>
+
+        <div>
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Repair Workflow
+          </h3>
+          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+            <Detail
+              label="Repair Status"
+              value={
+                <Badge
+                  label={REPAIR_STATUS_LABEL[log.repair_status]}
+                  color={REPAIR_STATUS_COLOR[log.repair_status]}
+                />
+              }
+            />
+            <Detail label="Assigned Artisan" value={artisanLabel(log.artisan)} />
+            <Detail
+              label="Acknowledged At"
+              value={log.acknowledged_at ? new Date(log.acknowledged_at).toLocaleString() : "—"}
+            />
+            <Detail
+              label="Confirmed At"
+              value={log.confirmed_at ? new Date(log.confirmed_at).toLocaleString() : "—"}
+            />
+          </div>
+          {canConfirm && (
+            <div className="mt-3">
+              <Button
+                variant="success"
+                size="sm"
+                onClick={() => {
+                  setError(null);
+                  confirmMutation.mutate();
+                }}
+                disabled={confirmMutation.isPending}
+              >
+                {confirmMutation.isPending ? "Confirming…" : "Confirm machine is working"}
+              </Button>
+            </div>
+          )}
+          {error && (
+            <div className="mt-2">
+              <ErrorMessage message={error} />
+            </div>
+          )}
+        </div>
+
         <div>
           <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Description</h3>
           <p className="text-sm text-slate-700">{log.description || "—"}</p>

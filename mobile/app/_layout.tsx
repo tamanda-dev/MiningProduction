@@ -28,6 +28,7 @@ export default function RootLayout() {
               <Stack.Screen name="machine-select" options={{ title: "Select Machine" }} />
               <Stack.Screen name="session" options={{ headerShown: false }} />
               <Stack.Screen name="manage" options={{ headerShown: false }} />
+              <Stack.Screen name="artisan" options={{ headerShown: false }} />
             </Stack>
             <StatusBar style="dark" />
           </SessionProvider>

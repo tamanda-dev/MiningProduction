@@ -13,6 +13,7 @@ import { Pagination } from "@/components/common/Pagination";
 import { ShiftInstancePicker } from "@/components/common/ShiftInstancePicker";
 import { DynamicField, type FieldValue } from "@/components/operate/DynamicField";
 import { EntryHistoryPanel } from "@/components/entries/EntryHistoryPanel";
+import { userLabel } from "@/components/users/QualificationsModal";
 import { api } from "@/lib/api";
 import { ENTRY_STATUS_COLOR } from "@/lib/chartTheme";
 import { useSiteFilter } from "@/lib/SiteFilterContext";
@@ -25,6 +26,7 @@ import type {
   ProductionEntry,
   Section,
   ShiftInstance,
+  UserSummary,
 } from "@/types";
 
 const PAGE_SIZE = 25;
@@ -274,6 +276,7 @@ function Detail({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export function ProductionEntriesPage() {
+  const { hasRole } = useAuth();
   const { siteId } = useSiteFilter();
   const { data: sections } = useLookup<Section>("sections", siteId ? { site: siteId } : undefined);
   const { data: machines } = useLookup<Machine>("machines", siteId ? { site: siteId } : undefined);
@@ -281,11 +284,18 @@ export function ProductionEntriesPage() {
     "shift-instances",
     siteId ? { site: siteId, ordering: "-date" } : undefined,
   );
+  // /users/ is Supervisor+ readable only — an Operator hitting this page
+  // (they can, to review their own entries) would just get a 403 here,
+  // so the Operator/Recorded By dropdowns below are hidden for them
+  // rather than shown empty/broken.
+  const { data: users } = useLookup<UserSummary>("users");
 
   const [sectionId, setSectionId] = useState<number | null>(null);
   const [machineId, setMachineId] = useState<number | null>(null);
   const [shiftInstanceId, setShiftInstanceId] = useState<number | null>(null);
   const [status, setStatus] = useState<string>("");
+  const [operatorId, setOperatorId] = useState<number | null>(null);
+  const [recordedById, setRecordedById] = useState<number | null>(null);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [search, setSearch] = useState("");
@@ -322,16 +332,22 @@ export function ProductionEntriesPage() {
 
   const filtered = useMemo(() => {
     if (!data) return undefined;
-    if (!search.trim()) return data;
+    // operator/recorded_by aren't in ProductionEntryFilterSet server-side,
+    // so — same as the free-text search just below — these narrow the
+    // already-fetched page client-side rather than round-tripping the API.
+    let rows = data;
+    if (operatorId !== null) rows = rows.filter((entry) => entry.operator === operatorId);
+    if (recordedById !== null) rows = rows.filter((entry) => entry.recorded_by === recordedById);
+    if (!search.trim()) return rows;
     const needle = search.trim().toLowerCase();
-    return data.filter((entry) =>
+    return rows.filter((entry) =>
       [sectionName(entry.section), machineLabel(entry.machine), entry.entry_type, entry.status, entry.comments]
         .join(" ")
         .toLowerCase()
         .includes(needle),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, search, sections, machines]);
+  }, [data, search, sections, machines, operatorId, recordedById]);
 
   const pageCount = filtered ? Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)) : 1;
   const currentPage = Math.min(page, pageCount);
@@ -385,6 +401,40 @@ export function ProductionEntriesPage() {
             </option>
           ))}
         </select>
+        {hasRole("supervisor") && (
+          <>
+            <select
+              value={operatorId ?? ""}
+              onChange={(e) => {
+                setOperatorId(e.target.value ? Number(e.target.value) : null);
+                setPage(1);
+              }}
+              className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            >
+              <option value="">All operators</option>
+              {users?.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {userLabel(u)}
+                </option>
+              ))}
+            </select>
+            <select
+              value={recordedById ?? ""}
+              onChange={(e) => {
+                setRecordedById(e.target.value ? Number(e.target.value) : null);
+                setPage(1);
+              }}
+              className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            >
+              <option value="">All recorded by</option>
+              {users?.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {userLabel(u)}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
         <input
           type="date"
           value={dateFrom}

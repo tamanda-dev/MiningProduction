@@ -317,3 +317,31 @@ export interface BreakdownIncident {
   client_uuid: string | null;
   comments: string;
 }
+
+// -- General-fleet breakdown/repair workflow ----------------------------------
+// (BreakdownLog, non-crusher machines) — separate from BreakdownIncident
+// above, which is the crusher-specific module. Repair workflow: an
+// Operator reports a breakdown (repair_status "reported"), an Artisan
+// acknowledges/claims it ("acknowledged"), that Artisan marks it fixed
+// ("fixed"), then the reporting Operator confirms the machine works again
+// ("confirmed"). Mirrors dashboard/src/types/index.ts's BreakdownLog.
+export type RepairStatus = "reported" | "acknowledged" | "fixed" | "confirmed";
+
+export interface BreakdownLog {
+  id: ID;
+  machine: ID;
+  section: ID;
+  site: ID;
+  description: string;
+  reason_code: ID | null;
+  start_at: string;
+  end_at: string | null;
+  duration_minutes: number | null;
+  severity: "low" | "medium" | "high" | "";
+  operator: ID;
+  artisan: ID | null;
+  repair_status: RepairStatus;
+  acknowledged_at: string | null;
+  confirmed_at: string | null;
+  comments: string;
+}

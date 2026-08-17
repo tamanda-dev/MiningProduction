@@ -3,6 +3,7 @@ import { format, subDays } from "date-fns";
 import { useState } from "react";
 import {
   Bar,
+  BarChart,
   CartesianGrid,
   ComposedChart,
   Legend,
@@ -182,8 +183,6 @@ function HourlyCurveTab() {
     slot: format(new Date(p.start_at), "HH:mm"),
     act: p.act,
     target: p.target,
-    cumulative_act: p.cumulative_act,
-    cumulative_target: p.cumulative_target,
   }));
 
   return (
@@ -231,45 +230,15 @@ function HourlyCurveTab() {
       {data && (
         <Card>
           <ResponsiveContainer width="100%" height={340}>
-            <ComposedChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+            <BarChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
               <CartesianGrid stroke={CHART_INK.gridline} vertical={false} />
               <XAxis dataKey="slot" tick={{ fontSize: 12, fill: CHART_INK.muted }} />
-              {/* Left axis: cumulative totals, which grow across the whole
-                  shift and so live on a much larger scale than any single
-                  hour's figures — right axis: the per-hour bars/target,
-                  same dual-axis split as the source report's chart. */}
-              <YAxis yAxisId="cumulative" tick={{ fontSize: 12, fill: CHART_INK.muted }} />
-              <YAxis yAxisId="hourly" orientation="right" tick={{ fontSize: 12, fill: CHART_INK.muted }} />
+              <YAxis tick={{ fontSize: 12, fill: CHART_INK.muted }} />
               <Tooltip />
               <Legend />
-              <Bar yAxisId="hourly" dataKey="act" name="Hourly Act" fill={HOURLY_ACT_COLOR} radius={[3, 3, 0, 0]} maxBarSize={28} />
-              <Line
-                yAxisId="hourly"
-                dataKey="target"
-                name="Hourly Target"
-                stroke={PLAN_COLOR}
-                strokeDasharray="5 4"
-                strokeWidth={2}
-                dot={false}
-              />
-              <Line
-                yAxisId="cumulative"
-                dataKey="cumulative_act"
-                name="Cumulative Act"
-                stroke={ACT_COLOR}
-                strokeWidth={2}
-                dot={{ r: 3 }}
-              />
-              <Line
-                yAxisId="cumulative"
-                dataKey="cumulative_target"
-                name="Cumulative Target"
-                stroke={PLAN_COLOR}
-                strokeDasharray="5 4"
-                strokeWidth={2}
-                dot={false}
-              />
-            </ComposedChart>
+              <Bar dataKey="act" name="Act" fill={HOURLY_ACT_COLOR} radius={[3, 3, 0, 0]} maxBarSize={28} />
+              <Bar dataKey="target" name="Target" fill={PLAN_COLOR} radius={[3, 3, 0, 0]} maxBarSize={28} />
+            </BarChart>
           </ResponsiveContainer>
         </Card>
       )}

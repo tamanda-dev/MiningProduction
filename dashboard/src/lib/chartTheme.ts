@@ -61,6 +61,18 @@ export const ROLE_COLOR: Record<string, string> = {
   admin: CATEGORICAL[5],
   supervisor: CATEGORICAL[4],
   operator: CATEGORICAL[1],
+  artisan: CATEGORICAL[6],
+};
+
+// The general-fleet breakdown-repair workflow (reported -> acknowledged ->
+// fixed -> confirmed) — reuses the same neutral/warning/good progression
+// every other status pill in this app follows, rather than inventing a new
+// four-color scheme just for this one field.
+export const REPAIR_STATUS_COLOR: Record<string, string> = {
+  reported: STATUS.critical,
+  acknowledged: STATUS.warning,
+  fixed: CATEGORICAL[0],
+  confirmed: STATUS.good,
 };
 
 export const CHART_INK = {

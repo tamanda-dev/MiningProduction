@@ -5,7 +5,7 @@ import { Button } from "@/components/common/Button";
 import { ErrorMessage, extractErrorMessage } from "@/components/common/ErrorMessage";
 
 export function LoginPage() {
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, hasRole } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [username, setUsername] = useState("");
@@ -14,7 +14,12 @@ export function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   if (isAuthenticated) {
-    const from = (location.state as { from?: Location })?.from?.pathname ?? "/";
+    // An Admin always lands on the landing page (Home, which resolves to
+    // /dashboard/summary for a Supervisor-or-above) — never wherever a
+    // stale/expired session happened to be pointed at when ProtectedRoute
+    // bounced them here. Every other role keeps the normal deep-link
+    // behavior (return to whatever page sent them to /login).
+    const from = hasRole("admin") ? "/" : ((location.state as { from?: Location })?.from?.pathname ?? "/");
     return <Navigate to={from} replace />;
   }
 

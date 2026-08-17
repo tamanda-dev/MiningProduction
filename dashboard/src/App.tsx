@@ -10,10 +10,13 @@ import { DowntimeParetoPage } from "@/pages/dashboard/DowntimeParetoPage";
 import { HourlyMachineStatusPage } from "@/pages/dashboard/HourlyMachineStatusPage";
 import { LiveShiftViewPage } from "@/pages/dashboard/LiveShiftViewPage";
 import { MachineStatusBoardPage } from "@/pages/dashboard/MachineStatusBoardPage";
+import { MttrReportPage } from "@/pages/dashboard/MttrReportPage";
+import { ProductionSummaryPage } from "@/pages/dashboard/ProductionSummaryPage";
 import { TrendsPage } from "@/pages/dashboard/TrendsPage";
 import { BreakdownLogsPage } from "@/pages/entries/BreakdownLogsPage";
 import { DeliveryEntriesPage } from "@/pages/entries/DeliveryEntriesPage";
 import { ProductionEntriesPage } from "@/pages/entries/ProductionEntriesPage";
+import { MyBreakdownsPage } from "@/pages/artisan/MyBreakdownsPage";
 import { OperateLayout } from "@/components/operate/OperateLayout";
 import { OperateBreakdownMatrixPage } from "@/pages/operate/OperateBreakdownMatrixPage";
 import { OperateBreakdownPage } from "@/pages/operate/OperateBreakdownPage";
@@ -45,13 +48,18 @@ import { SitesPage } from "@/pages/masterdata/SitesPage";
 import { UOMsPage } from "@/pages/masterdata/UOMsPage";
 import { UsersPage } from "@/pages/masterdata/UsersPage";
 
-// Operators have no requireRole="supervisor" route to land on, so sending
-// everyone to /dashboard/summary would bounce them straight back here via
+// Operators (and Artisans, who aren't Operators either) have no
+// requireRole="supervisor" route to land on, so sending everyone to
+// /dashboard/summary would bounce them straight back here via
 // ProtectedRoute's redirect-to-"/" — an infinite loop. Send each role to
-// somewhere it can actually see.
+// somewhere it can actually see. An Artisan who's also a Supervisor still
+// lands on the Supervisor home, same precedence every other role check in
+// this app already follows.
 function Home() {
   const { hasRole } = useAuth();
-  return <Navigate to={hasRole("supervisor") ? "/dashboard/summary" : "/operate/session"} replace />;
+  if (hasRole("supervisor")) return <Navigate to="/dashboard/summary" replace />;
+  if (hasRole("artisan")) return <Navigate to="/artisan/my-breakdowns" replace />;
+  return <Navigate to="/operate/session" replace />;
 }
 
 function App() {
@@ -71,11 +79,17 @@ function App() {
             <Route path="/dashboard/hourly-machine-status" element={<HourlyMachineStatusPage />} />
             <Route path="/dashboard/downtime" element={<DowntimeParetoPage />} />
             <Route path="/dashboard/machines" element={<MachineStatusBoardPage />} />
+            <Route path="/dashboard/mttr" element={<MttrReportPage />} />
+            <Route path="/dashboard/production-summary" element={<ProductionSummaryPage />} />
           </Route>
 
           <Route path="/entries/production" element={<ProductionEntriesPage />} />
           <Route path="/entries/breakdowns" element={<BreakdownLogsPage />} />
           <Route path="/entries/deliveries" element={<DeliveryEntriesPage />} />
+
+          <Route element={<ProtectedRoute requireRole="artisan" />}>
+            <Route path="/artisan/my-breakdowns" element={<MyBreakdownsPage />} />
+          </Route>
 
           {/* Operating a machine is usually an Operator's job — Admin/
               Supervisor typically assign machines to operators instead of
