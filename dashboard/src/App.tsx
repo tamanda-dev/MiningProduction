@@ -8,6 +8,7 @@ import { LoginPage } from "@/pages/auth/LoginPage";
 import { AvailabilityBoardPage } from "@/pages/dashboard/AvailabilityBoardPage";
 import { DowntimeParetoPage } from "@/pages/dashboard/DowntimeParetoPage";
 import { HourlyMachineStatusPage } from "@/pages/dashboard/HourlyMachineStatusPage";
+import { LandingDashboardPage } from "@/pages/dashboard/LandingDashboardPage";
 import { LiveShiftViewPage } from "@/pages/dashboard/LiveShiftViewPage";
 import { MachineStatusBoardPage } from "@/pages/dashboard/MachineStatusBoardPage";
 import { MttrReportPage } from "@/pages/dashboard/MttrReportPage";
@@ -57,7 +58,7 @@ import { UsersPage } from "@/pages/masterdata/UsersPage";
 // this app already follows.
 function Home() {
   const { hasRole } = useAuth();
-  if (hasRole("supervisor")) return <Navigate to="/dashboard/summary" replace />;
+  if (hasRole("supervisor")) return <Navigate to="/dashboard/landing" replace />;
   if (hasRole("artisan")) return <Navigate to="/artisan/my-breakdowns" replace />;
   return <Navigate to="/operate/session" replace />;
 }
@@ -73,6 +74,7 @@ function App() {
           <Route path="/" element={<Home />} />
 
           <Route element={<ProtectedRoute requireRole="supervisor" />}>
+            <Route path="/dashboard/landing" element={<LandingDashboardPage />} />
             <Route path="/dashboard/summary" element={<LiveShiftViewPage />} />
             <Route path="/dashboard/trends" element={<TrendsPage />} />
             <Route path="/dashboard/availability" element={<AvailabilityBoardPage />} />

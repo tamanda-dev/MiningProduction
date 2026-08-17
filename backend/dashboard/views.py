@@ -19,12 +19,14 @@ from .serializers import (
     ExportStatusSerializer,
     ExportTriggerRequestSerializer,
     HourlyCurvePointSerializer,
+    LandingDashboardSerializer,
     MachineStatusRowSerializer,
     TrendPointSerializer,
 )
 from .services.aggregation import act_vs_plan_for_shift_instance, daily_trend, hourly_curve
 from .services.availability import availability_utilization
 from .services.hourly_machine_status import hourly_machine_status
+from .services.landing import landing_dashboard
 from .services.machine_status import machine_status_board
 from .services.mttr import general_fleet_mttr
 from .services.production_summary import production_summary
@@ -267,6 +269,30 @@ class DashboardProductionSummaryView(APIView):
             raise ValidationError({"group_by": "Must be one of machine, operator, supervisor, shift."})
         section_id = request.query_params.get("section")
         return Response(production_summary(site_id, parameter_id, date_from, date_to, group_by, section_id))
+
+
+@extend_schema(
+    parameters=[
+        OpenApiParameter("site", OpenApiTypes.INT, required=True),
+        OpenApiParameter("date", OpenApiTypes.DATE, required=True),
+    ],
+    responses=LandingDashboardSerializer,
+)
+class DashboardLandingView(APIView):
+    """The Admin/Supervisor landing page: a whole-site, whole-day
+    Shift-at-a-glance KPI summary. Unlike Live Shift View, this never
+    depends on a specific ShiftInstance existing yet for the selected
+    date — see dashboard/services/landing.py.
+    """
+
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        site_id = _require_site_access(request, request.query_params.get("site"))
+        date = request.query_params.get("date")
+        if not date:
+            raise ValidationError({"date": "Required query parameter."})
+        return Response(landing_dashboard(site_id, date))
 
 
 @extend_schema(request=ExportTriggerRequestSerializer, responses=ExportStatusSerializer)

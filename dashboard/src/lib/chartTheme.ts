@@ -75,6 +75,23 @@ export const MACHINE_STATUS_LABEL: Record<string, string> = {
   retired: "Retired",
 };
 
+// The Shift KPI Dashboard's cascading status colour (Green/Amber/Black/Red)
+// — see backend/dashboard/services/landing.py's _status_for_pct_of_target
+// and _status_for_availability_pct for the thresholds that produce these.
+export const KPI_STATUS_COLOR: Record<string, string> = {
+  green: STATUS.good,
+  amber: STATUS.warning,
+  black: "#3f3d38",
+  red: STATUS.critical,
+};
+
+export const KPI_STATUS_LABEL: Record<string, string> = {
+  green: "On Target",
+  amber: "Below Target",
+  black: "Underperforming",
+  red: "Critical",
+};
+
 export const ENTRY_STATUS_COLOR: Record<string, string> = {
   submitted: NEUTRAL,
   flagged: STATUS.warning,

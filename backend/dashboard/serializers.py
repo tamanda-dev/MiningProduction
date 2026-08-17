@@ -73,6 +73,41 @@ class MachineStatusRowSerializer(serializers.Serializer):
     assignment_started_at = serializers.DateTimeField(allow_null=True)
 
 
+class LandingKpiRowSerializer(serializers.Serializer):
+    section = serializers.IntegerField()
+    section_name = serializers.CharField()
+    parameter = serializers.IntegerField()
+    parameter_code = serializers.CharField()
+    parameter_name = serializers.CharField()
+    uom = serializers.CharField(allow_null=True)
+    act = serializers.DecimalField(max_digits=14, decimal_places=3)
+    plan = serializers.DecimalField(max_digits=14, decimal_places=2, allow_null=True)
+    var = serializers.DecimalField(max_digits=14, decimal_places=2, allow_null=True)
+    pct_var = serializers.FloatField(allow_null=True)
+    pct_of_target = serializers.FloatField(allow_null=True)
+    status = serializers.CharField(allow_null=True)
+
+
+class LandingAvailabilityRowSerializer(serializers.Serializer):
+    machine_type = serializers.IntegerField()
+    machine_type_name = serializers.CharField()
+    by_shift = AvailabilityByShiftSerializer(many=True)
+    average = AvailabilityAverageSerializer()
+    status = serializers.CharField(allow_null=True)
+
+
+class LandingDashboardSerializer(serializers.Serializer):
+    site = serializers.IntegerField()
+    date = serializers.CharField()
+    kpi_rows = LandingKpiRowSerializer(many=True)
+    availability_rows = LandingAvailabilityRowSerializer(many=True)
+    fleet_status_counts = serializers.DictField(child=serializers.IntegerField())
+    fleet_total = serializers.IntegerField()
+    fleet_down = serializers.IntegerField()
+    downtime_total_minutes = serializers.IntegerField()
+    downtime_top_causes = DowntimeParetoRowSerializer(many=True)
+
+
 class ExportTriggerRequestSerializer(serializers.Serializer):
     report_type = serializers.ChoiceField(choices=["shift", "daily", "mtd", "daily_production"], default="shift")
     # Required for report_type="shift" only.

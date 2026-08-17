@@ -30,6 +30,7 @@ const OPERATE_ITEMS: NavItem[] = [{ to: "/operate/session", label: "My Shift", h
 // production/downtime numbers, so these are hidden (and, per the matching
 // requireRole guards in App.tsx, unreachable by direct URL too) for them.
 const DASHBOARD_ITEMS: NavItem[] = [
+  { to: "/dashboard/landing", label: "Shift-at-a-Glance", requireRole: "supervisor" },
   { to: "/dashboard/summary", label: "Live Shift View", requireRole: "supervisor" },
   { to: "/dashboard/trends", label: "Trends", requireRole: "supervisor" },
   { to: "/dashboard/availability", label: "Availability & Utilization", requireRole: "supervisor" },

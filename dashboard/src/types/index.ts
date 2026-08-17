@@ -407,6 +407,31 @@ export interface MachineStatusRow {
   assignment_started_at: string | null;
 }
 
+// -- Landing Dashboard (Admin/Supervisor home page) --------------------------
+
+export type KpiStatus = "green" | "amber" | "black" | "red";
+
+export interface LandingKpiRow extends ActVsPlanRow {
+  pct_of_target: number | null;
+  status: KpiStatus | null;
+}
+
+export interface LandingAvailabilityRow extends AvailabilityRow {
+  status: KpiStatus | null;
+}
+
+export interface LandingDashboard {
+  site: ID;
+  date: string;
+  kpi_rows: LandingKpiRow[];
+  availability_rows: LandingAvailabilityRow[];
+  fleet_status_counts: Partial<Record<MachineStatus, number>>;
+  fleet_total: number;
+  fleet_down: number;
+  downtime_total_minutes: number;
+  downtime_top_causes: DowntimeParetoRow[];
+}
+
 export interface HourlyMachineStatusCell {
   slot_index: number;
   ok: boolean;
