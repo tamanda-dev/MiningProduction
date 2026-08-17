@@ -85,8 +85,9 @@ class ShiftInstanceViewSet(ModelViewSet):
     @action(detail=True, methods=["get"], url_path="time-slots")
     def time_slots(self, request, pk=None):
         instance = self.get_object()
+        now = timezone.now()
         slots = [
-            {"slot_index": idx, "start_at": start, "end_at": end}
+            {"slot_index": idx, "start_at": start, "end_at": end, "is_available": start <= now}
             for idx, start, end in time_slots_for_instance(instance)
         ]
         return Response(TimeSlotSerializer(slots, many=True).data)

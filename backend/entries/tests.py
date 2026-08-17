@@ -624,3 +624,103 @@ def test_breakdown_log_start_at_is_server_stamped_not_client_supplied(
     )
     assert resp.status_code == 201, resp.data
     assert not resp.data["start_at"].startswith("2020")
+
+
+# -- Future-slot rejection (near-real-time data entry) -----------------------
+
+
+@pytest.mark.django_db
+def test_enforce_slot_not_in_future_rejects_a_future_slot():
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    future = timezone.now() + timedelta(hours=2)
+    with pytest.raises(ValidationError):
+        services.enforce_slot_not_in_future(future)
+
+
+@pytest.mark.django_db
+def test_enforce_slot_not_in_future_accepts_a_past_slot():
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    past = timezone.now() - timedelta(hours=2)
+    services.enforce_slot_not_in_future(past)  # must not raise
+
+
+@pytest.mark.django_db
+def test_production_entry_rejects_an_hourly_slot_that_has_not_started_yet(
+    api_client, machines, sections, all_day_shifts, django_user_model
+):
+    """This system records data near-real-time — an operator must not be
+    able to submit a figure for an hour that hasn't happened yet. Uses a
+    shift instance dated tomorrow so every one of its slots is
+    unambiguously in the future, regardless of what time the test runs."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from shiftmgmt.models import ShiftInstance
+
+    m_a, _ = machines
+    sec_a, _ = sections
+    day_shift, _ = all_day_shifts
+    operator = django_user_model.objects.create_user(username="future_op", password="pass12345")
+
+    tomorrow = timezone.localdate() + timedelta(days=1)
+    future_instance = ShiftInstance.objects.create(shift=day_shift, date=tomorrow, site=m_a.site)
+
+    api_client.force_authenticate(user=operator)
+    resp = api_client.post(
+        "/api/production-entries/",
+        {
+            "section": sec_a.id,
+            "machine": m_a.id,
+            "shift_instance": future_instance.id,
+            "entry_type": "hourly",
+            "slot_index": 0,
+            "values": [],
+        },
+        format="json",
+    )
+    assert resp.status_code == 400, resp.data
+    assert "hasn't started yet" in str(resp.data)
+
+
+@pytest.mark.django_db
+def test_delivery_entry_rejects_a_slot_that_has_not_started_yet(api_client, two_sites, django_user_model):
+    """DeliveryEntry's shift_instance is read-only (server-resolved via
+    get_or_create_open_instance), so unlike the ProductionEntry test above
+    this can't just point at a shift instance dated tomorrow — instead,
+    build a Shift that started 1 minute ago, so slot_index=1 (its second
+    hourly slot, ~59 minutes from now) is deterministically still in the
+    future regardless of wall-clock time."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from shiftmgmt.models import Shift
+
+    site_a, _ = two_sites
+    now = timezone.localtime()
+    just_started = Shift.objects.create(
+        site=site_a,
+        name="Just Started",
+        start_time=(now - timedelta(minutes=1)).time(),
+        end_time=(now + timedelta(hours=8)).time(),
+        slot_length_minutes=60,
+    )
+    destination = DeliveryDestination.objects.create(site=site_a, name="Stockpile C", code="stockpile-c")
+    operator = django_user_model.objects.create_user(username="future_op2", password="pass12345")
+
+    api_client.force_authenticate(user=operator)
+    resp = api_client.post(
+        "/api/delivery-entries/",
+        {"delivery_destination": destination.id, "slot_index": 1, "tonnes": "5.0", "trip_count": 1},
+        format="json",
+    )
+    assert resp.status_code == 400, resp.data
+    assert "hasn't started yet" in str(resp.data)
+    assert just_started.instances.filter(date=now.date()).exists()  # sanity: it did resolve to this shift

@@ -143,6 +143,7 @@ class ProductionEntrySerializer(serializers.ModelSerializer):
             if slot_index is None:
                 raise serializers.ValidationError({"slot_index": "Required for hourly entries."})
             start, end = services.resolve_slot_datetimes(attrs["shift_instance"], slot_index)
+            services.enforce_slot_not_in_future(start)
             attrs["slot_start_at"], attrs["slot_end_at"] = start, end
         else:
             attrs["slot_index"] = None
@@ -405,6 +406,7 @@ class DeliveryEntrySerializer(serializers.ModelSerializer):
         slot_index = attrs.get("slot_index", getattr(self.instance, "slot_index", None))
         if slot_index is not None:
             start, end = services.resolve_slot_datetimes(shift_instance, slot_index)
+            services.enforce_slot_not_in_future(start)
             attrs["slot_start_at"], attrs["slot_end_at"] = start, end
 
         services.enforce_shift_window(shift_instance, request.user, attrs.get("override_reason", ""))

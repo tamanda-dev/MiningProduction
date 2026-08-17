@@ -94,6 +94,22 @@ def resolve_slot_datetimes(shift_instance, slot_index):
     raise ValidationError({"slot_index": "Invalid slot_index for this shift instance."})
 
 
+def enforce_slot_not_in_future(slot_start_at):
+    """This system records data near-real-time — an hourly slot that
+    hasn't started yet has nothing to enter, so submitting one is always a
+    mistake (or, worse, an attempt to pre-fill data). Compared against the
+    server's own clock (timezone.now(), in TIME_ZONE = Africa/Harare,
+    GMT+2) — never a client device's clock, which may simply be wrong.
+    Applies equally to create and update: once a slot has started, time
+    only moves forward, so a previously-valid entry never becomes invalid
+    by this check.
+    """
+    if slot_start_at and slot_start_at > timezone.now():
+        raise ValidationError(
+            {"slot_index": f"This time slot hasn't started yet (starts {slot_start_at.isoformat()})."}
+        )
+
+
 def enforce_shift_window(shift_instance, user, override_reason=""):
     """Operators may only write while the shift instance is open. Once
     closed/approved, only Supervisor/Admin may write, and only with a

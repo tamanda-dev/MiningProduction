@@ -124,6 +124,10 @@ export interface TimeSlot {
   slot_index: number;
   start_at: string;
   end_at: string;
+  // Server-computed against the server's own clock (Africa/Harare,
+  // GMT+2) — never derive this from the device's local Date.now(),
+  // which may be wrong.
+  is_available: boolean;
 }
 
 export interface DeliveryDestination {

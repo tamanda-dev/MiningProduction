@@ -10,10 +10,13 @@ import { validateAll } from "@/lib/entryValidation";
 import { useOperateSession } from "@/lib/OperateSessionContext";
 import type { EntryType, FormSchemaParameter, TimeSlot } from "@/types";
 
+// Defaults to the most recent slot that's actually started, per the
+// server's own `is_available` flag — never the device's clock (Date.now()),
+// which may be wrong. Falls back to the first slot if none have started
+// yet (the shift instance was created ahead of time).
 function currentSlotIndex(slots: TimeSlot[]): number | null {
-  const now = Date.now();
-  const match = slots.find((s) => new Date(s.start_at).getTime() <= now && now < new Date(s.end_at).getTime());
-  return match ? match.slot_index : (slots.at(-1)?.slot_index ?? null);
+  const available = slots.filter((s) => s.is_available);
+  return available.at(-1)?.slot_index ?? slots[0]?.slot_index ?? null;
 }
 
 export function OperateEntryPage() {
@@ -138,11 +141,15 @@ export function OperateEntryPage() {
               <button
                 key={slot.slot_index}
                 type="button"
+                disabled={!slot.is_available}
                 onClick={() => setSlotIndex(slot.slot_index)}
+                title={slot.is_available ? undefined : "This time slot hasn't started yet."}
                 className={`rounded-md border-2 px-3 py-1.5 text-sm font-medium ${
-                  slotIndex === slot.slot_index
-                    ? "border-brand-600 bg-brand-50 text-brand-700"
-                    : "border-slate-200 text-slate-600"
+                  !slot.is_available
+                    ? "cursor-not-allowed border-slate-100 text-slate-300"
+                    : slotIndex === slot.slot_index
+                      ? "border-brand-600 bg-brand-50 text-brand-700"
+                      : "border-slate-200 text-slate-600"
                 }`}
               >
                 {new Date(slot.start_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}

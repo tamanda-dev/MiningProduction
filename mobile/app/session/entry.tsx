@@ -20,10 +20,13 @@ const QUEUE_STATUS_COLOR: Record<QueueItem["status"], string> = {
   conflict: colors.critical,
 };
 
+// Defaults to the most recent slot that's actually started, per the
+// server's own `is_available` flag — never this device's clock
+// (Date.now()), which may be wrong. Falls back to the first slot if none
+// have started yet (the shift instance was created ahead of time).
 function currentSlotIndex(slots: TimeSlot[]): number | null {
-  const now = Date.now();
-  const match = slots.find((s) => new Date(s.start_at).getTime() <= now && now < new Date(s.end_at).getTime());
-  return match ? match.slot_index : (slots.at(-1)?.slot_index ?? null);
+  const available = slots.filter((s) => s.is_available);
+  return available.at(-1)?.slot_index ?? slots[0]?.slot_index ?? null;
 }
 
 export default function EntryScreen() {
@@ -143,10 +146,21 @@ export default function EntryScreen() {
                 return (
                   <Pressable
                     key={slot.slot_index}
+                    disabled={!slot.is_available}
                     onPress={() => setSlotIndex(slot.slot_index)}
-                    style={[styles.slotChip, selected && styles.slotChipSelected]}
+                    style={[
+                      styles.slotChip,
+                      selected && styles.slotChipSelected,
+                      !slot.is_available && styles.slotChipDisabled,
+                    ]}
                   >
-                    <Text style={[styles.slotText, selected && styles.slotTextSelected]}>
+                    <Text
+                      style={[
+                        styles.slotText,
+                        selected && styles.slotTextSelected,
+                        !slot.is_available && styles.slotTextDisabled,
+                      ]}
+                    >
                       {new Date(slot.start_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </Text>
                   </Pressable>
@@ -271,6 +285,11 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
     backgroundColor: colors.surface,
   },
+  slotChipDisabled: {
+    borderColor: colors.borderLight,
+    backgroundColor: colors.background,
+    opacity: 0.5,
+  },
   slotText: {
     fontSize: fontSize.label,
     fontWeight: "700",
@@ -278,6 +297,9 @@ const styles = StyleSheet.create({
   },
   slotTextSelected: {
     color: colors.primary,
+  },
+  slotTextDisabled: {
+    color: colors.textMuted,
   },
   divider: {
     height: 1,

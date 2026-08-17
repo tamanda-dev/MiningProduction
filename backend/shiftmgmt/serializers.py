@@ -33,3 +33,10 @@ class TimeSlotSerializer(serializers.Serializer):
     slot_index = serializers.IntegerField()
     start_at = serializers.DateTimeField()
     end_at = serializers.DateTimeField()
+    # Server-computed (against the server's own clock, in TIME_ZONE —
+    # Africa/Harare, GMT+2 — not whatever the client's device clock says)
+    # so the client never has to decide for itself whether a slot has
+    # started yet. A slot becomes available the moment it starts; this
+    # system records data near-real-time, so a future slot has nothing to
+    # enter yet.
+    is_available = serializers.BooleanField()
