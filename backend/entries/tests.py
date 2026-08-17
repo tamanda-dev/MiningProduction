@@ -1,8 +1,42 @@
 import pytest
+from django.contrib.auth.models import Group
 from rest_framework.exceptions import ValidationError
 
+from core import scoping
 from entries import services
 from masterdata.models import UOM, DeliveryDestination, Parameter
+
+
+def _make_artisan(django_user_model, username, site=None):
+    from accounts.models import UserSiteAccess
+
+    user = django_user_model.objects.create_user(username=username, password="pass12345")
+    group, _ = Group.objects.get_or_create(name=scoping.ARTISAN_GROUP)
+    user.groups.add(group)
+    # Same mechanism a Supervisor gets scoped by — an Artisan with zero
+    # UserSiteAccess rows would see nothing at all (accessible_site_ids
+    # returns an *empty* set, not None, for a non-Supervisor/Admin with no
+    # explicit grants), including breakdowns nobody's claimed yet.
+    if site is not None:
+        UserSiteAccess.objects.create(user=user, site=site)
+    return user
+
+
+@pytest.fixture
+def artisan_user(db, django_user_model, machines):
+    m_a, _ = machines
+    return _make_artisan(django_user_model, "artisan1", site=m_a.site)
+
+
+def _report_breakdown(api_client, machine, section, operator):
+    api_client.force_authenticate(user=operator)
+    resp = api_client.post(
+        "/api/breakdown-logs/",
+        {"machine": machine.id, "section": section.id, "description": "Hydraulic hose burst"},
+        format="json",
+    )
+    assert resp.status_code == 201, resp.data
+    return resp.data
 
 
 @pytest.fixture
@@ -444,3 +478,149 @@ def test_editing_a_delivery_entry_preserves_its_shift_instance_and_operator(
     assert patch_resp.status_code == 200, patch_resp.data
     assert patch_resp.data["operator"] == original_operator_id
     assert patch_resp.data["shift_instance"] == original_shift_instance_id
+
+
+# -- Artisan breakdown-repair workflow ---------------------------------------
+
+
+@pytest.mark.django_db
+def test_breakdown_repair_workflow_happy_path(
+    api_client, machines, sections, all_day_shifts, django_user_model, artisan_user
+):
+    """The full reported -> acknowledged -> fixed -> confirmed cycle: an
+    Operator reports it, the Artisan acknowledges then completes it (which
+    stamps end_at/duration_minutes), and the reporting Operator confirms
+    the machine works again."""
+    m_a, _ = machines
+    sec_a, _ = sections
+    operator = django_user_model.objects.create_user(username="reporter1", password="pass12345")
+
+    log = _report_breakdown(api_client, m_a, sec_a, operator)
+    assert log["repair_status"] == "reported"
+    assert log["artisan"] is None
+    assert log["end_at"] is None
+    log_id = log["id"]
+
+    api_client.force_authenticate(user=artisan_user)
+    ack_resp = api_client.post(f"/api/breakdown-logs/{log_id}/acknowledge/")
+    assert ack_resp.status_code == 200, ack_resp.data
+    assert ack_resp.data["repair_status"] == "acknowledged"
+    assert ack_resp.data["artisan"] == artisan_user.id
+    assert ack_resp.data["acknowledged_at"] is not None
+
+    complete_resp = api_client.post(f"/api/breakdown-logs/{log_id}/complete/")
+    assert complete_resp.status_code == 200, complete_resp.data
+    assert complete_resp.data["repair_status"] == "fixed"
+    assert complete_resp.data["end_at"] is not None
+    assert complete_resp.data["duration_minutes"] is not None
+
+    api_client.force_authenticate(user=operator)
+    confirm_resp = api_client.post(f"/api/breakdown-logs/{log_id}/confirm/")
+    assert confirm_resp.status_code == 200, confirm_resp.data
+    assert confirm_resp.data["repair_status"] == "confirmed"
+    assert confirm_resp.data["confirmed_at"] is not None
+
+
+@pytest.mark.django_db
+def test_non_artisan_cannot_acknowledge_breakdown(
+    api_client, machines, sections, all_day_shifts, django_user_model, supervisor_site_a
+):
+    """A Supervisor (site-scoped, so they can see the row at all — this is
+    exercising the is_artisan() check in services.py, not queryset
+    scoping) still isn't an Artisan and so still can't acknowledge one."""
+    m_a, _ = machines
+    sec_a, _ = sections
+    operator = django_user_model.objects.create_user(username="reporter2", password="pass12345")
+
+    log = _report_breakdown(api_client, m_a, sec_a, operator)
+
+    api_client.force_authenticate(user=supervisor_site_a)
+    resp = api_client.post(f"/api/breakdown-logs/{log['id']}/acknowledge/")
+    assert resp.status_code == 403
+
+
+@pytest.mark.django_db
+def test_cannot_acknowledge_an_already_acknowledged_breakdown(
+    api_client, machines, sections, all_day_shifts, django_user_model, artisan_user
+):
+    m_a, _ = machines
+    sec_a, _ = sections
+    operator = django_user_model.objects.create_user(username="reporter3", password="pass12345")
+    other_artisan = _make_artisan(django_user_model, "artisan2", site=m_a.site)
+
+    log = _report_breakdown(api_client, m_a, sec_a, operator)
+
+    api_client.force_authenticate(user=artisan_user)
+    assert api_client.post(f"/api/breakdown-logs/{log['id']}/acknowledge/").status_code == 200
+
+    api_client.force_authenticate(user=other_artisan)
+    resp = api_client.post(f"/api/breakdown-logs/{log['id']}/acknowledge/")
+    assert resp.status_code == 400
+
+
+@pytest.mark.django_db
+def test_only_assigned_artisan_or_supervisor_can_complete_repair(
+    api_client, machines, sections, all_day_shifts, django_user_model, artisan_user, supervisor_site_a
+):
+    m_a, _ = machines
+    sec_a, _ = sections
+    operator = django_user_model.objects.create_user(username="reporter4", password="pass12345")
+    other_artisan = _make_artisan(django_user_model, "artisan3", site=m_a.site)
+
+    log = _report_breakdown(api_client, m_a, sec_a, operator)
+    api_client.force_authenticate(user=artisan_user)
+    api_client.post(f"/api/breakdown-logs/{log['id']}/acknowledge/")
+
+    api_client.force_authenticate(user=other_artisan)
+    resp = api_client.post(f"/api/breakdown-logs/{log['id']}/complete/")
+    assert resp.status_code == 403
+
+    api_client.force_authenticate(user=supervisor_site_a)
+    resp = api_client.post(f"/api/breakdown-logs/{log['id']}/complete/")
+    assert resp.status_code == 200, resp.data
+
+
+@pytest.mark.django_db
+def test_only_reporting_operator_or_supervisor_can_confirm_repair(
+    api_client, machines, sections, all_day_shifts, django_user_model, artisan_user, supervisor_site_a
+):
+    """Not even the Artisan who fixed it (site-scoped, so they can see the
+    row — this is exercising the operator_id check in services.py, not
+    queryset scoping) can confirm — only the reporting Operator or a
+    Supervisor/Admin closes the loop."""
+    m_a, _ = machines
+    sec_a, _ = sections
+    operator = django_user_model.objects.create_user(username="reporter5", password="pass12345")
+
+    log = _report_breakdown(api_client, m_a, sec_a, operator)
+    api_client.force_authenticate(user=artisan_user)
+    api_client.post(f"/api/breakdown-logs/{log['id']}/acknowledge/")
+    api_client.post(f"/api/breakdown-logs/{log['id']}/complete/")
+
+    resp = api_client.post(f"/api/breakdown-logs/{log['id']}/confirm/")
+    assert resp.status_code == 403
+
+    api_client.force_authenticate(user=supervisor_site_a)
+    resp = api_client.post(f"/api/breakdown-logs/{log['id']}/confirm/")
+    assert resp.status_code == 200, resp.data
+
+
+@pytest.mark.django_db
+def test_breakdown_log_start_at_is_server_stamped_not_client_supplied(
+    api_client, machines, sections, all_day_shifts, django_user_model
+):
+    """A client-supplied start_at must be silently ignored — field devices'
+    clocks can be wrong/unsynced, and start_at anchors the very downtime
+    window the Artisan workflow measures (start_at -> Artisan's fix)."""
+    m_a, _ = machines
+    sec_a, _ = sections
+    operator = django_user_model.objects.create_user(username="reporter6", password="pass12345")
+
+    api_client.force_authenticate(user=operator)
+    resp = api_client.post(
+        "/api/breakdown-logs/",
+        {"machine": m_a.id, "section": sec_a.id, "start_at": "2020-01-01T00:00:00Z", "description": "test"},
+        format="json",
+    )
+    assert resp.status_code == 201, resp.data
+    assert not resp.data["start_at"].startswith("2020")

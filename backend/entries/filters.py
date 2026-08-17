@@ -25,7 +25,10 @@ class BreakdownLogFilterSet(django_filters.FilterSet):
 
     class Meta:
         model = BreakdownLog
-        fields = ("site", "section", "machine", "shift_instance", "reason_code", "status")
+        # repair_status/artisan power the Artisan "My Breakdowns" queue —
+        # ?repair_status=reported for unclaimed work, ?artisan=<id> for
+        # what's already assigned.
+        fields = ("site", "section", "machine", "shift_instance", "reason_code", "status", "repair_status", "artisan")
 
 
 class DeliveryEntryFilterSet(django_filters.FilterSet):

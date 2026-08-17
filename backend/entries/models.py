@@ -164,6 +164,26 @@ class BreakdownLog(TimeStampedModel):
         (SEVERITY_HIGH, "High"),
     ]
 
+    # The general-fleet (non-crusher) breakdown-repair workflow: Operator
+    # reports (create, REPAIR_REPORTED) -> an Artisan acknowledges/claims it
+    # (REPAIR_ACKNOWLEDGED) -> that Artisan marks it fixed
+    # (REPAIR_FIXED, which stamps `end_at` and so fixes `duration_minutes`)
+    # -> the reporting Operator confirms the machine actually works again
+    # (REPAIR_CONFIRMED). See entries/services.py's
+    # acknowledge_breakdown/complete_breakdown_repair/confirm_breakdown_repair
+    # for the transition rules — this field is never written directly by a
+    # generic PATCH, only by those three actions.
+    REPAIR_REPORTED = "reported"
+    REPAIR_ACKNOWLEDGED = "acknowledged"
+    REPAIR_FIXED = "fixed"
+    REPAIR_CONFIRMED = "confirmed"
+    REPAIR_STATUS_CHOICES = [
+        (REPAIR_REPORTED, "Reported"),
+        (REPAIR_ACKNOWLEDGED, "Acknowledged"),
+        (REPAIR_FIXED, "Fixed"),
+        (REPAIR_CONFIRMED, "Confirmed"),
+    ]
+
     shift_instance = models.ForeignKey(ShiftInstance, on_delete=models.PROTECT, related_name="breakdown_logs")
     site = models.ForeignKey(Site, on_delete=models.PROTECT, related_name="breakdown_logs")
     section = models.ForeignKey(Section, on_delete=models.PROTECT, related_name="breakdown_logs")
@@ -178,12 +198,27 @@ class BreakdownLog(TimeStampedModel):
     slot_index = models.PositiveSmallIntegerField(null=True, blank=True)
     slot_start_at = models.DateTimeField(null=True, blank=True)
     slot_end_at = models.DateTimeField(null=True, blank=True)
+    # Server-stamped at report time and never client-editable afterward
+    # (see BreakdownLogSerializer) — the start of the downtime window the
+    # user asked to measure: "operator reports" to "artisan completes
+    # fixing", not whatever a client's clock happens to say.
     start_at = models.DateTimeField()
+    # Server-stamped exclusively by complete_breakdown_repair() when the
+    # assigned Artisan marks the fix done — this is deliberately the same
+    # field `duration_minutes` (below) has always been computed from, so
+    # formalizing it into a workflow step required no change to that
+    # computation at all.
     end_at = models.DateTimeField(null=True, blank=True)
     duration_minutes = models.PositiveIntegerField(null=True, blank=True)
     severity = models.CharField(max_length=10, choices=SEVERITY_CHOICES, blank=True)
     operator = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="+")
     recorded_by = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="+")
+    artisan = models.ForeignKey(
+        "accounts.User", on_delete=models.PROTECT, null=True, blank=True, related_name="assigned_breakdown_logs"
+    )
+    repair_status = models.CharField(max_length=15, choices=REPAIR_STATUS_CHOICES, default=REPAIR_REPORTED)
+    acknowledged_at = models.DateTimeField(null=True, blank=True)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
     comments = models.TextField(blank=True)
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, default="submitted")
     source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default="mobile")
@@ -195,6 +230,7 @@ class BreakdownLog(TimeStampedModel):
             models.Index(fields=["site", "shift_instance"]),
             models.Index(fields=["machine", "start_at"]),
             models.Index(fields=["reason_code"]),
+            models.Index(fields=["repair_status"]),
         ]
 
     def __str__(self):

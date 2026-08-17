@@ -9,15 +9,27 @@ class CanWriteEntry(BasePermission):
     object-level rules: Supervisor/Admin always may (with an override_reason
     once closed, enforced by the serializer); Operator may only edit their
     own entry, and only while the shift instance is open.
+
+    The breakdown-repair-workflow actions (acknowledge/complete/confirm —
+    BreakdownLogViewSet only) are deliberately exempted from all of the
+    above: an Artisan acknowledging or completing a repair, or the
+    reporting Operator confirming one, is never "editing the entry" in the
+    open/own-entry sense this class otherwise enforces, and each of those
+    three actions already does its own, more specific permission check
+    (see entries/services.py) — this class only needs to let the request
+    through to them, not re-decide it.
     """
 
     SAFE_METHODS = ("GET", "HEAD", "OPTIONS")
+    WORKFLOW_ACTIONS = ("acknowledge", "complete", "confirm")
 
     def has_permission(self, request, view):
         return bool(request.user and request.user.is_authenticated)
 
     def has_object_permission(self, request, view, obj):
         if request.method in self.SAFE_METHODS:
+            return True
+        if getattr(view, "action", None) in self.WORKFLOW_ACTIONS:
             return True
         if scoping.is_supervisor(request.user):
             return True

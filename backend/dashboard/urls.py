@@ -8,6 +8,8 @@ from .views import (
     DashboardHourlyCurveView,
     DashboardHourlyMachineStatusView,
     DashboardMachineStatusView,
+    DashboardMttrView,
+    DashboardProductionSummaryView,
     DashboardSummaryView,
     DashboardTrendsView,
 )
@@ -24,6 +26,8 @@ urlpatterns = [
         DashboardHourlyMachineStatusView.as_view(),
         name="dashboard-hourly-machine-status",
     ),
+    path("mttr/", DashboardMttrView.as_view(), name="dashboard-mttr"),
+    path("production-summary/", DashboardProductionSummaryView.as_view(), name="dashboard-production-summary"),
     path("export/", DashboardExportView.as_view(), name="dashboard-export"),
     path("export/<str:task_id>/", DashboardExportStatusView.as_view(), name="dashboard-export-status"),
 ]

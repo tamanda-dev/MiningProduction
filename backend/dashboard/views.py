@@ -1,5 +1,6 @@
 from celery.result import AsyncResult
 from django.conf import settings
+from django.utils.dateparse import parse_date
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -25,6 +26,8 @@ from .services.aggregation import act_vs_plan_for_shift_instance, daily_trend, h
 from .services.availability import availability_utilization
 from .services.hourly_machine_status import hourly_machine_status
 from .services.machine_status import machine_status_board
+from .services.mttr import general_fleet_mttr
+from .services.production_summary import production_summary
 from .services.pareto import downtime_pareto
 from .tasks import (
     generate_daily_production_report,
@@ -203,6 +206,67 @@ class DashboardHourlyMachineStatusView(APIView):
         _require_site_access(request, shift_instance.site_id)
         machine_type_id = request.query_params.get("machine_type")
         return Response(hourly_machine_status(shift_instance, machine_type_id))
+
+
+@extend_schema(
+    parameters=[
+        OpenApiParameter("site", OpenApiTypes.INT, required=True),
+        OpenApiParameter("date_from", OpenApiTypes.DATE, required=True),
+        OpenApiParameter("date_to", OpenApiTypes.DATE, required=True),
+        OpenApiParameter("section", OpenApiTypes.INT, required=False),
+    ],
+)
+class DashboardMttrView(APIView):
+    """General-fleet (non-crusher) Mean Time to Repair, actual vs the
+    "mttr-minutes" Plan Target if one's been set — see
+    dashboard/services/mttr.py.
+    """
+
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        site_id = _require_site_access(request, request.query_params.get("site"))
+        date_from = parse_date(request.query_params.get("date_from") or "")
+        date_to = parse_date(request.query_params.get("date_to") or "")
+        if date_from is None or date_to is None:
+            raise ValidationError({"detail": "date_from and date_to are both required, as YYYY-MM-DD."})
+        section_id = request.query_params.get("section")
+        return Response(general_fleet_mttr(site_id, section_id, date_from, date_to))
+
+
+@extend_schema(
+    parameters=[
+        OpenApiParameter("site", OpenApiTypes.INT, required=True),
+        OpenApiParameter("parameter", OpenApiTypes.INT, required=True),
+        OpenApiParameter("date_from", OpenApiTypes.DATE, required=True),
+        OpenApiParameter("date_to", OpenApiTypes.DATE, required=True),
+        OpenApiParameter("group_by", OpenApiTypes.STR, required=True, enum=["machine", "operator", "supervisor", "shift"]),
+        OpenApiParameter("section", OpenApiTypes.INT, required=False),
+    ],
+)
+class DashboardProductionSummaryView(APIView):
+    """"How many tonnes did this operator/machine/shift/supervisor
+    produce" — Act totals for one parameter over a date range, grouped by
+    one dimension, instead of filtering the raw entry list. See
+    dashboard/services/production_summary.py.
+    """
+
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        site_id = _require_site_access(request, request.query_params.get("site"))
+        parameter_id = request.query_params.get("parameter")
+        if not parameter_id:
+            raise ValidationError({"parameter": "Required query parameter."})
+        date_from = parse_date(request.query_params.get("date_from") or "")
+        date_to = parse_date(request.query_params.get("date_to") or "")
+        if date_from is None or date_to is None:
+            raise ValidationError({"detail": "date_from and date_to are both required, as YYYY-MM-DD."})
+        group_by = request.query_params.get("group_by")
+        if group_by not in ("machine", "operator", "supervisor", "shift"):
+            raise ValidationError({"group_by": "Must be one of machine, operator, supervisor, shift."})
+        section_id = request.query_params.get("section")
+        return Response(production_summary(site_id, parameter_id, date_from, date_to, group_by, section_id))
 
 
 @extend_schema(request=ExportTriggerRequestSerializer, responses=ExportStatusSerializer)

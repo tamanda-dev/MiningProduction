@@ -1,4 +1,5 @@
 from django.db import IntegrityError, transaction
+from django.utils import timezone
 from rest_framework import serializers
 
 from machines.models import MachineAssignment
@@ -237,6 +238,10 @@ class BreakdownLogSerializer(serializers.ModelSerializer):
             "severity",
             "operator",
             "recorded_by",
+            "artisan",
+            "repair_status",
+            "acknowledged_at",
+            "confirmed_at",
             "comments",
             "status",
             "source",
@@ -245,7 +250,27 @@ class BreakdownLogSerializer(serializers.ModelSerializer):
             "values",
             "values_display",
         )
-        read_only_fields = ("site", "shift_instance", "duration_minutes", "operator", "recorded_by")
+        # start_at/end_at/artisan/repair_status/acknowledged_at/confirmed_at
+        # are all read-only here — start_at is server-stamped at report
+        # time (below) and end_at only ever gets set by
+        # complete_breakdown_repair(); the repair-workflow fields only ever
+        # move through BreakdownLogViewSet's acknowledge/complete/confirm
+        # actions (see entries/services.py), never a generic PATCH — that's
+        # the only way the reported->acknowledged->fixed->confirmed order
+        # can actually be enforced.
+        read_only_fields = (
+            "site",
+            "shift_instance",
+            "start_at",
+            "end_at",
+            "duration_minutes",
+            "operator",
+            "recorded_by",
+            "artisan",
+            "repair_status",
+            "acknowledged_at",
+            "confirmed_at",
+        )
 
     def validate(self, attrs):
         request = self.context["request"]
@@ -274,6 +299,10 @@ class BreakdownLogSerializer(serializers.ModelSerializer):
             ).first()
             attrs["machine_assignment"] = machine_assignment
             attrs["operator"] = machine_assignment.operator if machine_assignment else request.user
+            # Server clock, not client input — a field device's clock can
+            # be wrong or unsynced, and this is the start of the very
+            # downtime window the Artisan workflow measures.
+            attrs["start_at"] = timezone.now()
         attrs["shift_instance"] = shift_instance
         attrs["section"] = section or machine.current_section
         if attrs["section"] is None:

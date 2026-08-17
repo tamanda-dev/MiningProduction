@@ -16,6 +16,7 @@ ROLE_GROUP_MAP = {
     "admin": scoping.ADMIN_GROUP,
     "supervisor": scoping.SUPERVISOR_GROUP,
     "operator": scoping.OPERATOR_GROUP,
+    "artisan": scoping.ARTISAN_GROUP,
 }
 
 
@@ -27,6 +28,8 @@ def compute_roles(user) -> list[str]:
         roles.append("supervisor")
     if scoping.is_operator(user):
         roles.append("operator")
+    if scoping.is_artisan(user):
+        roles.append("artisan")
     return roles
 
 

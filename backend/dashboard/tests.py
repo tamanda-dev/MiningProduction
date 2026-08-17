@@ -255,3 +255,99 @@ def test_hourly_curve_includes_flat_per_hour_act_and_target(act_vs_plan_data):
     assert slot1["act"] == 0
     assert float(slot1["target"]) == pytest.approx(100 / len(slots))
     assert float(slot1["cumulative_target"]) == pytest.approx(2 * 100 / len(slots))
+
+
+@pytest.mark.django_db
+def test_general_fleet_mttr_averages_fixed_breakdowns_and_reports_the_plan_target(
+    machines, sections, all_day_shifts, django_user_model
+):
+    """Only breakdowns the Artisan workflow has actually marked fixed (or
+    confirmed) count toward MTTR — an unresolved one has no repair time
+    yet. The relevant Plan Target for the "mttr-minutes" parameter (seeded
+    by masterdata migration 0008) comes back alongside the actual."""
+    from datetime import date
+
+    from django.utils import timezone
+
+    from dashboard.services.mttr import general_fleet_mttr
+    from entries.models import BreakdownLog
+    from masterdata.models import Parameter
+    from planning.models import PlanTarget
+    from shiftmgmt.services import get_or_create_open_instance
+
+    m_a, _ = machines
+    sec_a, _ = sections
+    operator = django_user_model.objects.create_user(username="mttr_op", password="pass12345")
+    instance = get_or_create_open_instance(m_a.site)
+    today = date.today()
+
+    for minutes, repair_status in ((30, BreakdownLog.REPAIR_FIXED), (90, BreakdownLog.REPAIR_CONFIRMED)):
+        start = timezone.now()
+        BreakdownLog.objects.create(
+            shift_instance=instance, site=m_a.site, section=sec_a, machine=m_a,
+            start_at=start, end_at=start + timedelta(minutes=minutes),
+            repair_status=repair_status, operator=operator, recorded_by=operator,
+        )
+    # Still open — must not be counted.
+    BreakdownLog.objects.create(
+        shift_instance=instance, site=m_a.site, section=sec_a, machine=m_a,
+        start_at=timezone.now(), repair_status=BreakdownLog.REPAIR_REPORTED,
+        operator=operator, recorded_by=operator,
+    )
+
+    parameter = Parameter.objects.get(code="mttr-minutes")
+    PlanTarget.objects.create(
+        parameter=parameter, site=m_a.site, section=sec_a,
+        period_type=PlanTarget.PERIOD_DAY, period_date=today, target_value=45,
+    )
+
+    result = general_fleet_mttr(m_a.site_id, sec_a.id, today - timedelta(days=1), today + timedelta(days=1))
+    assert result["breakdown_count"] == 2
+    assert float(result["actual_mttr_minutes"]) == pytest.approx(60)
+    assert float(result["target_mttr_minutes"]) == pytest.approx(45)
+
+
+@pytest.mark.django_db
+def test_production_summary_groups_totals_by_operator_and_by_machine(
+    machines, sections, all_day_shifts, django_user_model
+):
+    """"How many tonnes did this operator produce" — group_by="operator"
+    sums across whichever machines they used; group_by="machine" sums
+    across whichever operators ran it. Same underlying entries, two
+    different cuts of the same total."""
+    from datetime import date
+
+    from dashboard.services.production_summary import production_summary
+    from entries.services import resolve_slot_datetimes
+
+    m_a, _ = machines
+    sec_a, _ = sections
+    op1 = django_user_model.objects.create_user(username="summary_op1", password="pass12345")
+    op2 = django_user_model.objects.create_user(username="summary_op2", password="pass12345")
+    parameter = Parameter.objects.create(
+        name="Tonnes Hauled", code="tonnes-hauled-summary-test", scope=Parameter.SCOPE_MACHINE,
+        data_type=Parameter.DATA_TYPE_NUMBER,
+    )
+    parameter.applicable_machine_types.add(m_a.machine_type)
+
+    instance = get_or_create_open_instance(m_a.site)
+    for slot_index, (operator, value) in enumerate([(op1, 40), (op1, 20), (op2, 15)]):
+        slot_start_at, slot_end_at = resolve_slot_datetimes(instance, slot_index)
+        entry = ProductionEntry.objects.create(
+            shift_instance=instance, site=m_a.site, section=sec_a, machine=m_a,
+            entry_type=ProductionEntry.ENTRY_TYPE_HOURLY, slot_index=slot_index,
+            slot_start_at=slot_start_at, slot_end_at=slot_end_at,
+            operator=operator, recorded_by=operator,
+        )
+        ParameterValue.objects.create(production_entry=entry, parameter=parameter, value_number=value)
+
+    today = date.today()
+    by_operator = production_summary(m_a.site_id, parameter.id, today, today, "operator")
+    totals = {row["group"]: float(row["act"]) for row in by_operator}
+    assert totals[op1.id] == pytest.approx(60)
+    assert totals[op2.id] == pytest.approx(15)
+
+    by_machine = production_summary(m_a.site_id, parameter.id, today, today, "machine")
+    assert len(by_machine) == 1
+    assert by_machine[0]["group"] == m_a.id
+    assert float(by_machine[0]["act"]) == pytest.approx(75)

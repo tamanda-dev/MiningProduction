@@ -4,6 +4,7 @@ from rest_framework.viewsets import ModelViewSet
 
 from core.mixins import SiteScopedOrOwnQuerySetMixin
 
+from . import services
 from .filters import BreakdownLogFilterSet, DeliveryEntryFilterSet, ProductionEntryFilterSet
 from .models import BreakdownLog, DeliveryEntry, ProductionEntry
 from .permissions import CanWriteEntry
@@ -61,12 +62,37 @@ class ProductionEntryViewSet(BulkSyncMixin, SiteScopedOrOwnQuerySetMixin, ModelV
 
 class BreakdownLogViewSet(BulkSyncMixin, SiteScopedOrOwnQuerySetMixin, ModelViewSet):
     queryset = BreakdownLog.objects.select_related(
-        "site", "section", "machine", "shift_instance", "reason_code", "operator", "recorded_by"
+        "site", "section", "machine", "shift_instance", "reason_code", "operator", "recorded_by", "artisan"
     ).prefetch_related("values", "values__parameter").all()
     serializer_class = BreakdownLogSerializer
     permission_classes = (CanWriteEntry,)
     filterset_class = BreakdownLogFilterSet
     site_lookup = "site_id"
+
+    # The general-fleet breakdown-repair workflow (reported -> acknowledged
+    # -> fixed -> confirmed) — see entries/services.py for the transition
+    # rules each of these enforces. Deliberately three separate actions
+    # rather than a generic PATCH to repair_status, so a client can't skip
+    # a step; get_object() still runs the same site-scoping as every other
+    # action on this viewset, an Artisan just needs Site Access granted
+    # (same mechanism as a Supervisor) to see anything to acknowledge.
+    @action(detail=True, methods=["post"])
+    def acknowledge(self, request, pk=None):
+        log = self.get_object()
+        services.acknowledge_breakdown(log, request.user)
+        return Response(self.get_serializer(log).data)
+
+    @action(detail=True, methods=["post"])
+    def complete(self, request, pk=None):
+        log = self.get_object()
+        services.complete_breakdown_repair(log, request.user)
+        return Response(self.get_serializer(log).data)
+
+    @action(detail=True, methods=["post"])
+    def confirm(self, request, pk=None):
+        log = self.get_object()
+        services.confirm_breakdown_repair(log, request.user)
+        return Response(self.get_serializer(log).data)
 
 
 class DeliveryEntryViewSet(BulkSyncMixin, SiteScopedOrOwnQuerySetMixin, ModelViewSet):

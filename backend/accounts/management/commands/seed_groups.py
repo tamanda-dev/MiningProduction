@@ -26,6 +26,10 @@ GROUP_ACCESS = {
     # with Manager getting everything else on top.
     scoping.SUPERVISOR_GROUP: {"apps": DOMAIN_APPS, "actions": ["view", "add", "change"]},
     scoping.OPERATOR_GROUP: {"apps": [], "actions": []},
+    # API-only, like Operator — an Artisan's real capabilities (acknowledge/
+    # complete a breakdown repair) are custom DRF actions gated by
+    # core.scoping.is_artisan(), not Django Admin model permissions.
+    scoping.ARTISAN_GROUP: {"apps": [], "actions": []},
 }
 
 

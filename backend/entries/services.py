@@ -1,6 +1,7 @@
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
+from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from core import scoping
@@ -9,7 +10,7 @@ from masterdata.models import Parameter
 from shiftmgmt.models import ShiftInstance
 from shiftmgmt.services import time_slots_for_instance
 
-from .models import ParameterValue
+from .models import BreakdownLog, ParameterValue
 
 
 def resolve_parameter(parameter_ref):
@@ -153,3 +154,71 @@ def apply_breakdown_side_effects(breakdown_log):
     if machine.status in (Machine.STATUS_ACTIVE, Machine.STATUS_BREAKDOWN) and machine.status != target_status:
         machine.status = target_status
         machine.save(update_fields=["status", "updated_at"])
+
+
+# -- General-fleet breakdown-repair workflow ---------------------------------
+#
+# reported -> acknowledged -> fixed -> confirmed. Each step is its own
+# action (see BreakdownLogViewSet.acknowledge/complete/confirm) rather than
+# a generic PATCH to `repair_status`, so the transition rules below are the
+# only way the field ever moves — no client can skip a step or set
+# artisan/acknowledged_at/confirmed_at/end_at directly (all are read-only on
+# the serializer). Every timestamp is server-stamped for the same reason
+# BreakdownIncident's were made server-stamped elsewhere this session:
+# a field device's clock can be wrong or unsynced.
+
+
+def acknowledge_breakdown(breakdown_log, user):
+    """An Artisan claims an unclaimed, freshly reported breakdown. First
+    Artisan to acknowledge it gets it — there's no supervisor-assignment
+    step, since on a small crew whoever's free and sees it first is
+    usually exactly who should take it.
+    """
+    if not scoping.is_artisan(user):
+        raise PermissionDenied("Only an Artisan may acknowledge a breakdown.")
+    if breakdown_log.repair_status != BreakdownLog.REPAIR_REPORTED:
+        raise ValidationError(
+            {"detail": f"Breakdown is '{breakdown_log.repair_status}', not 'reported' — nothing to acknowledge."}
+        )
+    breakdown_log.artisan = user
+    breakdown_log.acknowledged_at = timezone.now()
+    breakdown_log.repair_status = BreakdownLog.REPAIR_ACKNOWLEDGED
+    breakdown_log.save(update_fields=["artisan", "acknowledged_at", "repair_status", "updated_at"])
+    return breakdown_log
+
+
+def complete_breakdown_repair(breakdown_log, user):
+    """The Artisan who acknowledged it marks the fix done. This is the
+    step that stamps `end_at` (and so `duration_minutes`, via
+    BreakdownLog.save()) — downtime is measured start_at (Operator's
+    report) to this moment, not to whenever the Operator later gets
+    around to confirming it.
+    """
+    if breakdown_log.repair_status != BreakdownLog.REPAIR_ACKNOWLEDGED:
+        raise ValidationError(
+            {"detail": f"Breakdown is '{breakdown_log.repair_status}', not 'acknowledged' — nothing to complete."}
+        )
+    if breakdown_log.artisan_id != user.id and not scoping.is_supervisor(user):
+        raise PermissionDenied("Only the Artisan assigned to this breakdown (or a Supervisor/Admin) may complete it.")
+    breakdown_log.end_at = timezone.now()
+    breakdown_log.repair_status = BreakdownLog.REPAIR_FIXED
+    breakdown_log.save()  # plain save(), not update_fields — duration_minutes is set in save() itself
+    apply_breakdown_side_effects(breakdown_log)
+    return breakdown_log
+
+
+def confirm_breakdown_repair(breakdown_log, user):
+    """The Operator who originally reported it confirms the machine
+    actually works again — the last step, closing the loop back to
+    whoever needs the machine, not just whoever fixed it.
+    """
+    if breakdown_log.repair_status != BreakdownLog.REPAIR_FIXED:
+        raise ValidationError(
+            {"detail": f"Breakdown is '{breakdown_log.repair_status}', not 'fixed' — nothing to confirm."}
+        )
+    if breakdown_log.operator_id != user.id and not scoping.is_supervisor(user):
+        raise PermissionDenied("Only the Operator who reported this breakdown (or a Supervisor/Admin) may confirm it.")
+    breakdown_log.confirmed_at = timezone.now()
+    breakdown_log.repair_status = BreakdownLog.REPAIR_CONFIRMED
+    breakdown_log.save(update_fields=["confirmed_at", "repair_status", "updated_at"])
+    return breakdown_log

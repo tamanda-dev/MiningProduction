@@ -6,6 +6,7 @@ so `core` does not import `accounts` at module load time.
 ADMIN_GROUP = "Admin"
 SUPERVISOR_GROUP = "Supervisor"
 OPERATOR_GROUP = "Operator"
+ARTISAN_GROUP = "Artisan"
 
 
 def _in_group(user, group_name):
@@ -26,6 +27,16 @@ def is_supervisor(user):
 
 def is_operator(user):
     return _in_group(user, OPERATOR_GROUP)
+
+
+# Deliberately its own group, not folded into the existing
+# `maintenance_technician` boolean flag (which the crusher plant's
+# BreakdownIncident workflow already uses and keeps using unchanged) — an
+# Artisan here is a first-class role with its own nav/permissions for the
+# general-fleet (non-crusher) breakdown-repair workflow, not an Operator
+# with an extra capability bolted on.
+def is_artisan(user):
+    return _in_group(user, ARTISAN_GROUP)
 
 
 def accessible_site_ids(user):
