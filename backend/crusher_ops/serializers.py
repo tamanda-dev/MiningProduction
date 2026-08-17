@@ -250,8 +250,10 @@ class BreakdownIncidentSerializer(serializers.ModelSerializer):
     attend_minutes = serializers.ReadOnlyField()
     repair_minutes = serializers.ReadOnlyField()
     resolution_minutes = serializers.ReadOnlyField()
-    # Non-nullable on the model but server-derived (defaults to now) on
-    # create, so it must be optional from the client.
+    # Non-nullable on the model but always server-derived (stamped with the
+    # server clock on create) — must be optional from the client since any
+    # client-supplied value is discarded in validate() below.
+    time_occurred = serializers.DateTimeField(required=False)
     time_reported = serializers.DateTimeField(required=False)
 
     class Meta:
@@ -301,9 +303,19 @@ class BreakdownIncidentSerializer(serializers.ModelSerializer):
 
         if self.instance is None:
             attrs["shift_instance"] = attrs.get("shift_instance") or get_or_create_open_instance(crusher.site)
-            attrs["time_reported"] = attrs.get("time_reported") or timezone.now()
+            # Always stamp with the server clock, never trust the client's
+            # device time (a field phone's clock may be wrong/unsynced).
+            now = timezone.now()
+            attrs["time_occurred"] = now
+            attrs["time_reported"] = now
             attrs["reported_by"] = request.user
         attrs["recorded_by"] = request.user
+
+        # Same reasoning for time_attended on update (e.g. the mobile "Mark
+        # Attended" PATCH) — discard whatever the client sent and use the
+        # server's own clock instead.
+        if "time_attended" in attrs:
+            attrs["time_attended"] = timezone.now()
 
         artisan = attrs.get("artisan")
         if artisan is not None and not artisan.maintenance_technician:
