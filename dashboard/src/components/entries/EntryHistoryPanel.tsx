@@ -8,7 +8,7 @@ import type { AuditLogEntry, Paginated } from "@/types";
  * plus object_id gives the edit history for one specific record.
  */
 export function EntryHistoryPanel({ modelName, objectId }: { modelName: string; objectId: number }) {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ["audit-log", modelName, objectId],
     queryFn: async () => {
       const { data } = await api.get<Paginated<AuditLogEntry>>("/audit-log/", {
@@ -19,7 +19,17 @@ export function EntryHistoryPanel({ modelName, objectId }: { modelName: string; 
   });
 
   if (isLoading) return <LoadingSpinner label="Loading history…" />;
-  if (isError) return <p className="text-sm text-red-600">Failed to load history.</p>;
+  if (isError) {
+    // The audit log is Supervisor+ only — an Operator viewing their own
+    // entry gets a 403 here, which isn't a bug, just a permission floor.
+    // Say so plainly instead of a generic "failed", which read as broken.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const status = (error as any)?.response?.status;
+    if (status === 403) {
+      return <p className="text-sm text-slate-500">History is only visible to supervisors and above.</p>;
+    }
+    return <p className="text-sm text-red-600">Failed to load history.</p>;
+  }
   if (!data || data.length === 0) return <p className="text-sm text-slate-400">No history recorded yet.</p>;
 
   return (

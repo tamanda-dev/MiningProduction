@@ -11,21 +11,148 @@ import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { Modal } from "@/components/common/Modal";
 import { Pagination } from "@/components/common/Pagination";
 import { ShiftInstancePicker } from "@/components/common/ShiftInstancePicker";
+import { DynamicField, type FieldValue } from "@/components/operate/DynamicField";
 import { EntryHistoryPanel } from "@/components/entries/EntryHistoryPanel";
 import { api } from "@/lib/api";
 import { ENTRY_STATUS_COLOR } from "@/lib/chartTheme";
 import { useSiteFilter } from "@/lib/SiteFilterContext";
 import { useLookup } from "@/lib/useLookup";
-import type { EntryStatus, Machine, Paginated, ProductionEntry, Section, ShiftInstance } from "@/types";
+import type {
+  EntryStatus,
+  FormSchemaParameter,
+  Machine,
+  Paginated,
+  ProductionEntry,
+  Section,
+  ShiftInstance,
+} from "@/types";
 
 const PAGE_SIZE = 25;
 
 const STATUS_OPTIONS: EntryStatus[] = ["submitted", "flagged", "corrected", "approved"];
 
-function EntryDetailModal({ entry, onClose }: { entry: ProductionEntry; onClose: () => void }) {
-  const { hasRole } = useAuth();
+function EditEntryForm({
+  entry,
+  machineTypeId,
+  onCancel,
+  onSaved,
+  requireOverrideReason,
+}: {
+  entry: ProductionEntry;
+  machineTypeId: number;
+  onCancel: () => void;
+  onSaved: () => void;
+  requireOverrideReason: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const [comments, setComments] = useState(entry.comments);
+  const [overrideReason, setOverrideReason] = useState("");
+  const [values, setValues] = useState<Record<string, FieldValue>>(() => {
+    const seeded: Record<string, FieldValue> = {};
+    for (const v of entry.values_display) {
+      seeded[v.parameter_code] = v.value === null ? undefined : (v.value as FieldValue);
+    }
+    return seeded;
+  });
+  const [error, setError] = useState<string | null>(null);
+
+  const schemaQuery = useQuery({
+    queryKey: ["form-schema", machineTypeId, entry.section],
+    queryFn: async () => {
+      const { data } = await api.get<FormSchemaParameter[]>(`/machine-types/${machineTypeId}/form-schema/`, {
+        params: { section: entry.section },
+      });
+      return data;
+    },
+  });
+  // Mirrors OperateEntryPage's split: an hourly entry only takes
+  // hourly/machine-scoped parameters, a shift-total entry only takes
+  // shift-scoped ones — entry_type itself isn't editable here, so this
+  // just re-derives the same fixed set the entry was originally created
+  // with.
+  const parameters = (schemaQuery.data ?? []).filter((p) =>
+    entry.entry_type === "shift_total" ? p.scope === "shift" : p.scope !== "shift",
+  );
+
+  const saveMutation = useMutation({
+    mutationFn: async () =>
+      api.patch(`/production-entries/${entry.id}/`, {
+        comments,
+        override_reason: requireOverrideReason ? overrideReason : undefined,
+        values: parameters
+          .filter((p) => values[p.code] !== undefined && values[p.code] !== "")
+          .map((p) => ({ parameter: p.code, value: values[p.code] })),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["production-entries"] });
+      onSaved();
+    },
+    onError: (err) => setError(extractErrorMessage(err)),
+  });
+
+  return (
+    <div className="flex flex-col gap-4">
+      {schemaQuery.isLoading && <p className="text-sm text-slate-400">Loading form…</p>}
+      {parameters.map((param) => (
+        <DynamicField
+          key={param.code}
+          parameter={param}
+          value={values[param.code]}
+          onChange={(v) => setValues((prev) => ({ ...prev, [param.code]: v }))}
+        />
+      ))}
+
+      <div>
+        <label className="mb-1 block text-sm font-medium text-slate-700">Comments</label>
+        <textarea
+          value={comments}
+          onChange={(e) => setComments(e.target.value)}
+          rows={2}
+          className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+        />
+      </div>
+
+      {requireOverrideReason && (
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">
+            Reason (required — this shift instance is no longer open)
+          </label>
+          <textarea
+            value={overrideReason}
+            onChange={(e) => setOverrideReason(e.target.value)}
+            rows={2}
+            className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+          />
+        </div>
+      )}
+
+      {error && <ErrorMessage message={error} />}
+
+      <div className="flex gap-2">
+        <Button size="sm" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+          {saveMutation.isPending ? "Saving…" : "Save"}
+        </Button>
+        <Button variant="secondary" size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function EntryDetailModal({
+  entry,
+  onClose,
+  machines,
+}: {
+  entry: ProductionEntry;
+  onClose: () => void;
+  machines?: Machine[];
+}) {
+  const { hasRole, user } = useAuth();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
 
   const statusMutation = useMutation({
     mutationFn: async (status: EntryStatus) => api.patch(`/production-entries/${entry.id}/`, { status }),
@@ -33,61 +160,92 @@ function EntryDetailModal({ entry, onClose }: { entry: ProductionEntry; onClose:
     onError: (err) => setError(extractErrorMessage(err)),
   });
 
+  const { data: shiftInstance } = useQuery({
+    queryKey: ["shift-instance", entry.shift_instance],
+    queryFn: async () => {
+      const { data } = await api.get<ShiftInstance>(`/shift-instances/${entry.shift_instance}/`);
+      return data;
+    },
+  });
+
+  const machine = machines?.find((m) => m.id === entry.machine);
+  const shiftOpen = shiftInstance?.status === "open";
+  const isOwnEntry = user?.id === entry.operator;
+  // An operator may fix their own mistake, but only while the shift is
+  // still open — once closed/approved, correcting it is a Supervisor+
+  // call (and requires an override reason server-side; see
+  // entries/services.py::enforce_shift_window).
+  const canEdit = machine !== undefined && (hasRole("supervisor") || (isOwnEntry && shiftOpen));
+
   return (
     <Modal open onClose={onClose} title={`Production Entry #${entry.id}`} wide>
-      <div className="flex flex-col gap-4">
-        <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-          <Detail label="Entry Type" value={entry.entry_type} />
-          <Detail label="Slot" value={entry.slot_index !== null ? `#${entry.slot_index}` : "—"} />
-          <Detail label="Status" value={<Badge label={entry.status} color={ENTRY_STATUS_COLOR[entry.status]} />} />
-          <Detail
-            label="Slot Window"
-            value={
-              entry.slot_start_at
-                ? `${new Date(entry.slot_start_at).toLocaleTimeString()} – ${new Date(entry.slot_end_at!).toLocaleTimeString()}`
-                : "—"
-            }
-          />
-          <Detail label="Source" value={entry.source} />
-          <Detail label="Comments" value={entry.comments || "—"} />
-        </div>
+      {editing && machine ? (
+        <EditEntryForm
+          entry={entry}
+          machineTypeId={machine.machine_type}
+          requireOverrideReason={hasRole("supervisor") && !shiftOpen}
+          onCancel={() => setEditing(false)}
+          onSaved={onClose}
+        />
+      ) : (
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+            <Detail label="Entry Type" value={entry.entry_type} />
+            <Detail label="Slot" value={entry.slot_index !== null ? `#${entry.slot_index}` : "—"} />
+            <Detail label="Status" value={<Badge label={entry.status} color={ENTRY_STATUS_COLOR[entry.status]} />} />
+            <Detail
+              label="Slot Window"
+              value={
+                entry.slot_start_at
+                  ? `${new Date(entry.slot_start_at).toLocaleTimeString()} – ${new Date(entry.slot_end_at!).toLocaleTimeString()}`
+                  : "—"
+              }
+            />
+            <Detail label="Source" value={entry.source} />
+            <Detail label="Comments" value={entry.comments || "—"} />
+          </div>
 
-        <div>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Values</h3>
-          <table className="w-full text-left text-sm">
-            <tbody>
-              {entry.values_display.length === 0 && (
-                <tr>
-                  <td className="py-1 text-slate-400">No parameter values recorded.</td>
-                </tr>
-              )}
-              {entry.values_display.map((v) => (
-                <tr key={v.parameter} className="border-b border-slate-100 last:border-0">
-                  <td className="py-1.5 text-slate-600">{v.parameter_name}</td>
-                  <td className="py-1.5 text-right font-medium text-slate-900">{String(v.value)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+          <div>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Values</h3>
+            <table className="w-full text-left text-sm">
+              <tbody>
+                {entry.values_display.length === 0 && (
+                  <tr>
+                    <td className="py-1 text-slate-400">No parameter values recorded.</td>
+                  </tr>
+                )}
+                {entry.values_display.map((v) => (
+                  <tr key={v.parameter} className="border-b border-slate-100 last:border-0">
+                    <td className="py-1.5 text-slate-600">{v.parameter_name}</td>
+                    <td className="py-1.5 text-right font-medium text-slate-900">{String(v.value)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-        {hasRole("supervisor") && (
           <div>
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Actions</h3>
             <div className="flex flex-wrap gap-2">
-              {STATUS_OPTIONS.filter((s) => s !== entry.status).map((s) => (
-                <Button
-                  key={s}
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    setError(null);
-                    statusMutation.mutate(s);
-                  }}
-                >
-                  Mark {s}
+              {canEdit && (
+                <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
+                  Edit
                 </Button>
-              ))}
+              )}
+              {hasRole("supervisor") &&
+                STATUS_OPTIONS.filter((s) => s !== entry.status).map((s) => (
+                  <Button
+                    key={s}
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setError(null);
+                      statusMutation.mutate(s);
+                    }}
+                  >
+                    Mark {s}
+                  </Button>
+                ))}
             </div>
             {error && (
               <div className="mt-2">
@@ -95,13 +253,13 @@ function EntryDetailModal({ entry, onClose }: { entry: ProductionEntry; onClose:
               </div>
             )}
           </div>
-        )}
 
-        <div>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">History</h3>
-          <EntryHistoryPanel modelName="productionentry" objectId={entry.id} />
+          <div>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">History</h3>
+            <EntryHistoryPanel modelName="productionentry" objectId={entry.id} />
+          </div>
         </div>
-      </div>
+      )}
     </Modal>
   );
 }
@@ -323,7 +481,9 @@ export function ProductionEntriesPage() {
         <Pagination page={currentPage} pageCount={pageCount} totalCount={filtered.length} onChange={setPage} />
       )}
 
-      {selected && <EntryDetailModal entry={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <EntryDetailModal entry={selected} onClose={() => setSelected(null)} machines={machines} />
+      )}
     </div>
   );
 }

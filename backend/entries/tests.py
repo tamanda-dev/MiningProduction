@@ -344,3 +344,103 @@ def test_production_entry_date_to_includes_the_whole_day(
     resp = api_client.get("/api/production-entries/", {"date_from": "2026-07-29", "date_to": "2026-07-29"})
     assert resp.status_code == 200
     assert entry.id in [row["id"] for row in resp.data["results"]]
+
+
+@pytest.mark.django_db
+def test_editing_a_production_entry_preserves_its_shift_instance_and_operator(
+    api_client, machines, sections, all_day_shifts, django_user_model, supervisor_site_a
+):
+    """Regression test: PATCHing an existing entry (e.g. a supervisor
+    correcting a value days later) must not silently move it onto whatever
+    shift instance happens to be open *right now*, nor reassign it to
+    whoever is doing the editing. validate() used to recompute
+    shift_instance/operator unconditionally on every save instead of
+    falling back to the row's existing values on update — caught live via
+    the web dashboard's "Edit entry" flow visibly reassigning an operator's
+    entry to the supervisor who corrected it.
+    """
+    m_a, _ = machines
+    sec_a, _ = sections
+    operator = django_user_model.objects.create_user(username="entry_owner", password="pass12345")
+
+    api_client.force_authenticate(user=operator)
+    create_resp = api_client.post(
+        "/api/production-entries/",
+        {"section": sec_a.id, "machine": m_a.id, "entry_type": "shift_total", "values": []},
+        format="json",
+    )
+    assert create_resp.status_code == 201, create_resp.data
+    entry_id = create_resp.data["id"]
+    original_operator_id = create_resp.data["operator"]
+    original_shift_instance_id = create_resp.data["shift_instance"]
+    assert original_operator_id == operator.id
+
+    api_client.force_authenticate(user=supervisor_site_a)
+    patch_resp = api_client.patch(f"/api/production-entries/{entry_id}/", {"comments": "corrected"}, format="json")
+    assert patch_resp.status_code == 200, patch_resp.data
+    assert patch_resp.data["operator"] == original_operator_id
+    assert patch_resp.data["shift_instance"] == original_shift_instance_id
+
+
+@pytest.mark.django_db
+def test_editing_a_breakdown_log_preserves_its_shift_instance_and_operator(
+    api_client, machines, sections, all_day_shifts, django_user_model, supervisor_site_a
+):
+    """Same regression as above, for BreakdownLog — here shift_instance and
+    operator are read-only fields the client can never submit at all, so
+    the only way validate() could have preserved them on update was to
+    check self.instance explicitly, which it didn't."""
+    m_a, _ = machines
+    sec_a, _ = sections
+    operator = django_user_model.objects.create_user(username="entry_owner2", password="pass12345")
+
+    api_client.force_authenticate(user=operator)
+    create_resp = api_client.post(
+        "/api/breakdown-logs/",
+        {
+            "machine": m_a.id,
+            "section": sec_a.id,
+            "start_at": "2026-07-29T14:00:00Z",
+            "description": "Hydraulic hose burst",
+        },
+        format="json",
+    )
+    assert create_resp.status_code == 201, create_resp.data
+    log_id = create_resp.data["id"]
+    original_operator_id = create_resp.data["operator"]
+    original_shift_instance_id = create_resp.data["shift_instance"]
+    assert original_operator_id == operator.id
+
+    api_client.force_authenticate(user=supervisor_site_a)
+    patch_resp = api_client.patch(f"/api/breakdown-logs/{log_id}/", {"description": "corrected"}, format="json")
+    assert patch_resp.status_code == 200, patch_resp.data
+    assert patch_resp.data["operator"] == original_operator_id
+    assert patch_resp.data["shift_instance"] == original_shift_instance_id
+
+
+@pytest.mark.django_db
+def test_editing_a_delivery_entry_preserves_its_shift_instance_and_operator(
+    api_client, two_sites, all_day_shifts, django_user_model, supervisor_site_a
+):
+    """Same regression as above, for DeliveryEntry."""
+    site_a, _ = two_sites
+    destination = DeliveryDestination.objects.create(site=site_a, name="Stockpile B", code="stockpile-b")
+    operator = django_user_model.objects.create_user(username="entry_owner3", password="pass12345")
+
+    api_client.force_authenticate(user=operator)
+    create_resp = api_client.post(
+        "/api/delivery-entries/",
+        {"delivery_destination": destination.id, "tonnes": "12.0", "trip_count": 1},
+        format="json",
+    )
+    assert create_resp.status_code == 201, create_resp.data
+    entry_id = create_resp.data["id"]
+    original_operator_id = create_resp.data["operator"]
+    original_shift_instance_id = create_resp.data["shift_instance"]
+    assert original_operator_id == operator.id
+
+    api_client.force_authenticate(user=supervisor_site_a)
+    patch_resp = api_client.patch(f"/api/delivery-entries/{entry_id}/", {"tonnes": "15.0"}, format="json")
+    assert patch_resp.status_code == 200, patch_resp.data
+    assert patch_resp.data["operator"] == original_operator_id
+    assert patch_resp.data["shift_instance"] == original_shift_instance_id

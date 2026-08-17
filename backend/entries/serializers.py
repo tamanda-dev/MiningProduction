@@ -117,12 +117,26 @@ class ProductionEntrySerializer(serializers.ModelSerializer):
                     {"section": "Required when not submitting via an active machine_assignment."}
                 )
             attrs["site"] = section.site
-            attrs["shift_instance"] = attrs.get("shift_instance") or get_or_create_open_instance(section.site)
+            # On an update, an omitted shift_instance/operator must fall
+            # back to the row's own existing values, not be recomputed —
+            # "recompute from what's open right now" is only correct at
+            # create time. Recomputing on every update silently relocated
+            # an edited entry to whatever shift instance happened to be
+            # open *at edit time* (e.g. a supervisor correcting an old
+            # entry days later moved it onto today's shift) and reassigned
+            # operator to whoever was doing the editing — caught live via
+            # the Production Entries "Edit" flow reassigning an operator's
+            # entry to the supervisor who'd corrected it.
+            attrs["shift_instance"] = (
+                attrs.get("shift_instance")
+                or getattr(self.instance, "shift_instance", None)
+                or get_or_create_open_instance(section.site)
+            )
             if attrs["shift_instance"] is None:
                 raise serializers.ValidationError(
                     {"shift_instance": "No open shift covers the current time for this section's site."}
                 )
-            attrs["operator"] = attrs.get("operator") or request.user
+            attrs["operator"] = attrs.get("operator") or getattr(self.instance, "operator", None) or request.user
 
         if entry_type == ProductionEntry.ENTRY_TYPE_HOURLY:
             if slot_index is None:
@@ -239,19 +253,32 @@ class BreakdownLogSerializer(serializers.ModelSerializer):
         section = attrs.get("section") or getattr(self.instance, "section", None)
 
         attrs["site"] = machine.site
-        shift_instance = get_or_create_open_instance(machine.site)
-        if shift_instance is None:
-            raise serializers.ValidationError({"detail": "No open shift covers the current time for this site."})
+        # shift_instance/machine_assignment/operator are all read-only (the
+        # client never submits them), so on an update they must come from
+        # the existing row — recomputing them unconditionally on every
+        # save (as this used to) silently relocated an edited entry onto
+        # whatever shift instance happened to be open *at edit time* and
+        # reassigned operator to whoever was editing, once the original
+        # operator's machine_assignment had ended. Only a create (no
+        # self.instance yet) should derive these fresh.
+        if self.instance is not None:
+            shift_instance = self.instance.shift_instance
+            attrs["machine_assignment"] = self.instance.machine_assignment
+            attrs["operator"] = self.instance.operator
+        else:
+            shift_instance = get_or_create_open_instance(machine.site)
+            if shift_instance is None:
+                raise serializers.ValidationError({"detail": "No open shift covers the current time for this site."})
+            machine_assignment = MachineAssignment.objects.filter(
+                machine=machine, operator=request.user, status=MachineAssignment.STATUS_ACTIVE
+            ).first()
+            attrs["machine_assignment"] = machine_assignment
+            attrs["operator"] = machine_assignment.operator if machine_assignment else request.user
         attrs["shift_instance"] = shift_instance
         attrs["section"] = section or machine.current_section
         if attrs["section"] is None:
             raise serializers.ValidationError({"section": "Required (machine has no current_section set)."})
 
-        machine_assignment = MachineAssignment.objects.filter(
-            machine=machine, operator=request.user, status=MachineAssignment.STATUS_ACTIVE
-        ).first()
-        attrs["machine_assignment"] = machine_assignment
-        attrs["operator"] = machine_assignment.operator if machine_assignment else request.user
         attrs["recorded_by"] = request.user
 
         services.enforce_shift_window(shift_instance, request.user, attrs.get("override_reason", ""))
@@ -328,11 +355,22 @@ class DeliveryEntrySerializer(serializers.ModelSerializer):
         request = self.context["request"]
         destination = attrs.get("delivery_destination") or getattr(self.instance, "delivery_destination", None)
         attrs["site"] = destination.site
-        shift_instance = get_or_create_open_instance(destination.site)
-        if shift_instance is None:
-            raise serializers.ValidationError({"detail": "No open shift covers the current time for this site."})
+        # shift_instance/operator are read-only, so on an update they must
+        # come from the existing row, not be recomputed — recomputing
+        # unconditionally on every save (as this used to) silently
+        # relocated an edited entry onto whatever shift instance happened
+        # to be open *at edit time* and reassigned operator to whoever was
+        # editing. Same fix applied to ProductionEntrySerializer and
+        # BreakdownLogSerializer above.
+        if self.instance is not None:
+            shift_instance = self.instance.shift_instance
+            attrs["operator"] = self.instance.operator
+        else:
+            shift_instance = get_or_create_open_instance(destination.site)
+            if shift_instance is None:
+                raise serializers.ValidationError({"detail": "No open shift covers the current time for this site."})
+            attrs["operator"] = request.user
         attrs["shift_instance"] = shift_instance
-        attrs["operator"] = request.user
         attrs["recorded_by"] = request.user
 
         slot_index = attrs.get("slot_index", getattr(self.instance, "slot_index", None))
